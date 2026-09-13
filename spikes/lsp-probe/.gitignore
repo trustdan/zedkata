@@ -1,0 +1,7 @@
+/node_modules/
+/dist/
+/captures/
+/test-output/
+/npm-cache/
+/extension/target/
+/extension/extension.wasm

@@ -1,0 +1,71 @@
+# Reference lesson. Not calibrated — par_edits values here are theoretical and must be
+# re-derived by hand per .claude/agents/curriculum-author.md (from the repository root)
+# before shipping. Referenced fixtures and prerequisite lessons are not included yet.
+#
+# Depends on OQ-01. If Phase 0 finds that Zed coalesces didChange, delete every
+# par_edits / max_edits / [exercise.forbid] key in this file.
+
+[lesson]
+id = "motions-03-textobjects"
+title = "Text objects"
+module = 3
+requires = ["motions-01-word", "motions-02-find"]
+concepts = ["ci", "ca", "di", "AnyQuotes", "AnyBrackets", "MiniQuotes"]
+
+prose = """
+Zed ships text objects vim doesn't have. AnyQuotes and AnyBrackets select quoted or
+bracketed text without you naming the delimiter. MiniQuotes and MiniBrackets follow
+mini.ai's behavior instead, which differs on nesting and on whitespace handling.
+"""
+
+# ---------------------------------------------------------------------------
+
+[[exercise]]
+id = "swap-string-contents"
+task = "Replace the contents of the string on line 4. Leave the quotes alone."
+start = "fixtures/motions-03/swap-string.start.kata"
+goal = "fixtures/motions-03/swap-string.goal.kata"
+par_edits = 1
+max_edits = 3
+hint = "You do not need to know which kind of quote it is."
+
+[exercise.forbid]
+backspace_run = 3
+
+# ---------------------------------------------------------------------------
+
+[[exercise]]
+id = "gut-the-block"
+task = "Empty the body of the function on line 7, keeping the braces and the signature."
+start = "fixtures/motions-03/gut-block.start.kata"
+goal = "fixtures/motions-03/gut-block.goal.kata"
+par_edits = 1
+max_edits = 2
+hint = "Inner versus around is the whole distinction here."
+
+[exercise.forbid]
+backspace_run = 3
+visual_line_select = true   # passes, but not the technique being taught
+
+# ---------------------------------------------------------------------------
+
+[[exercise]]
+id = "nested-brackets"
+task = "Replace the arguments inside the inner call on line 11. Outer call untouched."
+start = "fixtures/motions-03/nested.start.kata"
+goal = "fixtures/motions-03/nested.goal.kata"
+par_edits = 1
+max_edits = 4
+hint = "Cursor position decides which bracket pair you get. Think about where you start."
+
+# ---------------------------------------------------------------------------
+# Not drillable — routes to zedkata-agent as a guided walkthrough.
+
+[[walkthrough]]
+id = "mini-vs-any"
+title = "When MiniBrackets disagrees with AnyBrackets"
+prompt = """
+Show the student a nested structure where AnyBrackets and MiniBrackets select
+differently. Have them try both and describe what they observed before you explain it.
+Ground the explanation in their actual edit log, not in a generic description.
+"""

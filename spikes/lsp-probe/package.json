@@ -1,0 +1,21 @@
+{
+  "name": "zedkata-lsp-probe",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Disposable Phase 0 LSP traffic probe",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/probe.js --stdio",
+    "test": "npm run build && node --test test/probe.test.cjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "vscode-languageserver": "10.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.2",
+    "typescript": "7.0.2"
+  }
+}

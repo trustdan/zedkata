@@ -1,0 +1,5 @@
+// ZK-003 connection smoke test; not a calibrated lesson.
+fn main() {
+    let message = "hello Zed";
+    println!("{}", message);
+}

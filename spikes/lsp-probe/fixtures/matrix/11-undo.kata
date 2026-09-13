@@ -1,0 +1,7 @@
+fn main() {
+    let words = "alpha bravo charlie";
+    let message = "hello probe";
+    let first = "repeat";
+    let second = "repeat";
+    let unicode = "café 🌍";
+}

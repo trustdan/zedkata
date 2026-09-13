@@ -1,0 +1,13 @@
+id = "zedkata-probe"
+name = "Zedkata Probe"
+version = "0.0.1"
+schema_version = 1
+authors = ["Dan"]
+description = "Disposable local Phase 0 LSP observer for zedkata"
+
+[language_servers.zedkata-probe]
+name = "Zedkata Probe"
+languages = ["Zedkata Probe"]
+
+[language_servers.zedkata-probe.language_ids]
+"Zedkata Probe" = "zedkata"

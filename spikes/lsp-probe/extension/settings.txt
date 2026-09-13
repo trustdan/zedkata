@@ -1,0 +1,4 @@
+root: c:\Users\Dan\zedkata\spikes\lsp-probe\extension 
+path: C:\Program Files\nodejs 
+arch: 64 
+proxy: none
