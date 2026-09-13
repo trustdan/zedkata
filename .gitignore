@@ -1,0 +1,15 @@
+# Rust build artifacts
+/target/
+**/*.rs.bk
+
+
+# Editor & OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.tmp
+*.bak
+
+# Temporary session state
+/session.json
+/session.json.*.tmp

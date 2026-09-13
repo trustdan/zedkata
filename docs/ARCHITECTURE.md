@@ -115,11 +115,35 @@ Path: `$XDG_STATE_HOME/zedkata/session.json`, falling back to platform equivalen
 }
 ```
 
-Writers: `zedkata-lsp` owns `current` and `attempt`. `zedkata-tui` owns `current.lesson_id`
-when the student navigates. `zedkata-core` computes `history` and `weaknesses` on verdict.
+### Field Ownership & Process Boundaries
 
-Concurrent-write handling: write to a temp file and rename. Last writer wins. This is a
-single-user local tool; do not build a lock protocol.
+- **`zedkata-tui` owns:**
+  - `current.lesson_id`: active lesson selected by student.
+  - `current.exercise_index`: active exercise within the lesson.
+  - `current.nav_mode`: navigation / UI state.
+- **`zedkata-lsp` owns:**
+  - `current.buffer_path`: canonical filesystem path of active `.kata` buffer.
+  - `current.opened_at`: timestamp of current document open.
+  - `attempt`: rolling edit log, edit count, start timestamp, and current verdict (`in_progress`, `passed`, `failed`).
+  - Appends to `history` and updates `weaknesses` when a verdict is reached.
+- **`zedkata-core` library:**
+  - Pure calculation: computes goal matches, scoring rules, forbid evaluations, and history aggregates. Does not write files directly; called by `zedkata-lsp` and `zedkata-tui`.
+
+### Attempt Lifecycle
+
+1. **`idle`**: No active exercise buffer attached.
+2. **`started`**: Zed emits `textDocument/didOpen` for the active exercise. LSP initializes a fresh `attempt` with a unique timestamped ID and records baseline buffer content.
+3. **`editing`**: Zed emits incremental `textDocument/didChange` deltas. LSP records changes, increments `edit_count`, checks forbidden patterns (e.g. backspace runs), and tests buffer against goal.
+4. **`passed`**: Buffer matches goal within `max_edits` and satisfies all `forbid` rules. LSP marks verdict `passed`, updates `history`, pushes a congratulatory diagnostic into the buffer, and writes `session.json`. TUI polls state and unlocks the next exercise.
+5. **`failed`**: Buffer matches goal but violated `max_edits` or forbidden patterns, or student manually abandons. LSP marks verdict `failed`, pushes an actionable failure diagnostic (e.g. "Over par: 5 edits (par 1)"), and logs the attempt.
+6. **`retried`**: Student resets the exercise (via TUI reset or reopening pristine buffer). Prior diagnostics are cleared and a new attempt begins.
+
+### Persistence & Concurrency Contract
+
+- **Storage Location:** `$XDG_STATE_HOME/zedkata/session.json` on Linux/macOS; `%LOCALAPPDATA%\zedkata\session.json` on Windows.
+- **Atomic Replacement:** State writes must write to a temporary file (`session.json.<pid>.tmp`) and atomically rename over `session.json`. On Windows, this ensures readers never observe partial writes.
+- **Policy:** Single-user local course; last-writer-wins across TUI navigation and LSP verdict updates.
+
 
 ---
 

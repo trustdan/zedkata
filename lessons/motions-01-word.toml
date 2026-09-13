@@ -1,0 +1,41 @@
+[lesson]
+id = "motions-01-word"
+title = "Word motions"
+module = 1
+requires = []
+concepts = ["dw", "de", "w", "b", "e"]
+
+prose = """
+Moving word by word is the baseline of modal navigation in Zed.
+`w` jumps forward to the next word start, `e` to the word end, and `b` backward.
+Combined with the `d` operator, `dw` deletes from the cursor through the word,
+while `de` deletes to the end of the word. Practice clean, single-operation edits.
+"""
+
+# ---------------------------------------------------------------------------
+
+[[exercise]]
+id = "delete-word-arg"
+task = "Delete the unused parameter name 'target' on line 2."
+start = "fixtures/motions-01/delete-word-arg.start.kata"
+goal = "fixtures/motions-01/delete-word-arg.goal.kata"
+par_edits = 1
+max_edits = 2
+hint = "A single word deletion will remove the identifier and trailing space."
+
+[exercise.forbid]
+backspace_run = 3
+
+# ---------------------------------------------------------------------------
+
+[[exercise]]
+id = "delete-to-word-end"
+task = "Delete the suffix 'Error' from the struct name on line 1."
+start = "fixtures/motions-01/delete-to-word-end.start.kata"
+goal = "fixtures/motions-01/delete-to-word-end.goal.kata"
+par_edits = 1
+max_edits = 2
+hint = "Delete forward to the end of the current word."
+
+[exercise.forbid]
+backspace_run = 3

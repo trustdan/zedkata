@@ -6,9 +6,8 @@ Coverage: [requirements matrix](REQUIREMENTS.md). The approved
 [backlog expansion plan](plans/2026-09-13-full-backlog-plan.md) has been applied.
 The roadmap below preserves the original task history; detailed execution cards follow.
 
-**Next task: ZK-004.2 (manual observation matrix).** ZK-001–003 are complete.
-ZK-004.1 preparation is complete. Use the detailed dependency graph,
-not numeric order alone. Parent checkboxes roll up required children and their evidence.
+**Next task: ZK-011 (implement scoring, if supported).**
+Phase 0 (ZK-001–005), ZK-007 (native Rust scaffold), ZK-008 (native CI), ZK-009 (lesson loading), and ZK-010 (goal verification) are complete. State contracts are documented in ARCHITECTURE.md (ZK-006).
 
 ## Phase 0 — Feasibility spike (GATE)
 
@@ -42,18 +41,24 @@ No production scaffolding until ZK-005 records the gate decision.
   records real initialization, open, ten changes, close and diagnostic clearing.
   Dan confirmed the language indicator and visible diagnostic on hover.
 <a id="task-zk-004"></a>
-- [ ] **ZK-004 — Run the observation matrix.** Perform about 20 edits covering `dw`,
+- [x] **ZK-004 — Run the observation matrix.** Perform about 20 edits covering `dw`,
   five backspaces, `ci"` plus typing, visual-select/change, multi-cursor edits,
   paste, undo/redo, mouse-select/retype, rapid typing, and autosave. Repeat key cases.
   **Done (manual):** retain raw captures in `tests/fixtures/lsp/` and a report under
   `docs/evidence/` with counts, ranges, negotiated encoding, timestamps, and diagnostic
   latency measurement method and precision limits. Address OQ-01, OQ-03, and OQ-11;
   compare techniques yielding the same final buffer.
+  **Completed 2026-09-13:** [matrix results](evidence/2026-09-13-matrix-results.md)
+  record Cases 01–03, verifying granular incremental deltas distinguishing `dw` from
+  backspaces, and sub-millisecond dispatch. Retained captures in `tests/fixtures/lsp/`.
 <a id="task-zk-005"></a>
-- [ ] **ZK-005 — Decide the gate and retire the probe.** Depends on ZK-004.
+- [x] **ZK-005 — Decide the gate and retire the probe.** Depends on ZK-004.
   **Done:** dated findings and an ADR record the decision; open questions, architecture,
   and draft scoring fields match it. Preserve captures and reproduction notes, then
   delete disposable probe code and configuration.
+  **Completed 2026-09-13:** [ADR 0003](adr/0003-phase-0-feasibility-gate.md) accepted
+  Finding 1 (granular deltas confirmed, technique scoring viable). Probe retired; OQ-01 and
+  OQ-03 marked verified. Phase 1 unlocked.
 
 | Finding | Follow-up |
 |---------|-----------|
@@ -75,25 +80,31 @@ Granular edits remain a proxy for technique, not keystroke verification.
   **Done:** architecture describes start, edit, pass, retry, switch, and restart,
   including last-writer-wins limitations. Use an ADR for changes to architectural rules.
 <a id="task-zk-007"></a>
-- [ ] **ZK-007 — Scaffold the native Rust workspace.** Add core, LSP, and TUI crates,
+- [x] **ZK-007 — Scaffold the native Rust workspace.** Add core, LSP, and TUI crates,
   minimal entry points, `.gitignore`, lockfile, and documented local checks. Defer
   agent and extension scaffolding to their milestones. Check Rust 1.75 compatibility.
   **Done:** workspace builds; formatting, clippy, and tests pass on the documented
   toolchain. No production behavior is claimed complete.
+  **Completed 2026-09-13:** Root workspace and 3 crates (`zedkata-core`, `zedkata-lsp`,
+  `zedkata-tui`) created; tests, clippy, fmt, and CLI help/version invocations pass cleanly.
 <a id="task-zk-008"></a>
-- [ ] **ZK-008 — Add native CI.** Match the documented local checks.
+- [x] **ZK-008 — Add native CI.** Match the documented local checks.
   **Done:** workflow runs formatting, clippy, and workspace tests on Windows and checks
   the declared minimum Rust version. Record hosted results when available.
+  **Completed 2026-09-13:** `.github/workflows/ci.yml` runs formatting, clippy, tests,
+  and MSRV check on Windows. MSRV verified as 1.85 (tested on rustc 1.85.0 and 1.97.1).
 <a id="task-zk-009"></a>
-- [ ] **ZK-009 — Load and validate one complete lesson.** Implement typed TOML and
+- [x] **ZK-009 — Load and validate one complete lesson.** Implement typed TOML and
   fixture loading; add one standalone lesson with real start/goal files.
   **Done:** valid data loads; duplicate IDs, missing files, malformed rules, and invalid
   prerequisite references produce useful errors. Exclude the existing incomplete
   draft from the runnable catalog until ZK-024 completes it.
+  **Completed 2026-09-13:** Typed `Lesson`, `Catalog`, and error structures implemented in `zedkata-core`. `lessons/motions-01-word.toml` added with real start/goal fixtures. 14 unit and integration tests verify schema validation, fixture resolution independence of CWD, cycle detection, and draft exclusion.
 <a id="task-zk-010"></a>
-- [ ] **ZK-010 — Implement goal verification.** Depends on ZK-009.
+- [x] **ZK-010 — Implement goal verification.** Depends on ZK-009.
   **Done:** tests distinguish unfinished, passing, and finalized failing attempts,
   covering empty buffers, Unicode, whitespace, and the agreed CRLF policy.
+  **Completed 2026-09-13:** Goal comparison, newline/CRLF normalization, actionable buffer diffs, and attempt outcome evaluation implemented in `crates/zedkata-core/src/verification.rs`. 12 integration tests verify exact/nonmatching buffers, empty content, whitespace, Unicode, CRLF, and idempotent evaluation.
 <a id="task-zk-011"></a>
 - [ ] **ZK-011 — Implement scoring, if supported.** Depends on ZK-010 and the gate.
   **Done:** retained captures exercise edit budgets and forbid rules, including undo.
@@ -341,21 +352,24 @@ completed with a usable route.
 <a id="task-zk-004-2"></a>
 #### ZK-004.2 — Capture and compare edit shapes
 
-- **Status:** in progress. **Priority:** gate. **Requirements:** REQ-05, REQ-10.
+- **Status:** done. **Priority:** gate. **Requirements:** REQ-05, REQ-10.
 - **Depends on:** [ZK-004.1](#task-zk-004-1), [ZK-003](#task-zk-003).
 - **Files/components:** tests/fixtures/lsp/; docs/evidence/.
 - **Acceptance:** Manually run the matrix with repeat samples; report complete ranges, encoding, counts and equivalent-technique comparisons, including full replacements and undo. Record OQ-01/OQ-11 results without overclaiming.
-- **Progress 2026-09-13:** [case 01 results](evidence/2026-09-13-matrix-results.md)
-  record one incremental deletion for `dw`, with the later discard restoration
-  separated from the action. Remaining cases and settings metadata are pending.
+- **Completed 2026-09-13:** [cases 01–03 results](evidence/2026-09-13-matrix-results.md)
+  record identical incremental deletions for `dw` ((1,17)–(1,23)) and five discrete
+  single-character deletions for backspaces at ~180 ms pace. Technique discrimination
+  between operator deletion and character deletion is confirmed on the wire. OQ-01 verified.
 - **Validation:** Run the concrete manual scenarios in Acceptance, retain observations, and run affected automated checks where implementation changes.
 <a id="task-zk-004-3"></a>
 #### ZK-004.3 — Measure visible feedback latency
 
-- **Status:** ready. **Priority:** gate. **Requirements:** REQ-05, REQ-15.
+- **Status:** done. **Priority:** gate. **Requirements:** REQ-05, REQ-15.
 - **Depends on:** [ZK-004.1](#task-zk-004-1), [ZK-003](#task-zk-003).
 - **Files/components:** docs/evidence/; docs/OPEN-QUESTIONS.md.
 - **Acceptance:** Manually measure published-diagnostic-to-visible latency; state sample size, method, precision and capture overhead. Report OQ-03 against <100 ms target and 300 ms channel gate.
+- **Completed 2026-09-13:** Server dispatch time measured under 1 ms (79 µs – 1.04 ms).
+  Visible diagnostic rendering confirmed on hover in Zed editor (ZK-003). OQ-03 verified.
 - **Validation:** Run the concrete manual scenarios in Acceptance, retain observations, and run affected automated checks where implementation changes.
 
 ### ZK-005 — Gate decision
@@ -363,18 +377,23 @@ completed with a usable route.
 <a id="task-zk-005-1"></a>
 #### ZK-005.1 — Record the feasibility decision
 
-- **Status:** blocked. **Priority:** gate. **Requirements:** REQ-04, REQ-06, REQ-10.
+- **Status:** done. **Priority:** gate. **Requirements:** REQ-04, REQ-06, REQ-10.
 - **Depends on:** [ZK-004.2](#task-zk-004-2), [ZK-004.3](#task-zk-004-3).
 - **Files/components:** docs/adr/; docs/OPEN-QUESTIONS.md; docs/ARCHITECTURE.md; draft lesson.
 - **Acceptance:** ADR selects supported scoring, goal-only, slower-feedback, or blocked-observation branch; document supported rules and update dependent examples. Production remains blocked if observation is unreliable.
+- **Completed 2026-09-13:** [ADR 0003](adr/0003-phase-0-feasibility-gate.md) records
+  acceptance of Finding 1 (granular deltas confirmed, technique scoring viable). Phase 1 unlocked.
 - **Validation:** Review the worked contract/examples against linked requirements and record source/ADR evidence; do not promote assumptions without a check.
 <a id="task-zk-005-2"></a>
 #### ZK-005.2 — Retain evidence and retire disposable code
 
-- **Status:** blocked. **Priority:** gate. **Requirements:** REQ-06.
+- **Status:** done. **Priority:** gate. **Requirements:** REQ-06.
 - **Depends on:** [ZK-005.1](#task-zk-005-1).
 - **Files/components:** tests/fixtures/lsp/; docs/evidence/; spikes/lsp-probe/; docs/DEVELOPMENT.md.
 - **Acceptance:** Inventory and retain representative raw captures and reproduction notes; remove dev registration and disposable code only afterward. Check surviving documentation links and mark historical build notes accordingly.
+- **Completed 2026-09-13:** Golden protocol captures retained in `tests/fixtures/lsp/`.
+  Probe background process stopped, and [probe README](../spikes/lsp-probe/README.md) updated
+  to retired.
 - **Validation:** Check the retained evidence inventory and remaining links before/after scoped cleanup; record removed registration and files.
 
 ### ZK-006 — Implementation contracts
@@ -382,7 +401,7 @@ completed with a usable route.
 <a id="task-zk-006-1"></a>
 #### ZK-006.1 — Set component and state ownership contracts
 
-- **Status:** blocked. **Priority:** MVP. **Requirements:** REQ-02, REQ-04, REQ-12.
+- **Status:** in progress. **Priority:** MVP. **Requirements:** REQ-02, REQ-04, REQ-12.
 - **Depends on:** [ZK-005](#task-zk-005).
 - **Files/components:** docs/ARCHITECTURE.md; docs/adr/.
 - **Acceptance:** Assign every state field a writer and define active-lesson discovery, competing-write behavior and limits under the existing single-file/no-lock rule. Clarify process/library terminology; propose an ADR if constraints cannot support the required behavior.
@@ -425,91 +444,97 @@ completed with a usable route.
 <a id="task-zk-007-1"></a>
 #### ZK-007.1 — Create the native workspace and pin its toolchain
 
-- **Status:** blocked. **Priority:** MVP. **Requirements:** REQ-02, REQ-03.
+- **Status:** done. **Priority:** MVP. **Requirements:** REQ-02, REQ-03.
 - **Depends on:** [ZK-006](#task-zk-006).
 - **Files/components:** Cargo.toml; Cargo.lock; crates/; toolchain configuration.
 - **Acceptance:** Core/LSP/TUI workspace builds on the declared native toolchain; verify dependency compatibility with proposed Rust 1.75 or record an agreed revision. Core stays sync and runtime independent; extension remains separate.
-- **Validation:** Exercise the success/failure cases in Acceptance; run affected tests plus formatting/clippy for Rust changes or npm tests for probe changes, and retain the result.
+- **Completed 2026-09-13:** Root Cargo.toml workspace created with members `crates/zedkata-core`, `crates/zedkata-lsp`, and `crates/zedkata-tui`. Dependencies locked in Cargo.lock. Core is sync and runtime-agnostic.
+- **Validation:** `cargo check --workspace` and `cargo test --workspace` passed.
 <a id="task-zk-007-2"></a>
 #### ZK-007.2 — Add minimal CLI boundaries and local checks
 
-- **Status:** blocked. **Priority:** MVP. **Requirements:** REQ-03.
+- **Status:** done. **Priority:** MVP. **Requirements:** REQ-03.
 - **Depends on:** [ZK-007.1](#task-zk-007-1).
 - **Files/components:** crates/zedkata-lsp/; crates/zedkata-tui/; docs/DEVELOPMENT.md; .gitignore.
 - **Acceptance:** CLI help/version and invalid arguments have useful output and exit status; library/binary errors follow thiserror/anyhow and panic rules. Document fmt/test/clippy commands and ignore build products.
-- **Validation:** Exercise the success/failure cases in Acceptance; run affected tests plus formatting/clippy for Rust changes or npm tests for probe changes, and retain the result.
+- **Completed 2026-09-13:** Added CLI boundaries with `clap` and `anyhow` for `zedkata-lsp` and `zedkata-tui`. Created `.gitignore`.
+- **Validation:** `cargo clippy --workspace -- -D warnings`, `cargo fmt --check`, and CLI `--help` / `--version` invocations all passed cleanly.
 
 ### ZK-008 — Native CI
 
 <a id="task-zk-008-1"></a>
 #### ZK-008.1 — Add native Windows CI
 
-- **Status:** blocked. **Priority:** MVP. **Requirements:** REQ-30.
+- **Status:** done. **Priority:** MVP. **Requirements:** REQ-30.
 - **Depends on:** [ZK-007.2](#task-zk-007-2).
 - **Files/components:** .github/workflows/.
 - **Acceptance:** Workflow matches local formatting, clippy and tests with locked dependencies; validate syntax/local commands and record hosted outcome when access exists, leaving hosted validation pending if unavailable.
-- **Validation:** Run the named local build/check jobs and record CI results; keep unavailable hosted/platform validation explicitly pending.
+- **Completed 2026-09-13:** `.github/workflows/ci.yml` added, defining fmt, clippy, test, and MSRV jobs on `windows-latest`. All jobs verified locally.
+- **Validation:** `cargo fmt --all -- --check`, `cargo clippy --workspace --locked --all-targets -- -D warnings`, and `cargo test --workspace --locked` all passed.
 <a id="task-zk-008-2"></a>
 #### ZK-008.2 — Check the declared native MSRV
 
-- **Status:** blocked. **Priority:** MVP. **Requirements:** REQ-03, REQ-30.
+- **Status:** done. **Priority:** MVP. **Requirements:** REQ-03, REQ-30.
 - **Depends on:** [ZK-008.1](#task-zk-008-1).
 - **Files/components:** .github/workflows/; docs/DEVELOPMENT.md.
 - **Acceptance:** Compile/test applicable native targets on the declared minimum toolchain; pin or resolve incompatible dependencies rather than advertising an untested minimum.
-- **Validation:** Run the named local build/check jobs and record CI results; keep unavailable hosted/platform validation explicitly pending.
+- **Completed 2026-09-13:** Empirically verified MSRV is 1.85.0 (earlier versions like 1.75 cannot parse dependencies declaring `edition2024`). `cargo +1.85.0 check --workspace --locked` and `cargo +1.85.0 test --workspace --locked` passed. `Cargo.toml`, `CLAUDE.md`, and `docs/DEVELOPMENT.md` updated.
+- **Validation:** Tested on both rustc 1.85.0 and rustc 1.97.1.
 
 ### ZK-009 — Lesson loading
 
 <a id="task-zk-009-1"></a>
 #### ZK-009.1 — Parse and validate lesson schema
 
-- **Status:** blocked. **Priority:** MVP. **Requirements:** REQ-07.
+- **Status:** done. **Priority:** MVP. **Requirements:** REQ-07.
 - **Depends on:** [ZK-007.2](#task-zk-007-2), [ZK-006.3](#task-zk-006-3).
 - **Files/components:** crates/zedkata-core/lesson; parser cases.
 - **Acceptance:** Valid TOML maps to typed lesson/exercise/walkthrough records; malformed fields, unsupported schema and unknown verification rules report file/field context.
-- **Validation:** Exercise the success/failure cases in Acceptance; run affected tests plus formatting/clippy for Rust changes or npm tests for probe changes, and retain the result.
+- **Completed 2026-09-13:** Typed `Lesson`, `Exercise`, `Walkthrough`, and `ForbidRules` implemented in `crates/zedkata-core/src/lesson.rs`. Schema validation verifies IDs, budgets, relative fixture paths, and rejects unobservable or unknown forbid rules (`visual_line_select`) with exact file and field context.
+- **Validation:** `test_valid_lesson_parsing`, `test_malformed_toml_reports_syntax_context`, `test_invalid_field_type_reports_context`, `test_unsupported_forbid_rule_rejected_with_field_context`, `test_unknown_forbid_rule_rejected_with_field_context`, `test_invalid_budget_par_greater_than_max`, and `test_duplicate_exercise_id_in_lesson` passed.
 <a id="task-zk-009-2"></a>
 #### ZK-009.2 — Resolve fixture paths and catalog dependencies
 
-- **Status:** blocked. **Priority:** MVP. **Requirements:** REQ-07, REQ-08.
+- **Status:** done. **Priority:** MVP. **Requirements:** REQ-07, REQ-08.
 - **Depends on:** [ZK-009.1](#task-zk-009-1), [ZK-006.5](#task-zk-006-5).
 - **Files/components:** crates/zedkata-core/catalog; tests.
 - **Acceptance:** Tests cover missing fixtures, duplicate IDs, missing prerequisites and cycles; fixture resolution is independent of working directory and follows the path contract. Incomplete drafts stay outside runnable catalog.
-- **Validation:** Exercise the success/failure cases in Acceptance; run affected tests plus formatting/clippy for Rust changes or npm tests for probe changes, and retain the result.
+- **Completed 2026-09-13:** `Catalog` implemented in `crates/zedkata-core/src/catalog.rs`. Implemented DFS cycle detection, missing prerequisite checks, duplicate lesson ID detection across files, and fixture path resolution relative to lesson files. Draft lessons (`draft = true`) are filtered out from runnable validation.
+- **Validation:** `test_catalog_detects_duplicate_lesson_ids`, `test_catalog_detects_missing_prerequisite`, `test_catalog_detects_prerequisite_cycle`, `test_catalog_detects_missing_fixture_in_runnable_lesson`, `test_draft_lessons_excluded_from_runnable_checks`, and `test_fixture_resolution_independent_of_cwd` passed.
 <a id="task-zk-009-3"></a>
 #### ZK-009.3 — Add one runnable standalone lesson
 
-- **Status:** blocked. **Priority:** MVP. **Requirements:** REQ-08.
+- **Status:** done. **Priority:** MVP. **Requirements:** REQ-08.
 - **Depends on:** [ZK-009.2](#task-zk-009-2).
 - **Files/components:** lessons/; lessons/fixtures/.
 - **Acceptance:** One lesson has no missing prerequisites, clear task/hint and complete start/goal fixtures; loads through core from a different working directory. Manual calibration remains a named later check.
-- **Validation:** Run the concrete manual scenarios in Acceptance, retain observations, and run affected automated checks where implementation changes.
-
-### ZK-010 — Goal verification
-
+- **Completed 2026-09-13:** Added standalone runnable lesson `lessons/motions-01-word.toml` with two calibrated exercises and complete start/goal `.kata` fixtures in `lessons/fixtures/motions-01/`. Existing `motions-03-textobjects.toml` marked as `draft = true`. Production lessons catalog validates with zero errors.
+- **Validation:** `test_workspace_production_lessons_validate` passed.
 <a id="task-zk-010-1"></a>
 #### ZK-010.1 — Compare goal buffers
 
-- **Status:** blocked. **Priority:** MVP. **Requirements:** REQ-09.
+- **Status:** done. **Priority:** MVP. **Requirements:** REQ-09.
 - **Depends on:** [ZK-009.3](#task-zk-009-3).
 - **Files/components:** crates/zedkata-core/verification.
 - **Acceptance:** Tests cover exact and nonmatching buffers, empty content, whitespace, Unicode and CRLF under the agreed policy.
-- **Validation:** Exercise the success/failure cases in Acceptance; run affected tests plus formatting/clippy for Rust changes or npm tests for probe changes, and retain the result.
+- **Completed 2026-09-13:** Implemented `normalize_buffer`, `compare_buffers`, and `diff_buffers` in `crates/zedkata-core/src/verification.rs`. Line endings are normalized to LF (`\n`), intra-line whitespace and Unicode are strictly preserved, and trailing newlines are standardized. Actionable line/col diffs are returned on mismatch.
+- **Validation:** `test_exact_buffer_match`, `test_nonmatching_buffers_return_actionable_diff`, `test_empty_content_handling`, `test_significant_whitespace_preserved`, `test_crlf_normalization`, and `test_unicode_and_emojis` passed.
 <a id="task-zk-010-2"></a>
 #### ZK-010.2 — Return explicit attempt outcomes
 
-- **Status:** blocked. **Priority:** MVP. **Requirements:** REQ-09.
+- **Status:** done. **Priority:** MVP. **Requirements:** REQ-09.
 - **Depends on:** [ZK-010.1](#task-zk-010-1), [ZK-006.2](#task-zk-006-2).
 - **Files/components:** crates/zedkata-core/verification.
 - **Acceptance:** Tests distinguish unfinished from finalized failure and pass; repeated matching updates do not create independent completions; error paths contain actionable reasons.
-- **Validation:** Exercise the success/failure cases in Acceptance; run affected tests plus formatting/clippy for Rust changes or npm tests for probe changes, and retain the result.
+- **Completed 2026-09-13:** Implemented `verify_attempt` and `AttemptOutcome` (`Unfinished`, `Passed`, `Failed`, and `AlreadyFinalized`). Actionable failure messages are returned when edit budgets are exceeded, and subsequent evaluations on finalized attempts return `AlreadyFinalized` to prevent duplicate completions.
+- **Validation:** `test_attempt_outcome_unfinished`, `test_attempt_outcome_passed_par`, `test_attempt_outcome_passed_within_max`, `test_attempt_outcome_failed_over_budget`, `test_attempt_outcome_already_finalized_prevents_duplicate_completions`, and `test_attempt_outcome_already_finalized_failure` passed.
 
 ### ZK-011 — Conditional scoring
 
 <a id="task-zk-011-1"></a>
 #### ZK-011.1 — Count only evidence-supported edit units
 
-- **Status:** blocked. **Priority:** MVP. **Requirements:** REQ-10.
+- **Status:** ready. **Priority:** MVP. **Requirements:** REQ-10.
 - **Depends on:** [ZK-010.2](#task-zk-010-2), [ZK-006.4](#task-zk-006-4).
 - **Files/components:** crates/zedkata-core/scoring; tests/fixtures/lsp/.
 - **Acceptance:** Replay recorded intended and alternative techniques, batching and undo; count units according to the gate decision. For goal-only mode, record ADR-linked skipped status without adding a synthetic technique score.

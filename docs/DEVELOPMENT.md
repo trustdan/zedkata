@@ -48,11 +48,11 @@ a committed lockfile; package selection and installation belong to ZK-002.
   `rustup target add wasm32-wasip2`; the disposable extension release build passed.
 - A grammar-bearing extension may need wasi-sdk; Zed documents automatic download.
   Grammar choice and the actual extension build remain for ZK-003.
-- Rust 1.75, the repo's proposed native minimum, is not installed. The modern local
-  compiler does not establish compatibility with that minimum. Resolve native and
-  extension toolchain requirements at their implementation tasks.
-- The disposable WASM extension build and clippy passed during ZK-003. Native
-  application compilation and end-to-end Zed loading remain unverified.
+- Rust 1.85 is verified as the native MSRV (checked 2026-09-13). Rust 1.75 is
+  incompatible because modern 2026 dependencies use `edition2024` (stabilized in 1.85).
+  Native workspace compilation and unit tests pass on both 1.85.0 and 1.97.1.
+- Native CI workflow (`.github/workflows/ci.yml`) runs formatting, clippy, tests, and
+  MSRV checks on Windows.
 
 Target and SDK behavior comes from the current, unversioned
 [extension development guide](https://zed.dev/docs/extensions/developing-extensions),

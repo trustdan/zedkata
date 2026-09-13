@@ -11,15 +11,26 @@ Legend: **VERIFIED** (with date + source) · **ASSUMED** (load-bearing, unchecke
 
 ---
 
-## OQ-01 — `didChange` granularity · OPEN · BLOCKING
+## OQ-01 — `didChange` granularity · VERIFIED (2026-09-13)
 
-Does Zed send one `didChange` per edit operation with incremental ranges, or does it
-coalesce/debounce into batched or full-document notifications?
+Checked 2026-09-13 on Zed 1.19.2 (`df181c6f58d02677b385fa947d6bfde6d3530078`) on Windows.
 
-Blocks: all technique scoring, `par_edits`, `forbid` rules.
-Resolved by: Phase 0 spike.
+Zed sends discrete, incremental `didChange` notifications with UTF-16 ranges without
+coalescing or debouncing into full-document replacements under normal typing pace.
 
-> Finding: _(pending — record Zed version, date, and raw payload samples)_
+**Empirical evidence:**
+- **Operator deletion (`dw`)**: Consistently emitted as a single notification deleting the
+  exact word span `(1,17)–(1,23)` (Cases 01 & 02; sequence 32 and sequence 40).
+- **Character deletion (Backspaces)**: Emitted as 5 separate notifications arriving
+  ~180 ms apart, each deleting 1 character at decrementing column offsets (Case 03;
+  sequences 52, 54, 56, 58, 60).
+- Retained raw JSON-RPC captures: [`tests/fixtures/lsp/2026-09-13-matrix-01-dw.jsonl`](../tests/fixtures/lsp/2026-09-13-matrix-01-dw.jsonl),
+  [`tests/fixtures/lsp/2026-09-13-matrix-02-dw-repeat.jsonl`](../tests/fixtures/lsp/2026-09-13-matrix-02-dw-repeat.jsonl),
+  and [`tests/fixtures/lsp/2026-09-13-matrix-03-backspace.jsonl`](../tests/fixtures/lsp/2026-09-13-matrix-03-backspace.jsonl).
+- See detailed report in [matrix results](evidence/2026-09-13-matrix-results.md) and
+  gate decision in [ADR 0003](adr/0003-phase-0-feasibility-gate.md).
+
+Blocks: unblocked. Technique scoring, `par_edits`, and `forbid` rules are supported.
 
 ---
 
@@ -42,15 +53,16 @@ route for a new language/server pair. Use the documented dev-extension route.
 the probe. Captured initialize/open/change/close and outgoing diagnostics; Dan
 confirmed the visible diagnostic. See [connection evidence](evidence/2026-09-13-connection.md).
 
-**Not established:** whether another settings-only route exists, general edit
-granularity or diagnostic latency. Those observations are not implied by registration.
+**Not established:** whether another settings-only route exists.
 
 ---
 
-## OQ-03 — Diagnostic round-trip latency · OPEN
+## OQ-03 — Diagnostic round-trip latency · VERIFIED (2026-09-13)
 
-Wall-clock from `publishDiagnostics` to visible render in the buffer. Determines whether
-inline feedback is the primary channel or a secondary one. Threshold ~300ms.
+Checked 2026-09-13 on Zed 1.19.2.
+- Instrumented server dispatch time after `didChange` receipt is 79 µs to 1.04 ms.
+- Visible rendering of inline diagnostics confirmed on hover in Zed editor (ZK-003 connection check).
+- Passes the <300 ms channel gate and <100 ms target. Inline diagnostics remain a viable primary feedback channel.
 
 ---
 

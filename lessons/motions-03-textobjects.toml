@@ -9,6 +9,7 @@
 id = "motions-03-textobjects"
 title = "Text objects"
 module = 3
+draft = true
 requires = ["motions-01-word", "motions-02-find"]
 concepts = ["ci", "ca", "di", "AnyQuotes", "AnyBrackets", "MiniQuotes"]
 

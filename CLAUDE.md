@@ -54,7 +54,7 @@ already.
 
 ## Stack and conventions
 
-- Rust. MSRV 1.75. Edition 2021.
+- Rust. MSRV 1.85 (verified 2026-09-13 against edition2024 dependencies). Edition 2021.
 - `thiserror` in library crates, `anyhow` at binary boundaries.
 - `clap` for CLI surfaces.
 - `ratatui` + `crossterm` for the TUI.

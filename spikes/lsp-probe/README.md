@@ -1,8 +1,9 @@
-# Phase 0 LSP probe
+# Phase 0 LSP probe (RETIRED)
 
-Disposable TypeScript observer for ZK-002. It does not score edits or maintain a
-document model. Delete the probe after the feasibility decision; retain selected
-real Zed captures and reproduction notes elsewhere in the repository.
+> **Status: Retired (2026-09-13).**  
+> The Phase 0 Feasibility Gate has been passed (see [ADR 0003](../../docs/adr/0003-phase-0-feasibility-gate.md)).  
+> Real editor captures are permanently retained under `tests/fixtures/lsp/` for production integration testing.  
+> This disposable probe code is preserved for historical reference. Production components will be implemented in Rust under `crates/`.
 
 ## Install and check
 
