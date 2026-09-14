@@ -8,8 +8,10 @@ authors.workspace = true
 
 [dependencies]
 zedkata-core = { workspace = true }
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["io-util"] }
 clap = { workspace = true }
 anyhow = { workspace = true }
+thiserror = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+chrono = { workspace = true }

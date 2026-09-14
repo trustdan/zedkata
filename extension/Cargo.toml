@@ -1,0 +1,16 @@
+[package]
+name = "zedkata-extension"
+version = "0.1.0"
+edition = "2021"
+authors = ["Zedkata Contributors"]
+description = "Zed extension for Zedkata modal-editing drills and drill observer"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+zed_extension_api = "=0.7.0"
+
+[workspace]

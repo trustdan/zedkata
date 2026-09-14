@@ -1,0 +1,5 @@
+name = "Zedkata"
+grammar = "rust"
+path_suffixes = ["kata"]
+line_comments = ["// "]
+tab_size = 4

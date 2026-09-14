@@ -1,0 +1,14 @@
+id = "zedkata"
+name = "Zedkata"
+version = "0.1.0"
+schema_version = 1
+authors = ["Zedkata Contributors"]
+description = "Zed extension for Zedkata modal-editing drills and drill observer"
+repository = "https://github.com/trustdan/zedkata"
+
+[language_servers.zedkata]
+name = "Zedkata"
+languages = ["Zedkata"]
+
+[language_servers.zedkata.language_ids]
+"Zedkata" = "zedkata"

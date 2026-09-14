@@ -1,0 +1,608 @@
+use crate::app::{App, MIN_HEIGHT, MIN_WIDTH};
+use ratatui::{
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
+    style::{Color, Modifier, Style},
+    text::{Line, Span},
+    widgets::{Block, Borders, Clear, Paragraph, Wrap},
+    Frame,
+};
+
+/// Renders the entire terminal UI shell frame with curriculum, task, hint, and progress panes.
+pub fn render(frame: &mut Frame, app: &App) {
+    let area = frame.size();
+
+    // Check if terminal is too small for standard layout
+    if area.width < MIN_WIDTH || area.height < MIN_HEIGHT {
+        render_small_terminal_warning(frame, area);
+        return;
+    }
+
+    // Standard shell layout: Header (3), Main Workspace (Min 9), Footer (3)
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(3),
+            Constraint::Min(9),
+            Constraint::Length(3),
+        ])
+        .split(area);
+
+    render_header(frame, chunks[0], app);
+    render_body(frame, chunks[1], app);
+    render_footer(frame, chunks[2], area);
+}
+
+fn render_header(frame: &mut Frame, area: Rect, app: &App) {
+    let title_line = Line::from(vec![
+        Span::styled(
+            " Zedkata ",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::styled(
+            format!("v{} ", env!("CARGO_PKG_VERSION")),
+            Style::default().fg(Color::DarkGray),
+        ),
+        Span::raw("— Vim Drills for Zed"),
+    ]);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::Cyan))
+        .title(title_line);
+
+    let status_line = if let Some(ref msg) = app.status_message {
+        Line::from(vec![
+            Span::raw("Status: "),
+            Span::styled(
+                msg.clone(),
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            ),
+        ])
+    } else {
+        let active_lesson = if app.session.current.lesson_id.is_empty() {
+            "(none)".to_string()
+        } else {
+            format!(
+                "{}:{}",
+                app.session.current.lesson_id, app.session.current.exercise_index
+            )
+        };
+        Line::from(vec![
+            Span::raw("Status: "),
+            Span::styled(
+                "Active Drill",
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(" | Active in Session: "),
+            Span::styled(active_lesson, Style::default().fg(Color::Yellow)),
+        ])
+    };
+
+    let header_paragraph = Paragraph::new(status_line)
+        .block(block)
+        .alignment(Alignment::Left);
+
+    frame.render_widget(header_paragraph, area);
+}
+
+fn render_body(frame: &mut Frame, area: Rect, app: &App) {
+    let main_chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(36), Constraint::Percentage(64)])
+        .split(area);
+
+    render_curriculum_pane(frame, main_chunks[0], app);
+
+    let right_chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Percentage(55), Constraint::Percentage(45)])
+        .split(main_chunks[1]);
+
+    render_task_pane(frame, right_chunks[0], app);
+    render_feedback_pane(frame, right_chunks[1], app);
+}
+
+fn render_curriculum_pane(frame: &mut Frame, area: Rect, app: &App) {
+    let lessons = app.lessons();
+    let title = format!(" Curriculum ({}) ", lessons.len());
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::White))
+        .title(title);
+
+    if let Some(ref err) = app.catalog_error {
+        let error_lines = vec![
+            Line::from(Span::styled(
+                "Catalog Error:",
+                Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+            )),
+            Line::from(Span::styled(
+                err.clone(),
+                Style::default().fg(Color::LightRed),
+            )),
+        ];
+        let p = Paragraph::new(error_lines)
+            .block(block)
+            .wrap(Wrap { trim: true });
+        frame.render_widget(p, area);
+        return;
+    }
+
+    if lessons.is_empty() {
+        let empty_lines = vec![
+            Line::from(Span::styled(
+                "No lessons found",
+                Style::default().fg(Color::Yellow),
+            )),
+            Line::from(""),
+            Line::from(Span::styled(
+                format!("Dir: {}", app.lessons_dir.display()),
+                Style::default().fg(Color::DarkGray),
+            )),
+        ];
+        let p = Paragraph::new(empty_lines)
+            .block(block)
+            .wrap(Wrap { trim: true });
+        frame.render_widget(p, area);
+        return;
+    }
+
+    let mut lines = Vec::new();
+    for (i, entry) in lessons.iter().enumerate() {
+        let is_selected = i == app.selected_lesson_idx;
+        let (is_locked, _) = app.is_lesson_locked(&entry.lesson);
+        let is_completed = app.is_lesson_completed(&entry.lesson);
+        let is_session_active = app.session.current.lesson_id == entry.lesson.id;
+
+        let badge = if is_completed {
+            Span::styled("[✓]", Style::default().fg(Color::Green))
+        } else if is_locked {
+            Span::styled("[L]", Style::default().fg(Color::Red))
+        } else if entry.lesson.draft {
+            Span::styled("[D]", Style::default().fg(Color::Magenta))
+        } else {
+            Span::styled("[ ]", Style::default().fg(Color::Cyan))
+        };
+
+        let pointer = if is_selected { "> " } else { "  " };
+
+        let title_style = if is_selected {
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD)
+        } else if is_locked {
+            Style::default().fg(Color::DarkGray)
+        } else {
+            Style::default().fg(Color::White)
+        };
+
+        let mut spans = vec![
+            Span::styled(
+                pointer,
+                if is_selected {
+                    Style::default().fg(Color::Cyan)
+                } else {
+                    Style::default()
+                },
+            ),
+            badge,
+            Span::raw(" "),
+            Span::styled(entry.lesson.id.clone(), title_style),
+        ];
+
+        if is_session_active {
+            spans.push(Span::styled(" *", Style::default().fg(Color::Yellow)));
+        }
+
+        lines.push(Line::from(spans));
+    }
+
+    let p = Paragraph::new(lines).block(block).wrap(Wrap { trim: true });
+    frame.render_widget(p, area);
+}
+
+fn render_task_pane(frame: &mut Frame, area: Rect, app: &App) {
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::White))
+        .title(" Active Exercise Task ");
+
+    let current_lesson = match app.current_lesson() {
+        Some(l) => l,
+        None => {
+            let p = Paragraph::new(vec![Line::from(Span::styled(
+                "No lesson selected.",
+                Style::default().fg(Color::Yellow),
+            ))])
+            .block(block);
+            frame.render_widget(p, area);
+            return;
+        }
+    };
+
+    let (is_locked, missing) = app.is_lesson_locked(&current_lesson.lesson);
+    if is_locked {
+        let mut lines = vec![
+            Line::from(vec![
+                Span::styled(
+                    "LOCKED LESSON: ",
+                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    current_lesson.lesson.title.clone(),
+                    Style::default().fg(Color::White),
+                ),
+            ]),
+            Line::from(""),
+            Line::from(Span::styled(
+                "Required prerequisites incomplete:",
+                Style::default().fg(Color::Yellow),
+            )),
+        ];
+
+        for req in missing {
+            lines.push(Line::from(vec![
+                Span::raw("  • "),
+                Span::styled(
+                    req,
+                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                ),
+            ]));
+        }
+
+        lines.push(Line::from(""));
+        lines.push(Line::from(Span::styled(
+            "Complete prerequisite exercises in Zed to unlock.",
+            Style::default().fg(Color::DarkGray),
+        )));
+
+        let p = Paragraph::new(lines).block(block).wrap(Wrap { trim: true });
+        frame.render_widget(p, area);
+        return;
+    }
+
+    let exercises = &current_lesson.lesson.exercises;
+    if exercises.is_empty() {
+        let lines = vec![
+            Line::from(Span::styled(
+                format!(
+                    "{}: {}",
+                    current_lesson.lesson.id, current_lesson.lesson.title
+                ),
+                Style::default().fg(Color::Cyan),
+            )),
+            Line::from(""),
+            Line::from(Span::styled(
+                "No exercises in this lesson.",
+                Style::default().fg(Color::DarkGray),
+            )),
+        ];
+        let p = Paragraph::new(lines).block(block).wrap(Wrap { trim: true });
+        frame.render_widget(p, area);
+        return;
+    }
+
+    let current_ex = match app.current_exercise() {
+        Some(ex) => ex,
+        None => &exercises[0],
+    };
+
+    // Build exercise navigation pill bar
+    let mut ex_pills = vec![Span::raw("Exercises: ")];
+    for (idx, ex) in exercises.iter().enumerate() {
+        let is_active_ex = idx == app.selected_exercise_idx;
+        let is_session_current = app.session.current.lesson_id == current_lesson.lesson.id
+            && app.session.current.exercise_index == idx;
+
+        let style = if is_active_ex {
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(Color::DarkGray)
+        };
+
+        let marker = if is_session_current { "*" } else { "" };
+        let tag = format!("[{}. {}{}] ", idx + 1, ex.id, marker);
+        ex_pills.push(Span::styled(tag, style));
+    }
+
+    let mut lines = vec![
+        Line::from(ex_pills),
+        Line::from(vec![
+            Span::styled(
+                "Task: ",
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(current_ex.task.clone(), Style::default().fg(Color::White)),
+        ]),
+    ];
+
+    // Concepts
+    if !current_lesson.lesson.concepts.is_empty() {
+        lines.push(Line::from(vec![
+            Span::raw("Concepts: "),
+            Span::styled(
+                current_lesson.lesson.concepts.join(", "),
+                Style::default().fg(Color::Cyan),
+            ),
+        ]));
+    }
+
+    // Budget & Rules
+    let par_text = current_ex
+        .par_edits
+        .map(|p| p.to_string())
+        .unwrap_or_else(|| "none".to_string());
+    let max_text = current_ex
+        .max_edits
+        .map(|m| m.to_string())
+        .unwrap_or_else(|| "none".to_string());
+    let forbid_text = if let Some(ref forbid) = current_ex.forbid {
+        if let Some(br) = forbid.backspace_run {
+            format!(" | Forbid: backspaces >= {}", br)
+        } else {
+            String::new()
+        }
+    } else {
+        String::new()
+    };
+
+    lines.push(Line::from(vec![
+        Span::raw("Budget: "),
+        Span::styled(
+            format!(
+                "Par: {} edit(s) | Max: {} edit(s){}",
+                par_text, max_text, forbid_text
+            ),
+            Style::default().fg(Color::Yellow),
+        ),
+    ]));
+
+    // Hint toggle
+    let hint_line = if app.show_hint {
+        Line::from(vec![
+            Span::styled(
+                "Hint: ",
+                Style::default()
+                    .fg(Color::Magenta)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                current_ex
+                    .hint
+                    .clone()
+                    .unwrap_or_else(|| "No hint provided.".to_string()),
+                Style::default().fg(Color::LightMagenta),
+            ),
+        ])
+    } else {
+        Line::from(vec![
+            Span::styled("Hint: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(
+                "[Hidden — press '?' to reveal]",
+                Style::default().fg(Color::DarkGray),
+            ),
+        ])
+    };
+    lines.push(hint_line);
+
+    // Practice instruction
+    lines.push(Line::from(vec![
+        Span::raw("Practice in Zed: "),
+        Span::styled(
+            "Open start fixture in Zed editor",
+            Style::default().fg(Color::Green),
+        ),
+    ]));
+
+    let p = Paragraph::new(lines).block(block).wrap(Wrap { trim: true });
+    frame.render_widget(p, area);
+}
+
+fn render_feedback_pane(frame: &mut Frame, area: Rect, app: &App) {
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::White))
+        .title(" Live Attempt Feedback & Progress ");
+
+    let mut lines = Vec::new();
+
+    // Active Attempt Verdict
+    if let Some(ref att) = app.session.attempt {
+        let verdict_span = match &att.verdict {
+            Some(zedkata_core::session::Verdict::Passed { edits, par, score }) => Span::styled(
+                format!("PASSED! {} edit(s), par {:?}, score: {}", edits, par, score),
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Some(zedkata_core::session::Verdict::Failed { reason }) => Span::styled(
+                format!("FAILED: {}", reason),
+                Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+            ),
+            Some(zedkata_core::session::Verdict::InProgress) => Span::styled(
+                format!("IN PROGRESS (Edits recorded: {})", att.edit_count),
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            None => Span::styled(
+                format!("Ready for drill (Edits: {})", att.edit_count),
+                Style::default().fg(Color::Cyan),
+            ),
+        };
+
+        lines.push(Line::from(vec![
+            Span::raw("Attempt: "),
+            Span::styled(&att.id, Style::default().fg(Color::DarkGray)),
+            Span::raw(" | "),
+            verdict_span,
+        ]));
+    } else {
+        lines.push(Line::from(vec![
+            Span::raw("Attempt: "),
+            Span::styled(
+                "Idle (Press [Enter] to activate drill)",
+                Style::default().fg(Color::DarkGray),
+            ),
+        ]));
+    }
+
+    // Overall Progress & History
+    let passed_count = app.session.history.iter().filter(|h| h.passed).count();
+    let total_exercises: usize = app.lessons().iter().map(|l| l.lesson.exercises.len()).sum();
+
+    let pct = (passed_count * 100)
+        .checked_div(total_exercises)
+        .unwrap_or(0);
+
+    lines.push(Line::from(vec![
+        Span::raw("Progress: "),
+        Span::styled(
+            format!(
+                "{} of {} exercises completed ({}%)",
+                passed_count, total_exercises, pct
+            ),
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        ),
+    ]));
+
+    if !app.session.history.is_empty() {
+        let last_attempts: Vec<String> = app
+            .session
+            .history
+            .iter()
+            .rev()
+            .take(3)
+            .map(|h| format!("{}/{} (score {})", h.lesson_id, h.exercise_id, h.score))
+            .collect();
+        lines.push(Line::from(vec![
+            Span::raw("Recent:   "),
+            Span::styled(last_attempts.join(", "), Style::default().fg(Color::Gray)),
+        ]));
+    }
+
+    lines.push(Line::from(vec![
+        Span::styled("TUI Rule: ", Style::default().fg(Color::Green)),
+        Span::styled(
+            "Drill conductor only — all editing occurs in Zed",
+            Style::default().fg(Color::DarkGray),
+        ),
+    ]));
+
+    let p = Paragraph::new(lines).block(block).wrap(Wrap { trim: true });
+    frame.render_widget(p, area);
+}
+
+fn render_footer(frame: &mut Frame, area: Rect, full_area: Rect) {
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::Blue));
+
+    let footer_line = Line::from(vec![
+        Span::styled(
+            " [j/k] ",
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::raw("Lesson  "),
+        Span::styled(
+            " [h/l] ",
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::raw("Exercise  "),
+        Span::styled(
+            " [Enter] ",
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::raw("Select  "),
+        Span::styled(
+            " [?] ",
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::raw("Hint  "),
+        Span::styled(
+            " [r] ",
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::raw("Refresh  "),
+        Span::styled(
+            " [q] ",
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::raw("Quit  |  "),
+        Span::styled(
+            format!("{}x{}", full_area.width, full_area.height),
+            Style::default().fg(Color::DarkGray),
+        ),
+    ]);
+
+    let footer_p = Paragraph::new(footer_line).block(block);
+    frame.render_widget(footer_p, area);
+}
+
+fn render_small_terminal_warning(frame: &mut Frame, area: Rect) {
+    frame.render_widget(Clear, area);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::Red).add_modifier(Modifier::BOLD))
+        .title(" Terminal Too Small ");
+
+    let warning_lines = vec![
+        Line::from(Span::styled(
+            "TERMINAL WINDOW TOO SMALL",
+            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+        )),
+        Line::from(""),
+        Line::from(vec![
+            Span::raw("Current size:  "),
+            Span::styled(
+                format!("{} cols x {} rows", area.width, area.height),
+                Style::default().fg(Color::Yellow),
+            ),
+        ]),
+        Line::from(vec![
+            Span::raw("Required size: "),
+            Span::styled(
+                format!("{} cols x {} rows", MIN_WIDTH, MIN_HEIGHT),
+                Style::default().fg(Color::Green),
+            ),
+        ]),
+        Line::from(""),
+        Line::from("Please enlarge your terminal window."),
+        Line::from(Span::styled(
+            "Press 'q' or 'Esc' to exit.",
+            Style::default().fg(Color::DarkGray),
+        )),
+    ];
+
+    let p = Paragraph::new(warning_lines)
+        .block(block)
+        .alignment(Alignment::Center);
+
+    frame.render_widget(p, area);
+}

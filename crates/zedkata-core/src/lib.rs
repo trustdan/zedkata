@@ -5,15 +5,19 @@
 pub mod catalog;
 pub mod error;
 pub mod lesson;
+pub mod scoring;
 pub mod session;
 pub mod verification;
 
 pub use catalog::{Catalog, LessonEntry};
 pub use error::CoreError;
 pub use lesson::{Exercise, ForbidRules, Lesson, Walkthrough};
+pub use scoring::{
+    calculate_score, check_forbid_rules, count_edit_units, create_history_entry, update_weaknesses,
+};
 pub use session::{
-    Attempt, CurrentSession, EditRange, HistoryEntry, RecordedEdit, SessionState, StudentInfo,
-    Verdict,
+    default_session_path, Attempt, CurrentSession, EditRange, HistoryEntry, RecordedEdit,
+    SessionState, StudentInfo, Verdict, CURRENT_SCHEMA_VERSION,
 };
 pub use verification::{
     compare_buffers, diff_buffers, normalize_buffer, verify_attempt, AttemptOutcome,

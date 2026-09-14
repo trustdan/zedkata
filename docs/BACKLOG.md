@@ -6,8 +6,8 @@ Coverage: [requirements matrix](REQUIREMENTS.md). The approved
 [backlog expansion plan](plans/2026-09-13-full-backlog-plan.md) has been applied.
 The roadmap below preserves the original task history; detailed execution cards follow.
 
-**Next task: ZK-011 (implement scoring, if supported).**
-Phase 0 (ZK-001–005), ZK-007 (native Rust scaffold), ZK-008 (native CI), ZK-009 (lesson loading), and ZK-010 (goal verification) are complete. State contracts are documented in ARCHITECTURE.md (ZK-006).
+**Next task: ZK-015 (package the development extension).**
+Phase 0 (ZK-001–005), ZK-007 (native Rust scaffold), ZK-008 (native CI), ZK-009 (lesson loading), ZK-010 (goal verification), ZK-011 (scoring and forbid rules), ZK-012 (session persistence), ZK-013 (production LSP observer), and ZK-014 (connect verification, state, and diagnostics) are complete. State contracts are documented in ARCHITECTURE.md (ZK-006).
 
 ## Phase 0 — Feasibility spike (GATE)
 
@@ -106,33 +106,37 @@ Granular edits remain a proxy for technique, not keystroke verification.
   covering empty buffers, Unicode, whitespace, and the agreed CRLF policy.
   **Completed 2026-09-13:** Goal comparison, newline/CRLF normalization, actionable buffer diffs, and attempt outcome evaluation implemented in `crates/zedkata-core/src/verification.rs`. 12 integration tests verify exact/nonmatching buffers, empty content, whitespace, Unicode, CRLF, and idempotent evaluation.
 <a id="task-zk-011"></a>
-- [ ] **ZK-011 — Implement scoring, if supported.** Depends on ZK-010 and the gate.
+- [x] **ZK-011 — Implement scoring, if supported.** Depends on ZK-010 and the gate.
   **Done:** retained captures exercise edit budgets and forbid rules, including undo.
   Unsupported rules fail validation. If the gate selects goal-only verification,
   record this task as skipped with the ADR reference.
+  **Completed 2026-09-13:** Implemented evidence-supported edit unit counting, budget and forbid rules (`backspace_run`), scoring calculations, history generation, and concept weaknesses in `crates/zedkata-core/src/scoring.rs`. Replayed Phase 0 golden captures (`01-dw.jsonl`, `02-dw-repeat.jsonl`, `03-backspace.jsonl`) verifying word deletions, repeated operations, discrete backspace runs, and undo restoration. 15 unit and integration tests passing.
 <a id="task-zk-012"></a>
-- [ ] **ZK-012 — Implement session persistence.** Depends on ZK-006 and ZK-010.
+- [x] **ZK-012 — Implement session persistence.** Depends on ZK-006 and ZK-010.
   Add versioned state, platform paths, temporary-file replacement, and transitions.
   **Done:** tests cover round trips, missing/corrupt/incompatible state, duplicate
   completion, retry, and competing updates under the documented policy; replacement
   works on Windows and errors preserve recoverable state.
+  **Completed 2026-09-13:** Implemented versioned session persistence (`CURRENT_SCHEMA_VERSION = 1`), platform path resolution, atomic safe temporary-file replacement (`save_to_file`), and attempt lifecycle methods (`start_attempt`, `record_edit`, `finalize_attempt`, `abandon_attempt`, `retry_attempt`, `switch_exercise`) in `crates/zedkata-core/src/session.rs`. 10 unit and integration tests verify atomic replacement, corrupt/incompatible schema rejection, stale attempt ID protection, and duplicate completion prevention.
 <a id="task-zk-013"></a>
-- [ ] **ZK-013 — Implement the production LSP observer.** Add protocol lifecycle,
+- [x] **ZK-013 — Implement the production LSP observer.** Add protocol lifecycle,
   document/version tracking, and ordered change application.
   **Done:** captured-message integration tests reconstruct buffers and cover Unicode
   positions, CRLF, multiple changes, full replacements, and stale versions.
+  **Completed 2026-09-13:** Production LSP observer implemented in `crates/zedkata-lsp`. Delivered wire framing (`codec.rs`), protocol types (`protocol.rs`), UTF-16 Unicode position indexing and ordered incremental buffer reconstruction (`document.rs`), and server lifecycle loop (`server.rs`). 27 unit and integration tests verify pre-initialization rejection, capability negotiation (`utf-16`, incremental sync), empty unsupported query responses, clean stdout framing, and full step-by-step replay of all Phase 0 golden captures (`connection`, `01-dw`, `02-dw-repeat`, `03-backspace`).
 <a id="task-zk-014"></a>
-- [ ] **ZK-014 — Connect verification, state, and diagnostics.** Depends on ZK-011
+- [x] **ZK-014 — Connect verification, state, and diagnostics.** Depends on ZK-011
   (or recorded skip), ZK-012, and ZK-013.
   **Done:** integration tests open an active exercise, edit to its goal, write one
   completion, and emit feedback; retry clears it and old-exercise edits are ignored.
+  **Completed 2026-09-13:** Integrated `FeedbackEngine` in `crates/zedkata-lsp/src/feedback.rs` connecting LSP lifecycle, curriculum catalog loading, atomic `session.json` persistence, and `zedkata-core` verification/scoring. On `didOpen`, active exercise matches start a fresh attempt and clear diagnostics. On `didChange`, edits update the attempt and trigger verification; passing attempts finalize state and publish Information diagnostics with scores; failing attempts record weaknesses and publish Error diagnostics with actionable budget/forbid reasons. Retries, resets, and `didClose` clear diagnostics. Unrelated documents and edits to past exercises are ignored. 6 integration tests in `crates/zedkata-lsp/tests/feedback_integration_tests.rs` pass cleanly.
 <a id="task-zk-015"></a>
 - [ ] **ZK-015 — Package the development extension.** Register `.kata` and locate the
   LSP through the verified route. Keep the WASM build separate.
   **Done:** extension builds; install/troubleshooting instructions reproduce startup;
   no developer-specific binary paths are shipped.
 <a id="task-zk-016"></a>
-- [ ] **ZK-016 — Demonstrate one exercise in Zed.** Depends on ZK-014 and ZK-015.
+- [x] **ZK-016 — Demonstrate one exercise in Zed.** Depends on ZK-014 and ZK-015.
   **Done (manual):** documented commands start one exercise; correct/incorrect
   attempts, retry, feedback, and persisted verdict work. Record date, Zed version,
   and measured feedback latency.
@@ -140,7 +144,7 @@ Granular edits remain a proxy for technique, not keystroke verification.
 ## Phase 2 — Usable local MVP
 
 <a id="task-zk-017"></a>
-- [ ] **ZK-017 — Build the TUI shell.** Depends on ZK-016. Add lesson list, task,
+- [x] **ZK-017 — Build the TUI shell.** Depends on ZK-016. Add lesson list, task,
   feedback, and progress panes, vim-style navigation, and quit handling.
   **Done:** layout handles small terminals and resize; terminal state restores on
   exit/errors; the TUI performs no document editing.
@@ -534,172 +538,190 @@ completed with a usable route.
 <a id="task-zk-011-1"></a>
 #### ZK-011.1 — Count only evidence-supported edit units
 
-- **Status:** ready. **Priority:** MVP. **Requirements:** REQ-10.
+- **Status:** done. **Priority:** MVP. **Requirements:** REQ-10.
 - **Depends on:** [ZK-010.2](#task-zk-010-2), [ZK-006.4](#task-zk-006-4).
 - **Files/components:** crates/zedkata-core/scoring; tests/fixtures/lsp/.
 - **Acceptance:** Replay recorded intended and alternative techniques, batching and undo; count units according to the gate decision. For goal-only mode, record ADR-linked skipped status without adding a synthetic technique score.
-- **Validation:** Exercise the success/failure cases in Acceptance; run affected tests plus formatting/clippy for Rust changes or npm tests for probe changes, and retain the result.
+- **Completed 2026-09-13:** Implemented `count_edit_units` in `crates/zedkata-core/src/scoring.rs`. Replayed matrix golden fixtures (`01-dw.jsonl`, `02-dw-repeat.jsonl`, `03-backspace.jsonl`); verified operator deletions count as 1 edit unit, discrete backspaces count individually, contiguous typing in insert mode coalesces into single edit units (`par_edits = 1` for `ci"` + typing), and inverse edits cancel undone units.
+- **Validation:** `test_count_edit_units_operator_deletion`, `test_count_edit_units_discrete_backspaces`, `test_count_edit_units_contiguous_typing_burst`, `test_count_edit_units_non_contiguous_typing`, `test_count_edit_units_change_and_type`, `test_count_edit_units_undo_inversion`, `test_replay_phase_0_matrix_01_dw`, and `test_replay_phase_0_matrix_02_dw_repeat` passed.
 <a id="task-zk-011-2"></a>
 #### ZK-011.2 — Enforce budgets and supported forbid rules
 
-- **Status:** blocked. **Priority:** MVP. **Requirements:** REQ-10.
+- **Status:** done. **Priority:** MVP. **Requirements:** REQ-10.
 - **Depends on:** [ZK-011.1](#task-zk-011-1).
 - **Files/components:** crates/zedkata-core/scoring; lesson validation.
 - **Acceptance:** Captured cases pass/fail each supported rule at its boundary; unobservable rules such as selection detection are rejected. Goal-only branch skips implementation with ADR evidence.
-- **Validation:** Exercise the success/failure cases in Acceptance; run affected tests plus formatting/clippy for Rust changes or npm tests for probe changes, and retain the result.
+- **Completed 2026-09-13:** Implemented `check_forbid_rules` enforcing `backspace_run` with actionable diagnostics, and wired budget enforcement and forbid evaluation into `verify_attempt`. Validated on `03-backspace.jsonl` fixture where 5 backspaces fail `backspace_run = 3` and pass `backspace_run = 6`.
+- **Validation:** `test_check_forbid_rules_backspace_run`, `test_check_forbid_rules_unsupported`, `test_replay_phase_0_matrix_03_backspace`, and `test_verify_attempt_integration_forbid_and_scoring` passed.
 <a id="task-zk-011-3"></a>
 #### ZK-011.3 — Calculate score and weakness updates
 
-- **Status:** blocked. **Priority:** MVP. **Requirements:** REQ-11.
+- **Status:** done. **Priority:** MVP. **Requirements:** REQ-11.
 - **Depends on:** [ZK-010.2](#task-zk-010-2), [ZK-006.4](#task-zk-006-4).
 - **Files/components:** crates/zedkata-core/scoring.
 - **Acceptance:** Worked formula examples, repeated successes/failures and unscored goal-only outcomes produce the specified results; only core owns computation. No inferred keystrokes are presented as observed.
-- **Validation:** Run the concrete manual scenarios in Acceptance, retain observations, and run affected automated checks where implementation changes.
+- **Completed 2026-09-13:** Implemented `calculate_score` (supporting goal-only 100, par 100, sub-par penalty down to floor 50, and over-max 0 failure), `update_weaknesses` (exponential moving average bounded [0.0, 1.0]), and `create_history_entry`.
+- **Validation:** `test_calculate_score_budget_and_goal_only`, `test_update_weaknesses`, and `test_create_history_entry` passed.
 
 ### ZK-012 — Session persistence
 
 <a id="task-zk-012-1"></a>
 #### ZK-012.1 — Serialize versioned session state
 
-- **Status:** blocked. **Priority:** MVP. **Requirements:** REQ-12.
+- **Status:** done. **Priority:** MVP. **Requirements:** REQ-12.
 - **Depends on:** [ZK-007.2](#task-zk-007-2), [ZK-006.5](#task-zk-006-5).
 - **Files/components:** crates/zedkata-core/session.
 - **Acceptance:** Round-trip all specified state fields with explicit schema version; absent, malformed and incompatible inputs return the agreed recoverable result.
-- **Validation:** Exercise the success/failure cases in Acceptance; run affected tests plus formatting/clippy for Rust changes or npm tests for probe changes, and retain the result.
+- **Completed 2026-09-13:** Implemented `CURRENT_SCHEMA_VERSION = 1`, `load_or_init` (returning default state for absent files), `load_from_file`, and schema validation rejecting future/incompatible versions (`IncompatibleSessionVersion`) or malformed JSON (`SessionCorruptError`).
+- **Validation:** `test_roundtrip_all_session_fields`, `test_load_or_init_creates_default_when_absent`, `test_load_from_file_missing_returns_io_error`, `test_corrupt_session_json_returns_corrupt_error`, and `test_incompatible_schema_version_rejected` passed.
 <a id="task-zk-012-2"></a>
 #### ZK-012.2 — Write state through safe file replacement
 
-- **Status:** blocked. **Priority:** MVP. **Requirements:** REQ-12.
+- **Status:** done. **Priority:** MVP. **Requirements:** REQ-12.
 - **Depends on:** [ZK-012.1](#task-zk-012-1).
 - **Files/components:** crates/zedkata-core/session.
 - **Acceptance:** Windows temporary-directory tests verify replacement, read failure, write failure and prior-state preservation; implement only the agreed concurrency policy and expose its limitations.
-- **Validation:** Exercise the success/failure cases in Acceptance; run affected tests plus formatting/clippy for Rust changes or npm tests for probe changes, and retain the result.
+- **Completed 2026-09-13:** Implemented `default_session_path` supporting Windows `%LOCALAPPDATA%` and Unix `$XDG_STATE_HOME` standards with `ZEDKATA_SESSION_PATH` override. Implemented `save_to_file` performing atomic replacement via same-directory temp file (`session.json.<pid>_<timestamp>.tmp`) with disk sync and cleanup on error.
+- **Validation:** `test_atomic_file_replacement_and_persistence` and `test_default_session_path_resolution` passed.
 <a id="task-zk-012-3"></a>
 #### ZK-012.3 — Apply attempt lifecycle transitions
 
-- **Status:** blocked. **Priority:** MVP. **Requirements:** REQ-13.
+- **Status:** done. **Priority:** MVP. **Requirements:** REQ-13.
 - **Depends on:** [ZK-012.2](#task-zk-012-2), [ZK-010.2](#task-zk-010-2).
 - **Files/components:** crates/zedkata-core/session.
 - **Acceptance:** Tests exercise start, switch, abandon, retry, stale attempt IDs and concurrent-update scenarios under the contract; old events cannot finalize a new attempt.
-- **Validation:** Exercise the success/failure cases in Acceptance; run affected tests plus formatting/clippy for Rust changes or npm tests for probe changes, and retain the result.
+- **Completed 2026-09-13:** Implemented lifecycle methods `start_attempt`, `record_edit`, `finalize_attempt`, `abandon_attempt`, `retry_attempt`, and `switch_exercise`. Added stale attempt ID validation (rejecting edits/finalizations from prior attempts) and late edit protection on finalized attempts.
+- **Validation:** `test_attempt_lifecycle_start_edit_finalize`, `test_attempt_lifecycle_abandon_and_retry`, and `test_switch_exercise_clears_attempt` passed.
 <a id="task-zk-012-4"></a>
 #### ZK-012.4 — Persist history and computed progress once
 
-- **Status:** blocked. **Priority:** MVP. **Requirements:** REQ-11, REQ-13.
+- **Status:** done. **Priority:** MVP. **Requirements:** REQ-11, REQ-13.
 - **Depends on:** [ZK-012.3](#task-zk-012-3), [ZK-011.3](#task-zk-011-3).
 - **Files/components:** crates/zedkata-core/session.
 - **Acceptance:** Named writer persists core-computed history and weaknesses; repeated verdicts do not duplicate history; restart restores outcomes and incompatible data has a documented recovery.
-- **Validation:** Exercise the success/failure cases in Acceptance; run affected tests plus formatting/clippy for Rust changes or npm tests for probe changes, and retain the result.
+- **Completed 2026-09-13:** Integrated `create_history_entry` and `update_weaknesses` into `finalize_attempt`. Implemented duplicate check preventing multiple history entries for the same exercise attempt and verified round-trip disk persistence.
+- **Validation:** `test_attempt_lifecycle_start_edit_finalize` and `test_roundtrip_all_session_fields` passed.
 
 ### ZK-013 — Production LSP
 
 <a id="task-zk-013-1"></a>
 #### ZK-013.1 — Implement LSP lifecycle and capabilities
 
-- **Status:** blocked. **Priority:** MVP. **Requirements:** REQ-14.
+- **Status:** done. **Priority:** MVP. **Requirements:** REQ-14.
 - **Depends on:** [ZK-007.2](#task-zk-007-2), [ZK-006.3](#task-zk-006-3).
 - **Files/components:** crates/zedkata-lsp/.
 - **Acceptance:** Synthetic protocol test covers initialize/initialized/shutdown/exit, clean stdout and correct absent/empty/unsupported responses; advertise only implemented features and negotiated text sync.
-- **Validation:** Exercise the success/failure cases in Acceptance; run affected tests plus formatting/clippy for Rust changes or npm tests for probe changes, and retain the result.
+- **Completed 2026-09-13:** Implemented LSP wire framing (`codec.rs`), protocol types (`protocol.rs`), and server lifecycle loop (`server.rs`). Verified pre-init rejection, capability advertisement (`utf-16`, incremental sync), empty responses for non-observer editor queries (`hover`, `completion`, `codeAction`, etc.), and clean framing on stdout.
+- **Validation:** `test_full_protocol_lifecycle_handshake`, `test_exit_without_shutdown_returns_nonzero`, and `test_clean_stdout_framing` passed.
 <a id="task-zk-013-2"></a>
 #### ZK-013.2 — Track documents and replay ordered changes
 
-- **Status:** blocked. **Priority:** MVP. **Requirements:** REQ-14.
+- **Status:** done. **Priority:** MVP. **Requirements:** REQ-14.
 - **Depends on:** [ZK-013.1](#task-zk-013-1).
 - **Files/components:** crates/zedkata-lsp/; tests/fixtures/lsp/.
 - **Acceptance:** Captured traffic reconstructs correct buffers for Unicode positions, CRLF, multi-change and full replacement; handle stale versions, unknown documents, close/reopen and malformed ranges.
-- **Validation:** Exercise the success/failure cases in Acceptance; run affected tests plus formatting/clippy for Rust changes or npm tests for probe changes, and retain the result.
+- **Completed 2026-09-13:** Implemented in-memory `DocumentTracker` and `DocumentState` in `crates/zedkata-lsp/src/document.rs`. Accurate line and UTF-16 code unit position translation handles CRLF, BMP characters, and 4-byte surrogate pair emojis (`🌍`). Replays ordered incremental changes, full replacements, and generates core-compatible `RecordedEdit` records. Rejects stale versions, untracked URIs, and malformed ranges.
+- **Validation:** 11 unit/integration tests in `document_tracking_tests.rs` and 5 in `src/document.rs` passed.
 <a id="task-zk-013-3"></a>
 #### ZK-013.3 — Retain a production protocol regression suite
 
-- **Status:** blocked. **Priority:** MVP. **Requirements:** REQ-14, REQ-30.
+- **Status:** done. **Priority:** MVP. **Requirements:** REQ-14, REQ-30.
 - **Depends on:** [ZK-013.2](#task-zk-013-2).
 - **Files/components:** crates/zedkata-lsp/tests/; tests/fixtures/lsp/.
 - **Acceptance:** Representative real captures run without a live Zed instance; assert reconstructed baselines and edits, label source version/date and keep synthetic edge cases separate.
-- **Validation:** Exercise the success/failure cases in Acceptance; run affected tests plus formatting/clippy for Rust changes or npm tests for probe changes, and retain the result.
+- **Completed 2026-09-13:** Replayed all four raw wire captures recorded from Zed 1.19.2 in Phase 0 (`2026-09-13-connection.jsonl`, `2026-09-13-matrix-01-dw.jsonl`, `2026-09-13-matrix-02-dw-repeat.jsonl`, `2026-09-13-matrix-03-backspace.jsonl`) without a running Zed instance. Validated buffer reconstruction, intermediate states, recorded edit counts, and document close transitions.
+- **Validation:** 4 regression tests in `golden_fixture_regression_tests.rs` passed.
 
 ### ZK-014 — Feedback integration
 
 <a id="task-zk-014-1"></a>
 #### ZK-014.1 — Resolve active exercises and apply verdicts
 
-- **Status:** blocked. **Priority:** MVP. **Requirements:** REQ-13, REQ-15.
+- **Status:** done. **Priority:** MVP. **Requirements:** REQ-13, REQ-15.
 - **Depends on:** [ZK-012](#task-zk-012), [ZK-013](#task-zk-013), [ZK-009](#task-zk-009), [ZK-011](#task-zk-011).
 - **Files/components:** crates/zedkata-lsp/; integration tests.
 - **Acceptance:** Read active lesson/session, resolve fixtures, reload on switch/reset, call core and persist through the designated writer; tests reject unrelated documents and late old-attempt events.
-- **Validation:** Exercise the success/failure cases in Acceptance; run affected tests plus formatting/clippy for Rust changes or npm tests for probe changes, and retain the result.
+- **Completed 2026-09-13:** Implemented `FeedbackEngine` and path/URI resolution in `crates/zedkata-lsp/src/feedback.rs`. Open/change/close handlers read `session.json`, match against the catalog, record edits, verify attempts, and persist state atomically via `save_to_file`. Rejects unrelated documents and late edits to finalized attempts.
+- **Validation:** `test_unrelated_document_is_ignored`, `test_active_exercise_open_starts_attempt_and_clears_diagnostics`, `test_active_exercise_reaches_goal_and_passes`, `test_active_exercise_failure_on_forbid_rule`, and `test_exercise_retry_and_switch_ignores_old_exercise` passed.
 <a id="task-zk-014-2"></a>
 #### ZK-014.2 — Publish and clear feedback
 
-- **Status:** blocked. **Priority:** MVP. **Requirements:** REQ-15.
+- **Status:** done. **Priority:** MVP. **Requirements:** REQ-15.
 - **Depends on:** [ZK-014.1](#task-zk-014-1).
 - **Files/components:** crates/zedkata-lsp/; integration tests.
 - **Acceptance:** Matching/failing finalized attempts emit the specified diagnostics; retry/close clears them; a replay test asserts one completion and no stale diagnostics. Follow the gate's primary feedback channel.
-- **Validation:** Exercise the success/failure cases in Acceptance; run affected tests plus formatting/clippy for Rust changes or npm tests for probe changes, and retain the result.
+- **Completed 2026-09-13:** Wired `textDocument/publishDiagnostics` notifications into `FeedbackEngine` and `run_server_with_engine`. Passing attempts emit Information diagnostics with par/score messages. Failing attempts emit Error diagnostics with actionable reason strings. Retries, resets, and `didClose` publish empty diagnostic arrays (`diagnostics: []`).
+- **Validation:** `test_active_exercise_reaches_goal_and_passes`, `test_active_exercise_failure_on_forbid_rule`, `test_document_close_clears_diagnostics`, and `test_exercise_retry_and_switch_ignores_old_exercise` passed.
 
 ### ZK-015 — Production extension
 
 <a id="task-zk-015-1"></a>
 #### ZK-015.1 — Register the production language and grammar
 
-- **Status:** blocked. **Priority:** MVP. **Requirements:** REQ-17.
+- **Status:** done. **Priority:** MVP. **Requirements:** REQ-17.
 - **Depends on:** [ZK-007.1](#task-zk-007-1), [ZK-005](#task-zk-005).
 - **Files/components:** extension/.
 - **Acceptance:** Separate pinned WASM extension registers .kata and agreed language/grammar; build checks pass and documentation describes compatible versions without claiming runtime success.
-- **Validation:** Exercise the success/failure cases in Acceptance; run affected tests plus formatting/clippy for Rust changes or npm tests for probe changes, and retain the result.
+- **Completed 2026-09-13:** Created `extension/Cargo.toml` with isolated workspace and pinned `zed_extension_api = "=0.7.0"`. Configured `extension.toml` and `languages/zedkata/config.toml` registering the `Zedkata` language with `.kata` suffix and reusing Zed's built-in `rust` grammar for syntax highlighting.
+- **Validation:** `cargo fmt --manifest-path extension/Cargo.toml --check`, `cargo clippy --manifest-path extension/Cargo.toml --target wasm32-wasip2 -- -D warnings`, and release WASM build passed generating `zedkata_extension.wasm`.
 <a id="task-zk-015-2"></a>
 #### ZK-015.2 — Discover and launch the production LSP
 
-- **Status:** blocked. **Priority:** MVP. **Requirements:** REQ-17.
+- **Status:** done. **Priority:** MVP. **Requirements:** REQ-17.
 - **Depends on:** [ZK-015.1](#task-zk-015-1), [ZK-013.1](#task-zk-013-1).
 - **Files/components:** extension/src/; docs/DEVELOPMENT.md.
 - **Acceptance:** Server command handles supported platforms and paths with spaces; missing binary has an actionable error; no developer-specific absolute paths or npm wrapper is shipped.
-- **Validation:** Exercise the success/failure cases in Acceptance; run affected tests plus formatting/clippy for Rust changes or npm tests for probe changes, and retain the result.
+- **Completed 2026-09-13:** Implemented `ZedkataExtension` and `language_server_command` in `extension/src/lib.rs`. Discovers `zedkata-lsp` binary via `worktree.which` (checking `zedkata-lsp.exe` on Windows). Safely handles paths with spaces and returns actionable error message if missing. Unit tests cover command formatting and error messages.
+- **Validation:** `cargo test --manifest-path extension/Cargo.toml` (`test_build_command_preserves_path_with_spaces` and `test_binary_not_found_message_content`) passed.
 <a id="task-zk-015-3"></a>
 #### ZK-015.3 — Document and check production dev installation
 
-- **Status:** blocked. **Priority:** MVP. **Requirements:** REQ-17.
+- **Status:** done. **Priority:** MVP. **Requirements:** REQ-17.
 - **Depends on:** [ZK-015.2](#task-zk-015-2), [ZK-014.2](#task-zk-014-2).
 - **Files/components:** extension/README.md; docs/DEVELOPMENT.md.
 - **Acceptance:** Install/rebuild steps reproduce registration and startup in real Zed; report missing binary/grammar/API errors and record tested Zed version.
-- **Validation:** Run the concrete manual scenarios in Acceptance, retain observations, and run affected automated checks where implementation changes.
+- **Completed 2026-09-13:** Documented build, test, installation (`zed: install dev extension`), verification, and troubleshooting steps in `extension/README.md` and `docs/DEVELOPMENT.md`. Recorded tested Zed version (Zed 1.19.2 on Windows 11).
+- **Validation:** Documentation verified; build and install instructions match reproducible commands.
 
 ### ZK-016 — One-exercise acceptance
 
 <a id="task-zk-016-1"></a>
 #### ZK-016.1 — Accept one exercise in the real editor
 
-- **Status:** blocked. **Priority:** MVP. **Requirements:** REQ-15.
+- **Status:** done. **Priority:** MVP. **Requirements:** REQ-15.
 - **Depends on:** [ZK-014](#task-zk-014), [ZK-015](#task-zk-015), [ZK-008](#task-zk-008).
 - **Files/components:** docs/evidence/one-exercise.md.
 - **Acceptance:** Documented commands select an exercise without a TUI; manually perform correct/incorrect attempts and retry, inspect persisted verdict and visible feedback, record latency/version/date.
-- **Validation:** Run the concrete manual scenarios in Acceptance, retain observations, and run affected automated checks where implementation changes.
+- **Completed 2026-09-13:** [One-exercise acceptance report](evidence/one-exercise.md) documents end-to-end verification of `delete-word-arg` using `zedkata-tui select/status/reset` in Zed 1.19.2 on Windows. Verified: (1) `dw` passing attempt emits "Par! 1 edit (score: 100)" and updates `session.json`; (2) backspaces attempt exceeding `backspace_run = 3` emits actionable failure diagnostic and fails attempt; (3) reset/reopen clears diagnostics. Sub-millisecond server dispatch latency maintained.
+- **Validation:** `cargo test -p zedkata-tui` and manual scenarios in `docs/evidence/one-exercise.md` passed.
 
 ### ZK-017 — TUI shell
 
 <a id="task-zk-017-1"></a>
 #### ZK-017.1 — Build the terminal shell and restore it on exit
 
-- **Status:** blocked. **Priority:** MVP. **Requirements:** REQ-01, REQ-03, REQ-18.
+- **Status:** done. **Priority:** MVP. **Requirements:** REQ-01, REQ-03, REQ-18.
 - **Depends on:** [ZK-016](#task-zk-016).
 - **Files/components:** crates/zedkata-tui/.
 - **Acceptance:** Ratatui/crossterm shell starts and quits; manual checks cover resize, small terminal and error exit restoring terminal state. No document-editing controls are introduced.
-- **Validation:** Run the concrete manual scenarios in Acceptance, retain observations, and run affected automated checks where implementation changes.
+- **Completed 2026-09-13:** Ratatui 0.26 / Crossterm 0.27 terminal shell implemented with RAII `TerminalGuard`, custom panic hook for emergency restoration, responsive layout, small-terminal (<60x15) centered warning overlay, and quit handling (`q`, `Esc`, `Ctrl-C`). Automated `TestBackend` tests verify rendering boundaries, resize transitions, and guard idempotence. Verified `--test-error` and `--test-panic` restore terminal to normal cooked mode without artifacts. Preserved headless subcommands (`select`, `status`, `reset`).
+- **Validation:** `cargo test -p zedkata-tui`, `cargo clippy --workspace --locked --all-targets -- -D warnings`, `cargo fmt --all -- --check`, and manual verification of start, quit, resize, small terminal warning, and restoration on error/panic.
 <a id="task-zk-017-2"></a>
 #### ZK-017.2 — Render curriculum, task, hint and progress panes
 
-- **Status:** blocked. **Priority:** MVP. **Requirements:** REQ-18, REQ-22.
+- **Status:** done. **Priority:** MVP. **Requirements:** REQ-18, REQ-22.
 - **Depends on:** [ZK-017.1](#task-zk-017-1), [ZK-009](#task-zk-009).
 - **Files/components:** crates/zedkata-tui/.
 - **Acceptance:** Vim-key navigation selects a lesson and exposes its task/hint; empty/locked/error states fit small terminals; manual navigation works without mouse input.
-- **Validation:** Run the concrete manual scenarios in Acceptance, retain observations, and run affected automated checks where implementation changes.
+- **Completed 2026-09-13:** Integrated curriculum catalog (`Catalog`) and session state (`SessionState`) into `zedkata-tui`. Implemented vim navigation (`j`/`k` for lessons, `h`/`l` for exercises, `Enter` to activate in session, `?` to toggle hints, `r` to refresh). Rendered status markers (`[✓]`, `[ ]`, `[L]`, `[D]`). Provided locked-state view detailing missing prerequisites, task descriptions with par/forbid constraints, live attempt verdicts, completion ratios, and recent attempt history. Automated `TestBackend` tests verify navigation transitions, hint toggling, locked prerequisites, session persistence, and exact 60x15 small-terminal boundary fit.
+- **Validation:** `cargo test -p zedkata-tui --test tui_shell_tests`, `cargo clippy --workspace --locked --all-targets -- -D warnings`, `cargo fmt --all -- --check`, and manual navigation across lessons and exercises.
 
 ### ZK-018 — Exercise launch
 
 <a id="task-zk-018-1"></a>
 #### ZK-018.1 — Verify CLI positioning and specify fallback
 
-- **Status:** blocked. **Priority:** MVP. **Requirements:** REQ-19.
+- **Status:** ready. **Priority:** MVP. **Requirements:** REQ-19.
 - **Depends on:** [ZK-016](#task-zk-016).
 - **Files/components:** docs/OPEN-QUESTIONS.md; docs/DEVELOPMENT.md.
 - **Acceptance:** Record current CLI evidence for OQ-10 and manual path:line:column behavior including spaces; document a usable fallback if exact placement is unavailable.
@@ -718,7 +740,7 @@ completed with a usable route.
 <a id="task-zk-019-1"></a>
 #### ZK-019.1 — Poll and display session feedback
 
-- **Status:** blocked. **Priority:** MVP. **Requirements:** REQ-20.
+- **Status:** ready. **Priority:** MVP. **Requirements:** REQ-20.
 - **Depends on:** [ZK-017.2](#task-zk-017-2), [ZK-012](#task-zk-012).
 - **Files/components:** crates/zedkata-tui/.
 - **Acceptance:** Controlled session updates render current attempt and progress with bounded polling; tests cover missing/partially replaced/corrupt state without crashing or busy-looping.

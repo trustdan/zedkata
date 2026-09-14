@@ -57,6 +57,17 @@ pub enum CoreError {
     #[error("Failed to serialize/deserialize session state: {0}")]
     SessionJsonError(#[from] serde_json::Error),
 
+    #[error(
+        "Incompatible session schema version: found {found}, maximum supported is {supported}"
+    )]
+    IncompatibleSessionVersion { found: u32, supported: u32 },
+
+    #[error("Session state file corrupt or invalid at '{path}': {message}")]
+    SessionCorruptError { path: PathBuf, message: String },
+
+    #[error("Failed to resolve platform session path: {0}")]
+    SessionPathError(String),
+
     #[error("I/O error: {0}")]
     IoError(#[from] std::io::Error),
 

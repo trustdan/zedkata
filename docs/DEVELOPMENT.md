@@ -96,12 +96,78 @@ servers; it directs new language support to extensions. It does not establish a
 settings-only registration route for our new language/server pair.
 [Configuring Languages](https://zed.dev/docs/configuring-languages)
 
+## Production dev extension (ZK-015)
+
+The production Zed extension lives in `extension/`. It registers the `Zedkata` language
+for `.kata` drill buffers, reuses the built-in `rust` grammar for highlighting, and discovers
+and launches the native `zedkata-lsp` binary.
+
+### Build the extension and native server
+
+```powershell
+# 1. Build and install native LSP server onto PATH
+cargo install --path crates/zedkata-lsp
+
+# 2. Build the WASM extension
+cargo build --manifest-path extension/Cargo.toml --target wasm32-wasip2 --release
+
+# 3. Run extension checks and tests
+cargo fmt --manifest-path extension/Cargo.toml --check
+cargo clippy --manifest-path extension/Cargo.toml --target wasm32-wasip2 -- -D warnings
+cargo test --manifest-path extension/Cargo.toml
+```
+
+### Install in Zed
+
+1. Open Zed (`zed .` from repository root).
+2. Open Command Palette (`Ctrl+Shift+P`).
+3. Select `zed: install dev extension` and choose `C:\Users\Dan\zedkata\extension`.
+4. Open any `.kata` exercise file (e.g. `lessons/fixtures/motions-01/delete-to-word-end.start.kata`).
+5. Confirm the language indicator displays **Zedkata** and editing triggers live diagnostic feedback.
+
+See [extension/README.md](../extension/README.md) for full details and troubleshooting.
+
+## Terminal TUI Shell (ZK-017)
+
+Launch the interactive Ratatui / Crossterm TUI shell:
+
+```powershell
+# Launch interactive TUI shell
+cargo run -p zedkata-tui
+
+# Verify terminal restoration on error exit
+cargo run -p zedkata-tui -- --test-error
+
+# Verify terminal restoration on panic exit
+cargo run -p zedkata-tui -- --test-panic
+```
+
+Inside the TUI:
+- `j` / `k` (or Down/Up): Navigate between curriculum lessons.
+- `h` / `l` (or Left/Right): Navigate exercises within the active lesson.
+- `Enter`: Select and activate the highlighted exercise in `session.json`.
+- `?`: Toggle category hint display.
+- `r`: Refresh session state and curriculum catalog from disk.
+- `q`, `Esc`, or `Ctrl-C`: Exit cleanly and restore cooked terminal state.
+- Resizing updates layout dynamically; shrinking below 60x15 displays a centered small-terminal warning overlay.
+
+## Headless exercise selection (ZK-016)
+
+Exercises can also be selected and inspected without launching the interactive TUI using `zedkata-tui`:
+
+```powershell
+# Select an active exercise in session state
+cargo run -p zedkata-tui -- select motions-01-word 0
+
+# Check active session status and history
+cargo run -p zedkata-tui -- status
+
+# Reset active attempt for current exercise
+cargo run -p zedkata-tui -- reset
+```
+
 ## Task handoff
 
-ZK-001 and ZK-002 are complete: inventory and the documented connection route are
-recorded, and the [probe](../spikes/lsp-probe/README.md) builds and passes its synthetic
-client checks. Dependencies are pinned in its npm lockfile.
-ZK-003 is complete: [real connection evidence](evidence/2026-09-13-connection.md)
-includes open/change/close and user-confirmed visible feedback. Next is the
-[Phase 0 matrix](evidence/phase-0-matrix.md). OQ-01 general granularity and OQ-03
-latency remain unmeasured; earlier pending-check notes above describe preparation.
+ZK-001 through ZK-017 (TUI shell and pane rendering) are complete. Next is **ZK-018: Exercise launch** ([ZK-018.1](BACKLOG.md#task-zk-018-1) to verify CLI positioning and fallback, followed by [ZK-018.2](BACKLOG.md#task-zk-018-2) to launch writable exercise copies into Zed). Alternatively, [ZK-019.1](BACKLOG.md#task-zk-019-1) (poll and display live session feedback) is also unblocked.
+
+

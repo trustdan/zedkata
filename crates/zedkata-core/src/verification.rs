@@ -149,34 +149,40 @@ pub fn verify_attempt(
         }
     }
 
-    // 2. Check buffer match against goal
+    // 2. Determine evidence-supported edit count
+    let actual_edits = if !attempt.edits.is_empty() {
+        crate::scoring::count_edit_units(&attempt.edits)
+    } else {
+        attempt.edit_count
+    };
+
+    // 3. Enforce forbid rules against recorded edits
+    if let Err(forbid_reason) =
+        crate::scoring::check_forbid_rules(&attempt.edits, exercise.forbid.as_ref())
+    {
+        return AttemptOutcome::Failed {
+            reason: forbid_reason,
+        };
+    }
+
+    // 4. Check buffer match against goal
     if compare_buffers(current_buffer, goal_buffer) {
-        // Buffer reached the goal! Now check edit budgets.
-        if let Some(max) = exercise.max_edits {
-            if attempt.edit_count > max {
-                return AttemptOutcome::Failed {
-                    reason: format!(
-                        "Over par budget: reached goal in {} edits, exceeding maximum of {}",
-                        attempt.edit_count, max
-                    ),
-                };
-            }
+        let (passed, score) =
+            crate::scoring::calculate_score(actual_edits, exercise.par_edits, exercise.max_edits);
+
+        if !passed {
+            return AttemptOutcome::Failed {
+                reason: format!(
+                    "Over par budget: reached goal in {} edits, exceeding maximum of {}",
+                    actual_edits,
+                    exercise.max_edits.unwrap_or(0)
+                ),
+            };
         }
 
-        let par = exercise.par_edits;
-        let score = if let Some(p) = par {
-            if attempt.edit_count <= p {
-                100
-            } else {
-                100u32.saturating_sub((attempt.edit_count - p) * 15).max(50)
-            }
-        } else {
-            100
-        };
-
         AttemptOutcome::Passed {
-            edits: attempt.edit_count,
-            par,
+            edits: actual_edits,
+            par: exercise.par_edits,
             score,
         }
     } else {
