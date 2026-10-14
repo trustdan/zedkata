@@ -6,8 +6,8 @@ Coverage: [requirements matrix](REQUIREMENTS.md). The approved
 [backlog expansion plan](plans/2026-09-13-full-backlog-plan.md) has been applied.
 The roadmap below preserves the original task history; detailed execution cards follow.
 
-**Next task: ZK-015 (package the development extension).**
-Phase 0 (ZK-001–005), ZK-007 (native Rust scaffold), ZK-008 (native CI), ZK-009 (lesson loading), ZK-010 (goal verification), ZK-011 (scoring and forbid rules), ZK-012 (session persistence), ZK-013 (production LSP observer), and ZK-014 (connect verification, state, and diagnostics) are complete. State contracts are documented in ARCHITECTURE.md (ZK-006).
+**Next task: ZK-018 (launch an exercise buffer).**
+Phase 0 (ZK-001–005), ZK-007 (native Rust scaffold), ZK-008 (native CI), ZK-009 (lesson loading), ZK-010 (goal verification), ZK-011 (scoring and forbid rules), ZK-012 (session persistence), ZK-013 (production LSP observer), ZK-014 (connect verification, state, and diagnostics), ZK-015 (development extension), ZK-016 (one-exercise acceptance), and ZK-017 (TUI shell) are complete. State contracts are documented in ARCHITECTURE.md (ZK-006).
 
 ## Phase 0 — Feasibility spike (GATE)
 
@@ -131,15 +131,21 @@ Granular edits remain a proxy for technique, not keystroke verification.
   completion, and emit feedback; retry clears it and old-exercise edits are ignored.
   **Completed 2026-09-13:** Integrated `FeedbackEngine` in `crates/zedkata-lsp/src/feedback.rs` connecting LSP lifecycle, curriculum catalog loading, atomic `session.json` persistence, and `zedkata-core` verification/scoring. On `didOpen`, active exercise matches start a fresh attempt and clear diagnostics. On `didChange`, edits update the attempt and trigger verification; passing attempts finalize state and publish Information diagnostics with scores; failing attempts record weaknesses and publish Error diagnostics with actionable budget/forbid reasons. Retries, resets, and `didClose` clear diagnostics. Unrelated documents and edits to past exercises are ignored. 6 integration tests in `crates/zedkata-lsp/tests/feedback_integration_tests.rs` pass cleanly.
 <a id="task-zk-015"></a>
-- [ ] **ZK-015 — Package the development extension.** Register `.kata` and locate the
+- [x] **ZK-015 — Package the development extension.** Register `.kata` and locate the
   LSP through the verified route. Keep the WASM build separate.
   **Done:** extension builds; install/troubleshooting instructions reproduce startup;
   no developer-specific binary paths are shipped.
+  **Completed 2026-09-13:** `extension/` builds to WASM against pinned
+  `zed_extension_api = "=0.7.0"`, registers `.kata`, and discovers `zedkata-lsp` via
+  `worktree.which` with an actionable missing-binary message. See ZK-015.1–015.3 cards.
 <a id="task-zk-016"></a>
 - [x] **ZK-016 — Demonstrate one exercise in Zed.** Depends on ZK-014 and ZK-015.
   **Done (manual):** documented commands start one exercise; correct/incorrect
   attempts, retry, feedback, and persisted verdict work. Record date, Zed version,
   and measured feedback latency.
+  **Completed 2026-09-13:** [one-exercise acceptance report](evidence/one-exercise.md)
+  records a passing `dw` attempt, a failing `backspace_run` attempt, and retry
+  clearing diagnostics, on Zed 1.19.2.
 
 ## Phase 2 — Usable local MVP
 
@@ -721,16 +727,27 @@ completed with a usable route.
 <a id="task-zk-018-1"></a>
 #### ZK-018.1 — Verify CLI positioning and specify fallback
 
-- **Status:** ready. **Priority:** MVP. **Requirements:** REQ-19.
+- **Status:** done. **Priority:** MVP. **Requirements:** REQ-19.
 - **Depends on:** [ZK-016](#task-zk-016).
-- **Files/components:** docs/OPEN-QUESTIONS.md; docs/DEVELOPMENT.md.
+- **Files/components:** docs/OPEN-QUESTIONS.md; docs/DEVELOPMENT.md; docs/evidence/.
 - **Acceptance:** Record current CLI evidence for OQ-10 and manual path:line:column behavior including spaces; document a usable fallback if exact placement is unavailable.
+- **Completed 2026-09-14:** [CLI cursor placement evidence](evidence/2026-09-14-cli-cursor-placement.md)
+  records that Zed 1.19.2's own `--help` documents `path:line:column`; that a path with
+  spaces in both directory and filename plus a `:3:12` suffix is accepted as one
+  argument (exit 0); and that Dan observed the caret on the `T` of `TARGET` — column 12
+  exactly, establishing 1-based line and column. OQ-10 verified. Fallback recorded as
+  unused contingency.
+- **Validation:** `zed.exe --help` and `--version` on the installed 1.19.2 binary, plus
+  the manual observation above.
 - **Validation:** Run the concrete manual scenarios in Acceptance, retain observations, and run affected automated checks where implementation changes.
 <a id="task-zk-018-2"></a>
 #### ZK-018.2 — Launch a writable exercise copy
 
-- **Status:** blocked. **Priority:** MVP. **Requirements:** REQ-01, REQ-19.
+- **Status:** ready. **Priority:** MVP. **Requirements:** REQ-01, REQ-19.
 - **Depends on:** [ZK-018.1](#task-zk-018-1), [ZK-012.3](#task-zk-012-3), [ZK-017.2](#task-zk-017-2).
+- **Note 2026-09-14:** ZK-018.1 verified CLI placement, so launch may pass
+  `path:line:column` (1-based). Placement applies at launch only — nothing may infer
+  later cursor position from it (OQ-04).
 - **Files/components:** crates/zedkata-tui/; launch tests.
 - **Acceptance:** Create exercise copy in agreed data path, set active attempt, and invoke Zed with separate arguments; missing CLI/copy failure does not leave a false active state; manually verify correct fixture opens.
 - **Validation:** Run the concrete manual scenarios in Acceptance, retain observations, and run affected automated checks where implementation changes.

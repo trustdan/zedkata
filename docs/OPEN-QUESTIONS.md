@@ -125,10 +125,29 @@ No Go SDK.
 
 ---
 
-## OQ-10 — Can we place the student's cursor? · ASSUMED
+## OQ-10 — Can we place the student's cursor? · VERIFIED (2026-09-14)
 
-The `zed` CLI is assumed to accept `path:line:col` to open a file at a position, which
-the TUI would use to start an exercise. Unverified against current CLI docs.
+Checked 2026-09-14 against the installed CLI on Zed 1.19.2
+(`df181c6f58d02677b385fa947d6bfde6d3530078`), Windows 11.
+
+`zed.exe --help` documents the syntax in its own positional-argument help — "Use
+`path:line:column` syntax to open a file at the given line and column." This is the
+installed binary's text, so it describes this exact version.
+
+**Empirical evidence:**
+- A path with spaces in both the directory and the file name, with a `:3:12` suffix
+  appended, is accepted as a single argument — exit 0, no parse error and no
+  truncated-path failure. The CLI splits the position suffix from the right.
+- Dan confirmed the caret landed on line 3 at the `T` of `TARGET`, the exact
+  character at column 12 of `LINE THREE TARGET COLUMN HERE`.
+- **Both line and column are 1-based**, established by that character-exact landing.
+
+Full report: [CLI cursor placement](evidence/2026-09-14-cli-cursor-placement.md).
+
+Blocks: unblocked. ZK-018.2 may depend on CLI cursor placement.
+
+Note this places the cursor at *launch* only. It does not let us read the cursor
+later — that remains permanently unavailable per OQ-04.
 
 ---
 
@@ -136,7 +155,35 @@ the TUI would use to start an exercise. Unverified against current CLI docs.
 
 Assumed that an undo produces a `didChange` that reverses the prior delta, and can
 therefore be detected and excluded from the edit count. If undo is invisible or appears
-as a full-document sync, `par_edits` is trivially gameable. Check during Phase 0.
+as a full-document sync, `par_edits` is trivially gameable.
+
+**Not closed by Phase 0.** The matrix run captured no deliberate undo: the restoration
+at sequence 34 of Case 01 is
+[explicitly recorded](evidence/2026-09-13-matrix-results.md) as consistent with the
+discard flow and *not* evidence that `u` was pressed.
+
+**What exists today.** `count_edit_units` cancels inverse edit pairs, covered by
+`test_count_edit_units_undo_inversion` in `crates/zedkata-core/tests/scoring.rs`. That
+test is **hand-constructed**, not replayed from a capture. It shows the counter handles
+undo-shaped input; it does not show Zed emits that shape.
+
+**To close:** capture `dw` then `u` on a real buffer, and confirm the second
+notification is an insertion inverting the first rather than a full-document sync.
+Until then, treat undo exclusion in scoring as resting on an unverified assumption.
+
+**How to capture (added 2026-09-14).** `zedkata-lsp` writes raw traffic to a `.jsonl`
+when `ZEDKATA_CAPTURE` is set before Zed launches — see
+[capturing raw LSP traffic](DEVELOPMENT.md#capturing-raw-lsp-traffic). The Phase 0 probe
+that produced the existing fixtures was retired in ZK-005.2, so this replaced it.
+
+Three outcomes are possible, and they are not equally good:
+- **Inverting insertion** at the deleted range — the assumed shape. `count_edit_units`
+  already cancels it, and OQ-11 becomes VERIFIED.
+- **Full-document sync** — undo is indistinguishable from retyping. `par_edits` is
+  gameable by delete-undo-retry and ZK-011's undo handling needs an ADR before ZK-022
+  calibrates budgets against it.
+- **No notification at all** — undo is invisible to us; buffer state and our
+  reconstruction diverge, which is worse than either of the above.
 
 ---
 

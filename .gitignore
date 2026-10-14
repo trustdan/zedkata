@@ -13,3 +13,7 @@ Thumbs.db
 # Temporary session state
 /session.json
 /session.json.*.tmp
+
+# Raw LSP captures (ZEDKATA_CAPTURE). Retained evidence is promoted by hand
+# into tests/fixtures/lsp/ after review.
+/captures/

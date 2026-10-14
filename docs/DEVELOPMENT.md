@@ -42,6 +42,28 @@ git --version
 Use `npm.cmd` to invoke npm explicitly from PowerShell. The probe will use npm and
 a committed lockfile; package selection and installation belong to ZK-002.
 
+## Zed CLI: opening a file at a position
+
+Verified 2026-09-14 on Zed 1.19.2. ZK-018.2 uses this to launch an exercise buffer.
+
+```powershell
+zed -n "<path>:<line>:<column>"
+```
+
+- **Line and column are 1-based.** `:3:12` puts the caret on the 12th character of
+  line 3 — confirmed character-exact by observation.
+- **Quote the whole argument.** The position suffix is appended to the path, and the
+  CLI splits it from the right, so paths containing spaces work as a single quoted
+  argument. Do not split the path and position into separate arguments.
+- Useful flags: `-n`/`--new` (new workspace), `-e`/`--existing` (reuse a window),
+  `-a`/`--add` (add to current workspace), `-w`/`--wait` (block until closed).
+
+Discover the binary through PATH rather than hardcoding it; on this machine it
+resolves to `%LOCALAPPDATA%\Programs\Zed\bin\zed.exe`.
+
+This positions the caret **at launch only.** Zed exposes no way to read the cursor
+afterward (OQ-04) — see [CLI cursor placement](evidence/2026-09-14-cli-cursor-placement.md).
+
 ## Remaining prerequisites
 
 - `wasm32-wasip2` was installed during ZK-003 on 2026-09-13 with
@@ -165,6 +187,48 @@ cargo run -p zedkata-tui -- status
 # Reset active attempt for current exercise
 cargo run -p zedkata-tui -- reset
 ```
+
+## Capturing raw LSP traffic
+
+`zedkata-lsp` appends every message it reads and writes to a `.jsonl` file when
+`ZEDKATA_CAPTURE` names an output path. Unset, it is inert. This exists to answer open
+questions in [OPEN-QUESTIONS.md](OPEN-QUESTIONS.md) with reproducible wire evidence.
+
+Records use the same `{sequence, at, direction, message}` shape as the Phase 0 probe
+captures, so a new capture replays through the golden-fixture tests in
+`crates/zedkata-lsp/tests/`.
+
+**The variable must reach the Zed GUI process.** The extension launches the server with
+`env: vec![]`, so the server inherits Zed's environment. Two things defeat this on
+Windows, both silently:
+
+1. Zed already running. The variable only reaches processes started afterward.
+2. **Launching via `zed`.** Verified 2026-09-14: `zed` on PATH resolves to
+   `...\Programs\Zed\bin\zed.exe`, a CLI shim that delegates to a *separate* GUI binary
+   at `...\Programs\Zed\Zed.exe` and exits. The variable goes into the shim and dies
+   with it. Launch the GUI binary directly instead.
+
+```powershell
+# 1. Rebuild and reinstall the server that the extension finds on PATH
+cargo install --path crates/zedkata-lsp --force
+
+# 2. Quit Zed completely first, then confirm nothing is running
+Get-Process -Name Zed -ErrorAction SilentlyContinue | Stop-Process
+
+# 3. Set the capture path and launch the GUI binary directly (NOT `zed .`)
+$env:ZEDKATA_CAPTURE = "C:\Users\Dan\zedkata\captures\undo.jsonl"
+New-Item -ItemType Directory -Force (Split-Path $env:ZEDKATA_CAPTURE) | Out-Null
+& "C:\Users\Dan\AppData\Local\Programs\Zed\Zed.exe" "C:\Users\Dan\zedkata"
+
+# 4. Perform the edits under investigation, then close the buffer and quit Zed.
+```
+
+Confirm capture is active by checking Zed's language server logs (`debug: open language
+server logs`) for `[zedkata-lsp] capturing traffic to ...` on stderr. If that line is
+absent the variable did not reach the process.
+
+Captures may contain buffer contents. Review one before retaining it under
+`tests/fixtures/lsp/`.
 
 ## Task handoff
 

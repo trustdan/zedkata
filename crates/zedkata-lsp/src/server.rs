@@ -1,3 +1,4 @@
+use crate::capture::Capture;
 use crate::codec::{self, MessageReader};
 use crate::document::DocumentTracker;
 use crate::error::LspError;
@@ -308,8 +309,12 @@ pub async fn run_server_with_engine<R: AsyncRead + Unpin, W: AsyncWrite + Unpin>
     mut server: LspServer,
 ) -> Result<i32, LspError> {
     let mut msg_reader = MessageReader::new(reader);
+    // Inert unless ZEDKATA_CAPTURE names a path; see docs/DEVELOPMENT.md.
+    let mut capture = Capture::from_env();
 
     while let Some(payload) = msg_reader.read_message().await? {
+        capture.record("in", &payload);
+
         let json_val: serde_json::Value = match serde_json::from_slice(&payload) {
             Ok(v) => v,
             Err(e) => {
@@ -330,11 +335,13 @@ pub async fn run_server_with_engine<R: AsyncRead + Unpin, W: AsyncWrite + Unpin>
 
         if let Some(resp) = output.response {
             let resp_bytes = serde_json::to_vec(&resp)?;
+            capture.record("out", &resp_bytes);
             codec::write_message(&mut writer, &resp_bytes).await?;
         }
 
         for notif in output.notifications {
             let notif_bytes = serde_json::to_vec(&notif)?;
+            capture.record("out", &notif_bytes);
             codec::write_message(&mut writer, &notif_bytes).await?;
         }
 
