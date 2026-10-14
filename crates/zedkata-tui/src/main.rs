@@ -47,6 +47,16 @@ enum Commands {
         exercise_index: usize,
     },
 
+    /// Launch an exercise in Zed editor at the specified position
+    Launch {
+        /// Lesson ID (defaults to active lesson in session or first runnable lesson)
+        lesson_id: Option<String>,
+
+        /// 0-indexed exercise index within the lesson (defaults to 0)
+        #[arg(default_value_t = 0)]
+        exercise_index: usize,
+    },
+
     /// Display current session and exercise status
     Status,
 
@@ -202,6 +212,56 @@ fn handle_reset(session_path: &Path) -> Result<()> {
     Ok(())
 }
 
+fn handle_launch(
+    session_path: &Path,
+    lessons_dir: &Path,
+    lesson_id: Option<String>,
+    exercise_index: usize,
+) -> Result<()> {
+    let catalog = Catalog::load_from_dir(lessons_dir)
+        .with_context(|| format!("Failed to load catalog from {:?}", lessons_dir))?;
+
+    let session = SessionState::load_or_init(session_path)
+        .with_context(|| format!("Failed to load session from {:?}", session_path))?;
+
+    let lid = match lesson_id {
+        Some(id) => id,
+        None if !session.current.lesson_id.is_empty() => session.current.lesson_id.clone(),
+        None => {
+            let runnable = catalog.runnable_lessons();
+            if let Some(first) = runnable.first() {
+                first.lesson.id.clone()
+            } else {
+                let all = catalog.all_lessons();
+                let first = all.first().context("No lessons available in catalog")?;
+                first.lesson.id.clone()
+            }
+        }
+    };
+
+    println!("Launching exercise in Zed:");
+    println!("  Lesson:    {}", lid);
+    println!("  Index:     {}", exercise_index);
+    println!("  Session:   {:?}", session_path);
+
+    let result = zedkata_tui::launcher::launch_exercise(
+        session_path,
+        &catalog,
+        &lid,
+        exercise_index,
+        None,
+        None,
+    )?;
+
+    println!("  Exercise:  {}", result.exercise_id);
+    println!("  Buffer:    {:?}", result.buffer_path);
+    println!("  Target:    {}", result.target_arg);
+    println!("  Attempt:   {}", result.attempt_id);
+    println!();
+    println!("Exercise launched successfully in Zed.");
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = Cli::parse();
@@ -214,6 +274,12 @@ async fn main() -> Result<()> {
             exercise_index,
         }) => {
             handle_select(&session_path, &lessons_dir, &lesson_id, exercise_index)?;
+        }
+        Some(Commands::Launch {
+            lesson_id,
+            exercise_index,
+        }) => {
+            handle_launch(&session_path, &lessons_dir, lesson_id, exercise_index)?;
         }
         Some(Commands::Status) => {
             handle_status(&session_path)?;

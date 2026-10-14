@@ -21,6 +21,7 @@ start = "fixtures/motions-01/delete-word-arg.start.kata"
 goal = "fixtures/motions-01/delete-word-arg.goal.kata"
 par_edits = 1
 max_edits = 2
+cursor = [2, 5]
 hint = "A single word deletion will remove the identifier and trailing space."
 
 [exercise.forbid]
@@ -35,6 +36,7 @@ start = "fixtures/motions-01/delete-to-word-end.start.kata"
 goal = "fixtures/motions-01/delete-to-word-end.goal.kata"
 par_edits = 1
 max_edits = 2
+cursor = [1, 19]
 hint = "Delete forward to the end of the current word."
 
 [exercise.forbid]

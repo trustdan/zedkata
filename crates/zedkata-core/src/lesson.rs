@@ -34,6 +34,8 @@ pub struct Exercise {
     pub max_edits: Option<u32>,
     pub hint: Option<String>,
     pub forbid: Option<ForbidRules>,
+    #[serde(default)]
+    pub cursor: Option<[u32; 2]>,
 }
 
 /// A guided walkthrough targeting conceptual or non-drillable topics.
@@ -85,6 +87,7 @@ struct RawExercise {
     max_edits: Option<u32>,
     hint: Option<String>,
     forbid: Option<toml::Table>,
+    cursor: Option<[u32; 2]>,
 }
 
 #[derive(Deserialize)]
@@ -212,6 +215,19 @@ impl Lesson {
                 None
             };
 
+            if let Some(cursor) = raw_ex.cursor {
+                if cursor[0] == 0 || cursor[1] == 0 {
+                    return Err(CoreError::LessonValidationError {
+                        path: path_opt.clone(),
+                        field: format!("{}.cursor", field_prefix),
+                        message: format!(
+                            "cursor coordinates must be 1-based (line >= 1, column >= 1), got {:?}",
+                            cursor
+                        ),
+                    });
+                }
+            }
+
             exercises.push(Exercise {
                 id: raw_ex.id,
                 task: raw_ex.task,
@@ -221,6 +237,7 @@ impl Lesson {
                 max_edits: raw_ex.max_edits,
                 hint: raw_ex.hint,
                 forbid,
+                cursor: raw_ex.cursor,
             });
         }
 

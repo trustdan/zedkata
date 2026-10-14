@@ -232,6 +232,6 @@ Captures may contain buffer contents. Review one before retaining it under
 
 ## Task handoff
 
-ZK-001 through ZK-017 (TUI shell and pane rendering) are complete. Next is **ZK-018: Exercise launch** ([ZK-018.1](BACKLOG.md#task-zk-018-1) to verify CLI positioning and fallback, followed by [ZK-018.2](BACKLOG.md#task-zk-018-2) to launch writable exercise copies into Zed). Alternatively, [ZK-019.1](BACKLOG.md#task-zk-019-1) (poll and display live session feedback) is also unblocked.
+ZK-001 through ZK-018 (exercise launch and writable buffer preparation) are complete. Next is **ZK-019: Live state and connection health** ([ZK-019.1](BACKLOG.md#task-zk-019-1) to poll and display live session feedback in the TUI).
 
 

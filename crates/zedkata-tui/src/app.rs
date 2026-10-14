@@ -218,6 +218,54 @@ impl App {
         Ok(())
     }
 
+    /// Launch the currently selected exercise in Zed and set active attempt.
+    pub fn launch_selected(&mut self) -> Result<()> {
+        let (lesson_id, ex_idx, _ex_id) = if let Some(entry) = self.current_lesson() {
+            let (is_locked, missing) = self.is_lesson_locked(&entry.lesson);
+            if is_locked {
+                self.status_message = Some(format!(
+                    "Cannot launch locked lesson '{}' (requires {})",
+                    entry.lesson.id,
+                    missing.join(", ")
+                ));
+                return Ok(());
+            }
+            let ex_id = self.current_exercise().map(|ex| ex.id.clone());
+            (entry.lesson.id.clone(), self.selected_exercise_idx, ex_id)
+        } else {
+            return Ok(());
+        };
+
+        let Some(catalog) = &self.catalog else {
+            self.status_message = Some("Catalog not loaded".to_string());
+            return Ok(());
+        };
+
+        match crate::launcher::launch_exercise(
+            &self.session_path,
+            catalog,
+            &lesson_id,
+            ex_idx,
+            None,
+            None,
+        ) {
+            Ok(result) => {
+                if let Ok(s) = SessionState::load_from_file(&self.session_path) {
+                    self.session = s;
+                }
+                self.status_message = Some(format!(
+                    "Launched '{}' in Zed ({})",
+                    result.exercise_id,
+                    result.buffer_path.display()
+                ));
+            }
+            Err(err) => {
+                self.status_message = Some(format!("Launch failed: {}", err));
+            }
+        }
+        Ok(())
+    }
+
     /// Refresh session and catalog from disk.
     pub fn refresh_state(&mut self) -> Result<()> {
         if let Ok(cat) = Catalog::load_from_dir(&self.lessons_dir) {

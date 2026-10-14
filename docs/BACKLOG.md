@@ -6,8 +6,8 @@ Coverage: [requirements matrix](REQUIREMENTS.md). The approved
 [backlog expansion plan](plans/2026-09-13-full-backlog-plan.md) has been applied.
 The roadmap below preserves the original task history; detailed execution cards follow.
 
-**Next task: ZK-018 (launch an exercise buffer).**
-Phase 0 (ZK-001–005), ZK-007 (native Rust scaffold), ZK-008 (native CI), ZK-009 (lesson loading), ZK-010 (goal verification), ZK-011 (scoring and forbid rules), ZK-012 (session persistence), ZK-013 (production LSP observer), ZK-014 (connect verification, state, and diagnostics), ZK-015 (development extension), ZK-016 (one-exercise acceptance), and ZK-017 (TUI shell) are complete. State contracts are documented in ARCHITECTURE.md (ZK-006).
+**Next task: ZK-019 (show live state and connection health).**
+Phase 0 (ZK-001–005), ZK-007 (native Rust scaffold), ZK-008 (native CI), ZK-009 (lesson loading), ZK-010 (goal verification), ZK-011 (scoring and forbid rules), ZK-012 (session persistence), ZK-013 (production LSP observer), ZK-014 (connect verification, state, and diagnostics), ZK-015 (development extension), ZK-016 (one-exercise acceptance), ZK-017 (TUI shell), and ZK-018 (exercise launch) are complete. State contracts are documented in ARCHITECTURE.md (ZK-006).
 
 ## Phase 0 — Feasibility spike (GATE)
 
@@ -155,11 +155,16 @@ Granular edits remain a proxy for technique, not keystroke verification.
   **Done:** layout handles small terminals and resize; terminal state restores on
   exit/errors; the TUI performs no document editing.
 <a id="task-zk-018"></a>
-- [ ] **ZK-018 — Launch an exercise buffer.** Verify OQ-10 before depending on CLI
+- [x] **ZK-018 — Launch an exercise buffer.** Verify OQ-10 before depending on CLI
   cursor placement. Copy fixtures into a writable session directory and invoke Zed
   with separate arguments.
   **Done (manual):** exercise opens from paths with spaces; missing CLI errors are
   actionable. Document a cursor-placement fallback if unsupported.
+  **Completed 2026-10-14:** Verified 1-based CLI placement on Zed 1.19.2 (ZK-018.1).
+  Implemented writable buffer preparation in user data path, transactional active
+  attempt initiation, and separate-argument Zed CLI invocation with 1-based :line:col
+  cursor placement (ZK-018.2). Failures leave zero false active state. Automated tests
+  in `crates/zedkata-tui/tests/launch_tests.rs` pass cleanly.
 <a id="task-zk-019"></a>
 - [ ] **ZK-019 — Show live state and connection health.** Poll state and render feedback.
   **Done:** simulated and live updates display correctly; missing, stale, or unreadable
@@ -743,13 +748,22 @@ completed with a usable route.
 <a id="task-zk-018-2"></a>
 #### ZK-018.2 — Launch a writable exercise copy
 
-- **Status:** ready. **Priority:** MVP. **Requirements:** REQ-01, REQ-19.
+- **Status:** done. **Priority:** MVP. **Requirements:** REQ-01, REQ-19.
 - **Depends on:** [ZK-018.1](#task-zk-018-1), [ZK-012.3](#task-zk-012-3), [ZK-017.2](#task-zk-017-2).
 - **Note 2026-09-14:** ZK-018.1 verified CLI placement, so launch may pass
   `path:line:column` (1-based). Placement applies at launch only — nothing may infer
   later cursor position from it (OQ-04).
 - **Files/components:** crates/zedkata-tui/; launch tests.
 - **Acceptance:** Create exercise copy in agreed data path, set active attempt, and invoke Zed with separate arguments; missing CLI/copy failure does not leave a false active state; manually verify correct fixture opens.
+- **Completed 2026-10-14:** Implemented launcher in `crates/zedkata-tui/src/launcher.rs`
+  with CLI `launch` subcommand and TUI keybinding `[o]`. Start fixture is copied to
+  writable `<exercises_dir>/<lesson_id>/<exercise_id>.kata`, 1-based cursor coordinates
+  are parsed and formatted into the target argument (`path:line:col`), and Zed is
+  spawned via `std::process::Command` with separate arguments (`-n`, target).
+  Missing CLI, copy failures, and locked lesson checks abort before modifying session
+  state, leaving `session.json` untouched. 6 automated integration tests in
+  `crates/zedkata-tui/tests/launch_tests.rs` cover spaces in paths, coordinates, mock
+  execution, and failure rollback.
 - **Validation:** Run the concrete manual scenarios in Acceptance, retain observations, and run affected automated checks where implementation changes.
 
 ### ZK-019 — Live state

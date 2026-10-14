@@ -1092,6 +1092,7 @@ dependencies = [
  "clap",
  "crossterm",
  "ratatui",
+ "thiserror",
  "tokio",
  "zedkata-core",
 ]

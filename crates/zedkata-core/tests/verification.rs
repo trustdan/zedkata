@@ -218,6 +218,7 @@ fn test_exercise(par: u32, max: u32) -> Exercise {
         max_edits: Some(max),
         hint: None,
         forbid: None,
+        cursor: None,
     }
 }
 

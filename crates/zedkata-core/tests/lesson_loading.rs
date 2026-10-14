@@ -443,6 +443,67 @@ fn test_workspace_production_lessons_validate() {
         .expect("runnable validation failed");
 }
 
+#[test]
+fn test_exercise_cursor_coordinates_parsed_and_validated() {
+    let toml = r#"
+[lesson]
+id = "cursor-lesson"
+title = "Cursor Lesson"
+prose = "Testing cursor coordinates"
+
+[[exercise]]
+id = "with-cursor"
+task = "Test with cursor"
+start = "fixtures/start.kata"
+goal = "fixtures/goal.kata"
+cursor = [3, 12]
+
+[[exercise]]
+id = "without-cursor"
+task = "Test without cursor"
+start = "fixtures/start.kata"
+goal = "fixtures/goal.kata"
+"#;
+
+    let lesson = Lesson::from_toml(toml, None).expect("failed to parse valid cursor toml");
+    assert_eq!(lesson.exercises[0].cursor, Some([3, 12]));
+    assert_eq!(lesson.exercises[1].cursor, None);
+
+    // 0-based line is rejected
+    let invalid_line = r#"
+[lesson]
+id = "invalid-cursor-line"
+title = "Invalid"
+prose = "Prose"
+
+[[exercise]]
+id = "zero-line"
+task = "Zero line"
+start = "fixtures/start.kata"
+goal = "fixtures/goal.kata"
+cursor = [0, 5]
+"#;
+    let err = Lesson::from_toml(invalid_line, None).unwrap_err();
+    assert!(err.to_string().contains("1-based"));
+
+    // 0-based col is rejected
+    let invalid_col = r#"
+[lesson]
+id = "invalid-cursor-col"
+title = "Invalid"
+prose = "Prose"
+
+[[exercise]]
+id = "zero-col"
+task = "Zero col"
+start = "fixtures/start.kata"
+goal = "fixtures/goal.kata"
+cursor = [1, 0]
+"#;
+    let err = Lesson::from_toml(invalid_col, None).unwrap_err();
+    assert!(err.to_string().contains("1-based"));
+}
+
 fn tempfile_dir() -> std::path::PathBuf {
     use std::time::{SystemTime, UNIX_EPOCH};
     let nanos = SystemTime::now()

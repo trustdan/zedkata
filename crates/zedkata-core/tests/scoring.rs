@@ -236,6 +236,7 @@ fn test_verify_attempt_integration_forbid_and_scoring() {
             backspace_run: Some(3),
             unsupported: vec![],
         }),
+        cursor: None,
     };
 
     let current = "alpha bravo\n";

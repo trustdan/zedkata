@@ -33,6 +33,9 @@ pub fn handle_event(app: &mut App, event: Event) -> Result<()> {
                 KeyCode::Enter => {
                     let _ = app.activate_selected();
                 }
+                KeyCode::Char('o') | KeyCode::Char('O') => {
+                    let _ = app.launch_selected();
+                }
                 KeyCode::Char('?') | KeyCode::Char('H') => {
                     app.toggle_hint();
                 }

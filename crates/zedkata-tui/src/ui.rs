@@ -400,8 +400,10 @@ fn render_task_pane(frame: &mut Frame, area: Rect, app: &App) {
     lines.push(Line::from(vec![
         Span::raw("Practice in Zed: "),
         Span::styled(
-            "Open start fixture in Zed editor",
-            Style::default().fg(Color::Green),
+            "Press [o] to open in Zed editor",
+            Style::default()
+                .fg(Color::Green)
+                .add_modifier(Modifier::BOLD),
         ),
     ]));
 
@@ -533,6 +535,13 @@ fn render_footer(frame: &mut Frame, area: Rect, full_area: Rect) {
                 .add_modifier(Modifier::BOLD),
         ),
         Span::raw("Select  "),
+        Span::styled(
+            " [o] ",
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::raw("Open in Zed  "),
         Span::styled(
             " [?] ",
             Style::default()
