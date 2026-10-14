@@ -230,8 +230,48 @@ absent the variable did not reach the process.
 Captures may contain buffer contents. Review one before retaining it under
 `tests/fixtures/lsp/`.
 
+## Connection Health, Stale-State Recovery, and Troubleshooting (ZK-019.2)
+
+The TUI communicates with Zed and the LSP observer exclusively through `session.json`. The TUI automatically monitors connection health and provides clear, actionable feedback for connection issues and desynchronized state:
+
+### 1. Waiting for Zed / Stopped LSP
+- **Indicator:** `Connection: WAITING FOR ZED — Buffer not yet open in editor`
+- **Cause:** An exercise has been selected in the TUI, but Zed has not opened the `.kata` buffer, or `zedkata-lsp` has crashed or stopped.
+- **Actionable Recovery:**
+  - Press `[o]` in the TUI to launch the buffer directly into Zed at the agreed coordinates.
+  - Or manually open the buffer: `zed <buffer_path>`.
+  - If Zed is already running but the server is stopped, open the Command Palette in Zed (`Ctrl-Shift-P` on Windows/Linux or `Cmd-Shift-P` on macOS) and run:
+    ```
+    workspace: restart language server
+    ```
+  - As soon as Zed emits `textDocument/didOpen`, `zedkata-lsp` initializes the active attempt, and the TUI automatically transitions to `CONNECTED TO ZED`.
+
+### 2. Mismatched Session (Browsing While Editing)
+- **Indicator:** `Connection: MISMATCHED VIEW — Viewing <A> while Zed has <B> active`
+- **Cause:** The student is navigating through lessons/exercises in the TUI while a different drill is active in Zed.
+- **Actionable Recovery:**
+  - Press `[s]` to synchronize the TUI view back to the active drill in Zed.
+  - Or press `[Enter]` to switch the session's active drill to the currently viewed exercise.
+
+### 3. Stale Buffer Recovery
+- **Indicator:** `Connection: STALE BUFFER — Exercise buffer file does not exist on disk`
+- **Cause:** The temporary buffer file was deleted, cleaned up by the OS, or moved.
+- **Actionable Recovery:**
+  - Press `[o]` in the TUI. The launcher will regenerate the pristine fixture into a fresh writable buffer and relaunch it in Zed.
+
+### 4. Simulating and Testing Connection Scenarios
+Automated verification is covered in `crates/zedkata-tui/tests/connection_health_tests.rs`:
+```powershell
+cargo test -p zedkata-tui --test connection_health_tests
+```
+
+To test manually:
+1. Launch an exercise in the TUI (`cargo run -p zedkata-tui` and press `o`).
+2. Close the `.kata` tab in Zed. Observe the TUI status change.
+3. In Zed, trigger `workspace: restart language server`. Re-open the buffer and confirm the live attempt immediately reconnects.
+
 ## Task handoff
 
-ZK-001 through ZK-018 (exercise launch and writable buffer preparation) are complete. Next is **ZK-019: Live state and connection health** ([ZK-019.1](BACKLOG.md#task-zk-019-1) to poll and display live session feedback in the TUI).
+ZK-001 through ZK-019 (exercise launch, writable buffer preparation, bounded live polling, and connection health/stale-state recovery) are complete. Next is **ZK-020: Add retry and next exercise** ([ZK-020.1](BACKLOG.md#task-zk-020-1) to reset and retry an active exercise).
 
 

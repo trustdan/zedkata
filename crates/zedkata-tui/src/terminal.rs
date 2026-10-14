@@ -104,6 +104,8 @@ pub fn run_tui_app(
     app.on_resize(size.width, size.height);
 
     while !app.should_quit {
+        app.poll_session();
+
         terminal.draw(|frame| {
             ui::render(frame, &app);
         })?;

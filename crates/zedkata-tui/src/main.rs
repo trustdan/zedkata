@@ -62,6 +62,9 @@ enum Commands {
 
     /// Reset the active attempt for the current exercise
     Reset,
+
+    /// Advance to the next exercise in the curriculum
+    Next,
 }
 
 fn resolve_session_path(cli_path: Option<PathBuf>) -> Result<PathBuf> {
@@ -194,7 +197,21 @@ fn handle_status(session_path: &Path) -> Result<()> {
     Ok(())
 }
 
-fn handle_reset(session_path: &Path) -> Result<()> {
+fn handle_reset(session_path: &Path, lessons_dir: &Path) -> Result<()> {
+    if let Ok(catalog) = Catalog::load_from_dir(lessons_dir) {
+        if let Ok(result) =
+            zedkata_tui::launcher::reset_exercise_attempt(session_path, &catalog, None)
+        {
+            println!(
+                "Reset active attempt for lesson '{}' (exercise '{}').",
+                result.lesson_id, result.exercise_id
+            );
+            println!("  Buffer restored: {:?}", result.buffer_path);
+            println!("  New Attempt ID:  {}", result.attempt_id);
+            return Ok(());
+        }
+    }
+
     let mut session = SessionState::load_or_init(session_path)
         .with_context(|| format!("Failed to load session from {:?}", session_path))?;
 
@@ -209,6 +226,40 @@ fn handle_reset(session_path: &Path) -> Result<()> {
         session.current.lesson_id, session.current.exercise_index
     );
     println!("New Attempt ID: {}", now_id);
+    Ok(())
+}
+
+fn handle_next(session_path: &Path, lessons_dir: &Path) -> Result<()> {
+    let mut app =
+        zedkata_tui::app::App::load(session_path.to_path_buf(), lessons_dir.to_path_buf());
+    if app.advance_and_activate()? {
+        let lesson_id = app
+            .current_lesson()
+            .map(|l| l.lesson.id.clone())
+            .unwrap_or_default();
+        let ex_idx = app.selected_exercise_idx;
+        let ex_id = app
+            .current_exercise()
+            .map(|ex| ex.id.clone())
+            .unwrap_or_default();
+
+        println!("Advanced to next exercise:");
+        println!("  Lesson:   {}", lesson_id);
+        println!("  Index:    {}", ex_idx);
+        println!("  ID:       {}", ex_id);
+        if let Some(ex) = app.current_exercise() {
+            println!("  Task:     {}", ex.task);
+        }
+        if let Some(ref cat) = app.catalog {
+            if let Ok(fixture_path) = cat.resolve_fixture(&lesson_id, &ex_id, true) {
+                println!("  Fixture:  {:?}", fixture_path);
+            }
+        }
+        println!();
+        println!("Active exercise updated in session state.");
+    } else if let Some(msg) = app.status_message {
+        println!("{}", msg);
+    }
     Ok(())
 }
 
@@ -285,7 +336,10 @@ async fn main() -> Result<()> {
             handle_status(&session_path)?;
         }
         Some(Commands::Reset) => {
-            handle_reset(&session_path)?;
+            handle_reset(&session_path, &lessons_dir)?;
+        }
+        Some(Commands::Next) => {
+            handle_next(&session_path, &lessons_dir)?;
         }
         None => {
             terminal::run_tui_app(&session_path, &lessons_dir, cli.test_error, cli.test_panic)?;
@@ -316,9 +370,13 @@ mod tests {
         assert_eq!(session.current.lesson_id, "motions-01-word");
         assert_eq!(session.current.exercise_index, 0);
 
-        handle_reset(&session_file)?;
+        handle_reset(&session_file, &lessons_dir)?;
         let session_after_reset = SessionState::load_from_file(&session_file)?;
         assert!(session_after_reset.attempt.is_some());
+
+        handle_next(&session_file, &lessons_dir)?;
+        let session_after_next = SessionState::load_from_file(&session_file)?;
+        assert_eq!(session_after_next.current.exercise_index, 1);
 
         let _ = std::fs::remove_dir_all(&temp_dir);
         Ok(())

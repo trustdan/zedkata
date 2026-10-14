@@ -1,5 +1,8 @@
 use anyhow::{Context, Result};
-use std::path::PathBuf;
+use std::{
+    path::PathBuf,
+    time::{Duration, Instant, SystemTime},
+};
 use zedkata_core::{
     catalog::{Catalog, LessonEntry},
     lesson::{Exercise, Lesson},
@@ -8,6 +11,38 @@ use zedkata_core::{
 
 pub const MIN_WIDTH: u16 = 60;
 pub const MIN_HEIGHT: u16 = 15;
+
+/// Connection and synchronization state between the TUI, Zed editor, and LSP observer.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ConnectionStatus {
+    /// No drill is currently active in session state.
+    Idle,
+    /// A drill is selected in session, but Zed has not yet opened the buffer or LSP has not attached.
+    WaitingForZed {
+        lesson_id: String,
+        exercise_index: usize,
+        expected_buffer: Option<PathBuf>,
+    },
+    /// Active drill buffer is open in Zed, attempt is attached and observed by LSP.
+    Connected {
+        lesson_id: String,
+        exercise_index: usize,
+        buffer_path: PathBuf,
+        attempt_id: String,
+    },
+    /// TUI curriculum selection differs from the currently active exercise in Zed session.
+    MismatchedSession {
+        selected_lesson: String,
+        selected_exercise: usize,
+        active_lesson: String,
+        active_exercise: usize,
+    },
+    /// Buffer path in session does not exist on disk.
+    StaleBuffer {
+        buffer_path: PathBuf,
+        reason: String,
+    },
+}
 
 /// State for the interactive terminal application shell.
 #[derive(Debug, Clone)]
@@ -24,6 +59,10 @@ pub struct App {
     pub selected_exercise_idx: usize,
     pub show_hint: bool,
     pub status_message: Option<String>,
+    pub last_session_poll: Instant,
+    pub last_session_mtime: Option<SystemTime>,
+    pub session_warning: Option<String>,
+    pub poll_interval: Duration,
 }
 
 impl App {
@@ -42,6 +81,10 @@ impl App {
             selected_exercise_idx: 0,
             show_hint: false,
             status_message: None,
+            last_session_poll: Instant::now(),
+            last_session_mtime: None,
+            session_warning: None,
+            poll_interval: Duration::from_millis(100),
         }
     }
 
@@ -52,7 +95,21 @@ impl App {
             Err(err) => (None, Some(err.to_string())),
         };
 
-        let session = SessionState::load_or_init(&session_path).unwrap_or_default();
+        let (session, session_warning, initial_mtime) = if session_path.exists() {
+            let mtime = std::fs::metadata(&session_path)
+                .and_then(|m| m.modified())
+                .ok();
+            match SessionState::load_from_file(&session_path) {
+                Ok(s) => (s, None, mtime),
+                Err(err) => (
+                    SessionState::default(),
+                    Some(format!("Session load error: {}", err)),
+                    mtime,
+                ),
+            }
+        } else {
+            (SessionState::default(), None, None)
+        };
 
         let mut app = Self {
             should_quit: false,
@@ -67,6 +124,10 @@ impl App {
             selected_exercise_idx: 0,
             show_hint: false,
             status_message: None,
+            last_session_poll: Instant::now(),
+            last_session_mtime: initial_mtime,
+            session_warning,
+            poll_interval: Duration::from_millis(100),
         };
 
         // If session has an active lesson, select it in the catalog
@@ -126,22 +187,116 @@ impl App {
         }
     }
 
-    /// Move to the next exercise within the current lesson.
+    /// Move to the next exercise within the current lesson, or to the first exercise
+    /// of the next lesson if at the end of the current lesson (and the next lesson is unlocked).
     pub fn next_exercise(&mut self) {
         if let Some(entry) = self.current_lesson() {
             let total_ex = entry.lesson.exercises.len();
             if total_ex > 0 && self.selected_exercise_idx + 1 < total_ex {
                 self.selected_exercise_idx += 1;
                 self.show_hint = false;
+                return;
+            }
+        }
+
+        // At end of current lesson; try moving to next lesson
+        let total_lessons = self.lessons().len();
+        if self.selected_lesson_idx + 1 < total_lessons {
+            let next_idx = self.selected_lesson_idx + 1;
+            let lessons = self.lessons();
+            let next_lesson = &lessons[next_idx].lesson;
+            let (is_locked, missing) = self.is_lesson_locked(next_lesson);
+            if is_locked {
+                self.status_message = Some(format!(
+                    "Cannot navigate to locked lesson '{}' (requires {})",
+                    next_lesson.id,
+                    missing.join(", ")
+                ));
+            } else {
+                self.selected_lesson_idx = next_idx;
+                self.selected_exercise_idx = 0;
+                self.show_hint = false;
             }
         }
     }
 
-    /// Move to the previous exercise within the current lesson.
+    /// Move to the previous exercise within the current lesson, or to the last exercise
+    /// of the previous lesson if at the start of the current lesson.
     pub fn prev_exercise(&mut self) {
         if self.selected_exercise_idx > 0 {
             self.selected_exercise_idx -= 1;
             self.show_hint = false;
+        } else if self.selected_lesson_idx > 0 {
+            self.selected_lesson_idx -= 1;
+            let prev_total = self
+                .current_lesson()
+                .map(|l| l.lesson.exercises.len())
+                .unwrap_or(1);
+            self.selected_exercise_idx = prev_total.saturating_sub(1);
+            self.show_hint = false;
+        }
+    }
+
+    /// Advances selection to the next exercise:
+    /// - If there are more exercises in the current lesson, advances within the lesson.
+    /// - If at the end of the current lesson, attempts to advance to the first exercise of the next lesson.
+    /// - If the next lesson is locked, halts and reports the missing prerequisites.
+    /// - If at the end of the entire curriculum, reports course completion.
+    ///
+    /// Returns `true` if selection was successfully advanced.
+    pub fn advance_exercise(&mut self) -> bool {
+        let Some(entry) = self.current_lesson() else {
+            return false;
+        };
+        let total_ex = entry.lesson.exercises.len();
+        if total_ex > 0 && self.selected_exercise_idx + 1 < total_ex {
+            self.selected_exercise_idx += 1;
+            self.show_hint = false;
+            return true;
+        }
+
+        let total_lessons = self.lessons().len();
+        if self.selected_lesson_idx + 1 < total_lessons {
+            let next_idx = self.selected_lesson_idx + 1;
+            let lessons = self.lessons();
+            let next_lesson = &lessons[next_idx].lesson;
+            let (locked, missing) = self.is_lesson_locked(next_lesson);
+            if locked {
+                self.status_message = Some(format!(
+                    "Cannot advance: next lesson '{}' is locked (requires {})",
+                    next_lesson.id,
+                    missing.join(", ")
+                ));
+                return false;
+            }
+            self.selected_lesson_idx = next_idx;
+            self.selected_exercise_idx = 0;
+            self.show_hint = false;
+            return true;
+        }
+
+        self.status_message = Some("Course completed! All exercises reached.".to_string());
+        false
+    }
+
+    /// Advances selection to the next exercise and immediately activates it in session state,
+    /// persisting the update to `session.json`.
+    pub fn advance_and_activate(&mut self) -> Result<bool> {
+        if self.advance_exercise() {
+            self.activate_selected()?;
+            if let Some(ex) = self.current_exercise() {
+                let lesson_id = self
+                    .current_lesson()
+                    .map(|l| l.lesson.id.clone())
+                    .unwrap_or_default();
+                self.status_message = Some(format!(
+                    "Advanced to exercise '{}' in lesson '{}'. Press [o] to launch in Zed",
+                    ex.id, lesson_id
+                ));
+            }
+            Ok(true)
+        } else {
+            Ok(false)
         }
     }
 
@@ -209,6 +364,10 @@ impl App {
                         format!("Failed to save session to {:?}", self.session_path)
                     })?;
 
+                if let Ok(meta) = std::fs::metadata(&self.session_path) {
+                    self.last_session_mtime = meta.modified().ok();
+                }
+
                 self.status_message = Some(format!(
                     "Activated exercise '{}' in lesson '{}'",
                     ex_id, lesson_id
@@ -250,9 +409,7 @@ impl App {
             None,
         ) {
             Ok(result) => {
-                if let Ok(s) = SessionState::load_from_file(&self.session_path) {
-                    self.session = s;
-                }
+                self.force_poll_session();
                 self.status_message = Some(format!(
                     "Launched '{}' in Zed ({})",
                     result.exercise_id,
@@ -266,17 +423,192 @@ impl App {
         Ok(())
     }
 
+    /// Resets the active attempt for the current exercise:
+    /// Restores the baseline start fixture into the writable buffer, issues a fresh attempt ID,
+    /// clears feedback, and forces a state refresh.
+    pub fn reset_active(&mut self) -> Result<()> {
+        let Some(catalog) = &self.catalog else {
+            self.status_message = Some("Catalog not loaded".to_string());
+            return Ok(());
+        };
+
+        if self.session.current.lesson_id.is_empty() {
+            self.status_message = Some("No active exercise to reset".to_string());
+            return Ok(());
+        }
+
+        match crate::launcher::reset_exercise_attempt(&self.session_path, catalog, None) {
+            Ok(result) => {
+                self.force_poll_session();
+                self.status_message = Some(format!(
+                    "Reset attempt for '{}'. Baseline buffer restored.",
+                    result.exercise_id
+                ));
+            }
+            Err(err) => {
+                self.status_message = Some(format!("Reset failed: {}", err));
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Polls `session.json` on disk if `poll_interval` has elapsed since the last check.
+    ///
+    /// Returns `true` if session state was updated with new content.
+    /// Does not panic or crash on missing, corrupt, or locked files.
+    pub fn poll_session(&mut self) -> bool {
+        self.poll_session_internal(false)
+    }
+
+    /// Unconditionally forces a reload of `session.json` on disk, bypassing poll interval
+    /// and modification-time checks.
+    pub fn force_poll_session(&mut self) -> bool {
+        self.poll_session_internal(true)
+    }
+
+    fn poll_session_internal(&mut self, force: bool) -> bool {
+        let now = Instant::now();
+        if !force && now.duration_since(self.last_session_poll) < self.poll_interval {
+            return false;
+        }
+        self.last_session_poll = now;
+
+        if !self.session_path.exists() {
+            return false;
+        }
+
+        let meta = match std::fs::metadata(&self.session_path) {
+            Ok(m) => m,
+            Err(err) => {
+                // Transient I/O error or lock during atomic replace
+                self.session_warning = Some(format!("Failed reading session metadata: {}", err));
+                return false;
+            }
+        };
+
+        let current_mtime = meta.modified().ok();
+        if !force && current_mtime.is_some() && current_mtime == self.last_session_mtime {
+            return false;
+        }
+
+        match SessionState::load_from_file(&self.session_path) {
+            Ok(loaded_session) => {
+                self.session = loaded_session;
+                self.last_session_mtime = current_mtime;
+                self.session_warning = None;
+                true
+            }
+            Err(err) => {
+                // Retain previous valid session state; surface non-fatal warning
+                self.last_session_mtime = current_mtime;
+                self.session_warning = Some(format!("Session read error: {}", err));
+                false
+            }
+        }
+    }
+
     /// Refresh session and catalog from disk.
     pub fn refresh_state(&mut self) -> Result<()> {
         if let Ok(cat) = Catalog::load_from_dir(&self.lessons_dir) {
             self.catalog = Some(cat);
             self.catalog_error = None;
         }
-        if let Ok(s) = SessionState::load_from_file(&self.session_path) {
-            self.session = s;
-        }
+        self.force_poll_session();
         self.status_message = Some("Refreshed catalog and session state".to_string());
         Ok(())
+    }
+
+    /// Evaluates the current connection and synchronization status between TUI selection,
+    /// session state, and Zed buffer/LSP attachment.
+    pub fn connection_status(&self) -> ConnectionStatus {
+        let active_lesson = &self.session.current.lesson_id;
+        if active_lesson.is_empty() {
+            return ConnectionStatus::Idle;
+        }
+
+        let active_ex_idx = self.session.current.exercise_index;
+        let selected_lesson = self
+            .current_lesson()
+            .map(|l| l.lesson.id.as_str())
+            .unwrap_or("");
+        let selected_ex_idx = self.selected_exercise_idx;
+
+        // If TUI selection is on a different exercise than active session:
+        if selected_lesson != active_lesson || selected_ex_idx != active_ex_idx {
+            return ConnectionStatus::MismatchedSession {
+                selected_lesson: selected_lesson.to_string(),
+                selected_exercise: selected_ex_idx,
+                active_lesson: active_lesson.clone(),
+                active_exercise: active_ex_idx,
+            };
+        }
+
+        // Selected matches active session. Check buffer path and attempt.
+        if let Some(ref bp) = self.session.current.buffer_path {
+            let buf_path = PathBuf::from(bp);
+            if !buf_path.exists() {
+                return ConnectionStatus::StaleBuffer {
+                    buffer_path: buf_path,
+                    reason: "Exercise buffer file does not exist on disk".to_string(),
+                };
+            }
+
+            if let Some(ref att) = self.session.attempt {
+                ConnectionStatus::Connected {
+                    lesson_id: active_lesson.clone(),
+                    exercise_index: active_ex_idx,
+                    buffer_path: buf_path,
+                    attempt_id: att.id.clone(),
+                }
+            } else {
+                ConnectionStatus::WaitingForZed {
+                    lesson_id: active_lesson.clone(),
+                    exercise_index: active_ex_idx,
+                    expected_buffer: Some(buf_path),
+                }
+            }
+        } else {
+            // Buffer path not yet recorded in session by launcher/LSP
+            let expected = self.catalog.as_ref().and_then(|c| {
+                self.current_exercise()
+                    .and_then(|ex| c.resolve_fixture(active_lesson, &ex.id, true).ok())
+            });
+
+            ConnectionStatus::WaitingForZed {
+                lesson_id: active_lesson.clone(),
+                exercise_index: active_ex_idx,
+                expected_buffer: expected,
+            }
+        }
+    }
+
+    /// Synchronizes the TUI selection to match the active exercise in session state.
+    pub fn sync_to_active(&mut self) {
+        if self.session.current.lesson_id.is_empty() {
+            self.status_message = Some("No active exercise in session to sync with".to_string());
+            return;
+        }
+
+        let lessons = self.lessons();
+        if let Some(idx) = lessons
+            .iter()
+            .position(|l| l.lesson.id == self.session.current.lesson_id)
+        {
+            self.selected_lesson_idx = idx;
+            self.selected_exercise_idx = self.session.current.exercise_index;
+            self.show_hint = false;
+            self.status_message = Some(format!(
+                "Synchronized view to active drill: {}:{}",
+                self.session.current.lesson_id,
+                self.session.current.exercise_index + 1
+            ));
+        } else {
+            self.status_message = Some(format!(
+                "Active lesson '{}' not found in loaded catalog",
+                self.session.current.lesson_id
+            ));
+        }
     }
 
     /// Handles terminal window resizing.

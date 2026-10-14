@@ -1,4 +1,4 @@
-use crate::app::{App, MIN_HEIGHT, MIN_WIDTH};
+use crate::app::{App, ConnectionStatus, MIN_HEIGHT, MIN_WIDTH};
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
@@ -62,26 +62,107 @@ fn render_header(frame: &mut Frame, area: Rect, app: &App) {
                     .add_modifier(Modifier::BOLD),
             ),
         ])
-    } else {
-        let active_lesson = if app.session.current.lesson_id.is_empty() {
-            "(none)".to_string()
-        } else {
-            format!(
-                "{}:{}",
-                app.session.current.lesson_id, app.session.current.exercise_index
-            )
-        };
+    } else if let Some(ref warn) = app.session_warning {
         Line::from(vec![
             Span::raw("Status: "),
             Span::styled(
-                "Active Drill",
+                "State Warning",
                 Style::default()
-                    .fg(Color::Green)
+                    .fg(Color::LightRed)
                     .add_modifier(Modifier::BOLD),
             ),
-            Span::raw(" | Active in Session: "),
-            Span::styled(active_lesson, Style::default().fg(Color::Yellow)),
+            Span::raw(" | "),
+            Span::styled(warn.clone(), Style::default().fg(Color::Yellow)),
         ])
+    } else {
+        match app.connection_status() {
+            ConnectionStatus::Connected {
+                ref lesson_id,
+                exercise_index,
+                ..
+            } => Line::from(vec![
+                Span::raw("Status: "),
+                Span::styled(
+                    "Connected to Zed",
+                    Style::default()
+                        .fg(Color::Green)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::raw(" | Active: "),
+                Span::styled(
+                    format!("{}:{}", lesson_id, exercise_index + 1),
+                    Style::default().fg(Color::Yellow),
+                ),
+            ]),
+            ConnectionStatus::WaitingForZed {
+                ref lesson_id,
+                exercise_index,
+                ..
+            } => Line::from(vec![
+                Span::raw("Status: "),
+                Span::styled(
+                    "Waiting for Zed",
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::raw(" | Drill: "),
+                Span::styled(
+                    format!("{}:{}", lesson_id, exercise_index + 1),
+                    Style::default().fg(Color::Cyan),
+                ),
+                Span::styled(
+                    " (Press [o] to open in Zed)",
+                    Style::default().fg(Color::DarkGray),
+                ),
+            ]),
+            ConnectionStatus::MismatchedSession {
+                ref selected_lesson,
+                selected_exercise,
+                ref active_lesson,
+                active_exercise,
+            } => Line::from(vec![
+                Span::raw("Status: "),
+                Span::styled(
+                    "Viewing Inactive Drill",
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::raw(" (Viewing: "),
+                Span::styled(
+                    format!("{}:{}", selected_lesson, selected_exercise + 1),
+                    Style::default().fg(Color::Yellow),
+                ),
+                Span::raw(" | Active: "),
+                Span::styled(
+                    format!("{}:{}", active_lesson, active_exercise + 1),
+                    Style::default().fg(Color::Green),
+                ),
+                Span::styled(
+                    " | Press [s] to sync)",
+                    Style::default().fg(Color::DarkGray),
+                ),
+            ]),
+            ConnectionStatus::StaleBuffer { ref reason, .. } => Line::from(vec![
+                Span::raw("Status: "),
+                Span::styled(
+                    "Stale Buffer",
+                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                ),
+                Span::raw(" | "),
+                Span::styled(reason.clone(), Style::default().fg(Color::LightRed)),
+                Span::styled(
+                    " (Press [o] to relaunch)",
+                    Style::default().fg(Color::DarkGray),
+                ),
+            ]),
+            ConnectionStatus::Idle => Line::from(vec![
+                Span::raw("Status: "),
+                Span::styled("Idle", Style::default().fg(Color::DarkGray)),
+                Span::raw(" | Select a drill and press [o] to launch in Zed"),
+            ]),
+        }
     };
 
     let header_paragraph = Paragraph::new(status_line)
@@ -417,7 +498,174 @@ fn render_feedback_pane(frame: &mut Frame, area: Rect, app: &App) {
         .border_style(Style::default().fg(Color::White))
         .title(" Live Attempt Feedback & Progress ");
 
+    let conn_status = app.connection_status();
     let mut lines = Vec::new();
+
+    // State Warning if any
+    if let Some(ref warn) = app.session_warning {
+        lines.push(Line::from(vec![
+            Span::styled(
+                "Sync Warning: ",
+                Style::default()
+                    .fg(Color::LightRed)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(warn.clone(), Style::default().fg(Color::Yellow)),
+        ]));
+    }
+
+    // Connection health and actionable diagnostic
+    match &conn_status {
+        ConnectionStatus::Connected { buffer_path, .. } => {
+            lines.push(Line::from(vec![
+                Span::raw("Connection: "),
+                Span::styled(
+                    "CONNECTED TO ZED",
+                    Style::default()
+                        .fg(Color::Green)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::raw(" ("),
+                Span::styled(
+                    buffer_path
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("buffer"),
+                    Style::default().fg(Color::DarkGray),
+                ),
+                Span::raw(")"),
+            ]));
+        }
+        ConnectionStatus::WaitingForZed {
+            ref expected_buffer,
+            ..
+        } => {
+            lines.push(Line::from(vec![
+                Span::raw("Connection: "),
+                Span::styled(
+                    "WAITING FOR ZED",
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    " — Buffer not yet open in editor",
+                    Style::default().fg(Color::Yellow),
+                ),
+            ]));
+            let action_hint = if let Some(ref p) = expected_buffer {
+                format!("Press [o] to open in Zed, or run: zed {}", p.display())
+            } else {
+                "Press [o] to open in Zed editor".to_string()
+            };
+            lines.push(Line::from(vec![
+                Span::styled(
+                    "Action:     ",
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(action_hint, Style::default().fg(Color::White)),
+            ]));
+            lines.push(Line::from(vec![
+                Span::styled("Recovery:   ", Style::default().fg(Color::DarkGray)),
+                Span::styled(
+                    "If Zed is open, run Command Palette -> 'workspace: restart language server'",
+                    Style::default().fg(Color::DarkGray),
+                ),
+            ]));
+        }
+        ConnectionStatus::MismatchedSession {
+            ref selected_lesson,
+            selected_exercise,
+            ref active_lesson,
+            active_exercise,
+        } => {
+            lines.push(Line::from(vec![
+                Span::raw("Connection: "),
+                Span::styled(
+                    "MISMATCHED VIEW",
+                    Style::default()
+                        .fg(Color::Magenta)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::raw(" — Viewing "),
+                Span::styled(
+                    format!("{}:{}", selected_lesson, selected_exercise + 1),
+                    Style::default().fg(Color::Yellow),
+                ),
+                Span::raw(" while Zed has "),
+                Span::styled(
+                    format!("{}:{}", active_lesson, active_exercise + 1),
+                    Style::default().fg(Color::Green),
+                ),
+                Span::raw(" active"),
+            ]));
+            lines.push(Line::from(vec![
+                Span::styled(
+                    "Action:     ",
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    "Press [Enter] to switch drill to viewed, or [s] to sync view with Zed",
+                    Style::default().fg(Color::White),
+                ),
+            ]));
+        }
+        ConnectionStatus::StaleBuffer {
+            ref buffer_path,
+            ref reason,
+        } => {
+            lines.push(Line::from(vec![
+                Span::raw("Connection: "),
+                Span::styled(
+                    "STALE BUFFER",
+                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                ),
+                Span::raw(" — "),
+                Span::styled(reason.clone(), Style::default().fg(Color::LightRed)),
+            ]));
+            lines.push(Line::from(vec![
+                Span::styled(
+                    "Action:     ",
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    format!(
+                        "Missing {:?}. Press [o] to relaunch fresh buffer in Zed",
+                        buffer_path.file_name().unwrap_or_default()
+                    ),
+                    Style::default().fg(Color::White),
+                ),
+            ]));
+        }
+        ConnectionStatus::Idle => {
+            lines.push(Line::from(vec![
+                Span::raw("Connection: "),
+                Span::styled("IDLE", Style::default().fg(Color::DarkGray)),
+                Span::styled(
+                    " — No active exercise attached",
+                    Style::default().fg(Color::DarkGray),
+                ),
+            ]));
+            lines.push(Line::from(vec![
+                Span::styled(
+                    "Action:     ",
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    "Select a drill and press [o] to launch in Zed",
+                    Style::default().fg(Color::White),
+                ),
+            ]));
+        }
+    }
 
     // Active Attempt Verdict
     if let Some(ref att) = app.session.attempt {
@@ -445,14 +693,46 @@ fn render_feedback_pane(frame: &mut Frame, area: Rect, app: &App) {
         };
 
         lines.push(Line::from(vec![
-            Span::raw("Attempt: "),
+            Span::raw("Attempt:    "),
             Span::styled(&att.id, Style::default().fg(Color::DarkGray)),
             Span::raw(" | "),
             verdict_span,
         ]));
+
+        if matches!(
+            att.verdict,
+            Some(zedkata_core::session::Verdict::Passed { .. })
+        ) {
+            lines.push(Line::from(vec![
+                Span::styled(
+                    "Next Step:  ",
+                    Style::default()
+                        .fg(Color::Green)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    "PASSED! Press [n] for next exercise, or [Enter] to activate",
+                    Style::default().fg(Color::Green),
+                ),
+            ]));
+        } else if matches!(
+            att.verdict,
+            Some(zedkata_core::session::Verdict::Failed { .. })
+        ) {
+            lines.push(Line::from(vec![
+                Span::styled(
+                    "Next Step:  ",
+                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    "FAILED. Press [r] to retry active drill, or [o] to relaunch buffer in Zed",
+                    Style::default().fg(Color::Yellow),
+                ),
+            ]));
+        }
     } else {
         lines.push(Line::from(vec![
-            Span::raw("Attempt: "),
+            Span::raw("Attempt:    "),
             Span::styled(
                 "Idle (Press [Enter] to activate drill)",
                 Style::default().fg(Color::DarkGray),
@@ -460,8 +740,14 @@ fn render_feedback_pane(frame: &mut Frame, area: Rect, app: &App) {
         ]));
     }
 
-    // Overall Progress & History
-    let passed_count = app.session.history.iter().filter(|h| h.passed).count();
+    // Overall Progress & History: count unique passed exercises so repeated passes don't inflate progress
+    let mut unique_passed = std::collections::HashSet::new();
+    for h in &app.session.history {
+        if h.passed {
+            unique_passed.insert((&h.lesson_id, &h.exercise_id));
+        }
+    }
+    let passed_count = unique_passed.len();
     let total_exercises: usize = app.lessons().iter().map(|l| l.lesson.exercises.len()).sum();
 
     let pct = (passed_count * 100)
@@ -508,7 +794,7 @@ fn render_feedback_pane(frame: &mut Frame, area: Rect, app: &App) {
     frame.render_widget(p, area);
 }
 
-fn render_footer(frame: &mut Frame, area: Rect, full_area: Rect) {
+fn render_footer(frame: &mut Frame, area: Rect, _full_area: Rect) {
     let block = Block::default()
         .borders(Borders::ALL)
         .border_style(Style::default().fg(Color::Blue));
@@ -527,7 +813,14 @@ fn render_footer(frame: &mut Frame, area: Rect, full_area: Rect) {
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),
         ),
-        Span::raw("Exercise  "),
+        Span::raw("Ex  "),
+        Span::styled(
+            " [n] ",
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::raw("Next  "),
         Span::styled(
             " [Enter] ",
             Style::default()
@@ -541,7 +834,7 @@ fn render_footer(frame: &mut Frame, area: Rect, full_area: Rect) {
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),
         ),
-        Span::raw("Open in Zed  "),
+        Span::raw("Zed  "),
         Span::styled(
             " [?] ",
             Style::default()
@@ -555,18 +848,21 @@ fn render_footer(frame: &mut Frame, area: Rect, full_area: Rect) {
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),
         ),
-        Span::raw("Refresh  "),
+        Span::raw("Retry  "),
+        Span::styled(
+            " [s] ",
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::raw("Sync  "),
         Span::styled(
             " [q] ",
             Style::default()
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),
         ),
-        Span::raw("Quit  |  "),
-        Span::styled(
-            format!("{}x{}", full_area.width, full_area.height),
-            Style::default().fg(Color::DarkGray),
-        ),
+        Span::raw("Quit"),
     ]);
 
     let footer_p = Paragraph::new(footer_line).block(block);

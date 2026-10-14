@@ -334,6 +334,81 @@ pub fn launch_exercise(
     })
 }
 
+/// Resets the active attempt for the current exercise:
+/// 1. Verifies that an active exercise is selected in session state.
+/// 2. Restores the writable exercise buffer on disk from the pristine start fixture.
+/// 3. Issues a fresh attempt ID in session state with cleared edits and None verdict.
+/// 4. Atomically persists the updated session state to disk.
+pub fn reset_exercise_attempt(
+    session_path: &Path,
+    catalog: &Catalog,
+    exercises_dir_override: Option<&Path>,
+) -> Result<LaunchResult, LauncherError> {
+    let mut session =
+        SessionState::load_or_init(session_path).map_err(|source| LauncherError::SessionError {
+            path: session_path.to_path_buf(),
+            source: Box::new(source),
+        })?;
+
+    if session.current.lesson_id.is_empty() {
+        return Err(LauncherError::LessonNotFound(
+            "No active lesson currently selected in session".to_string(),
+        ));
+    }
+
+    let lesson_id = session.current.lesson_id.clone();
+    let exercise_index = session.current.exercise_index;
+
+    let entry = catalog
+        .get(&lesson_id)
+        .ok_or_else(|| LauncherError::LessonNotFound(lesson_id.clone()))?;
+
+    let exercise = entry.lesson.exercises.get(exercise_index).ok_or_else(|| {
+        LauncherError::ExerciseIndexOutOfBounds {
+            lesson_id: lesson_id.clone(),
+            index: exercise_index,
+            total: entry.lesson.exercises.len(),
+        }
+    })?;
+
+    let exercises_dir = match exercises_dir_override {
+        Some(d) => d.to_path_buf(),
+        None => resolve_exercises_dir(session_path),
+    };
+
+    // Restore the pristine start fixture into the writable buffer file
+    let buffer_path = prepare_exercise_buffer(catalog, &lesson_id, &exercise.id, &exercises_dir)?;
+    let clean_buffer_str = clean_path_for_cli(&buffer_path);
+
+    // Issue a fresh attempt ID and clear prior verdict and edit history
+    let attempt_id = format!(
+        "attempt_{}_{}",
+        Utc::now().timestamp_millis(),
+        std::process::id()
+    );
+
+    session.retry_attempt(attempt_id.clone());
+    session.current.buffer_path = Some(clean_buffer_str);
+    session.current.opened_at = Some(Utc::now());
+
+    session
+        .save_to_file(session_path)
+        .map_err(|source| LauncherError::SessionError {
+            path: session_path.to_path_buf(),
+            source: Box::new(source),
+        })?;
+
+    let target_arg = format_launch_target(&buffer_path, exercise.cursor);
+
+    Ok(LaunchResult {
+        lesson_id,
+        exercise_id: exercise.id.clone(),
+        buffer_path,
+        target_arg,
+        attempt_id,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

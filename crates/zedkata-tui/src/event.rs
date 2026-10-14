@@ -30,6 +30,9 @@ pub fn handle_event(app: &mut App, event: Event) -> Result<()> {
                 KeyCode::Char('h') | KeyCode::Left => {
                     app.prev_exercise();
                 }
+                KeyCode::Char('n') | KeyCode::Char('N') => {
+                    let _ = app.advance_and_activate();
+                }
                 KeyCode::Enter => {
                     let _ = app.activate_selected();
                 }
@@ -39,8 +42,14 @@ pub fn handle_event(app: &mut App, event: Event) -> Result<()> {
                 KeyCode::Char('?') | KeyCode::Char('H') => {
                     app.toggle_hint();
                 }
-                KeyCode::Char('r') | KeyCode::Char('R') => {
+                KeyCode::Char('r') => {
+                    let _ = app.reset_active();
+                }
+                KeyCode::Char('R') => {
                     let _ = app.refresh_state();
+                }
+                KeyCode::Char('s') | KeyCode::Char('S') => {
+                    app.sync_to_active();
                 }
                 _ => {}
             }

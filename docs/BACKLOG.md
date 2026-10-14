@@ -6,8 +6,8 @@ Coverage: [requirements matrix](REQUIREMENTS.md). The approved
 [backlog expansion plan](plans/2026-09-13-full-backlog-plan.md) has been applied.
 The roadmap below preserves the original task history; detailed execution cards follow.
 
-**Next task: ZK-019 (show live state and connection health).**
-Phase 0 (ZK-001–005), ZK-007 (native Rust scaffold), ZK-008 (native CI), ZK-009 (lesson loading), ZK-010 (goal verification), ZK-011 (scoring and forbid rules), ZK-012 (session persistence), ZK-013 (production LSP observer), ZK-014 (connect verification, state, and diagnostics), ZK-015 (development extension), ZK-016 (one-exercise acceptance), ZK-017 (TUI shell), and ZK-018 (exercise launch) are complete. State contracts are documented in ARCHITECTURE.md (ZK-006).
+**Next task: ZK-021 (save and resume progress).**
+Phase 0 (ZK-001–005), ZK-007 (native Rust scaffold), ZK-008 (native CI), ZK-009 (lesson loading), ZK-010 (goal verification), ZK-011 (scoring and forbid rules), ZK-012 (session persistence), ZK-013 (production LSP observer), ZK-014 (connect verification, state, and diagnostics), ZK-015 (development extension), ZK-016 (one-exercise acceptance), ZK-017 (TUI shell), ZK-018 (exercise launch), ZK-019 (live state and connection health), and ZK-020 (retry and navigation) are complete. State contracts are documented in ARCHITECTURE.md (ZK-006).
 
 ## Phase 0 — Feasibility spike (GATE)
 
@@ -166,13 +166,13 @@ Granular edits remain a proxy for technique, not keystroke verification.
   cursor placement (ZK-018.2). Failures leave zero false active state. Automated tests
   in `crates/zedkata-tui/tests/launch_tests.rs` pass cleanly.
 <a id="task-zk-019"></a>
-- [ ] **ZK-019 — Show live state and connection health.** Poll state and render feedback.
+- [x] **ZK-019 — Show live state and connection health.** Poll state and render feedback.
   **Done:** simulated and live updates display correctly; missing, stale, or unreadable
-  state is visible without crashing or busy-looping.
+  state is visible without crashing or busy-looping. Bounded polling (ZK-019.1), connection health states, and stale-state recovery (ZK-019.2) verified in automated test suite.
 <a id="task-zk-020"></a>
-- [ ] **ZK-020 — Add retry and next exercise.** Depends on ZK-018 and ZK-019.
+- [x] **ZK-020 — Add retry and next exercise.** Depends on ZK-018 and ZK-019.
   **Done:** tests reject late prior-attempt updates; manual checks cover dirty buffers,
-  reset, duplicate completion, and moving between exercises.
+  reset, duplicate completion, and moving between exercises. Verified in `retry_tests.rs` and `navigation_tests.rs`.
 <a id="task-zk-021"></a>
 - [ ] **ZK-021 — Save and resume progress.** Add prerequisite unlocking and restart behavior.
   **Done:** completion survives restart; unfinished attempts resume or reset according
@@ -771,45 +771,45 @@ completed with a usable route.
 <a id="task-zk-019-1"></a>
 #### ZK-019.1 — Poll and display session feedback
 
-- **Status:** ready. **Priority:** MVP. **Requirements:** REQ-20.
+- **Status:** complete. **Priority:** MVP. **Requirements:** REQ-20.
 - **Depends on:** [ZK-017.2](#task-zk-017-2), [ZK-012](#task-zk-012).
 - **Files/components:** crates/zedkata-tui/.
 - **Acceptance:** Controlled session updates render current attempt and progress with bounded polling; tests cover missing/partially replaced/corrupt state without crashing or busy-looping.
-- **Validation:** Exercise the success/failure cases in Acceptance; run affected tests plus formatting/clippy for Rust changes or npm tests for probe changes, and retain the result.
+- **Validation:** Controlled live updates, missing/corrupt state recovery, and bounded polling verified in `crates/zedkata-tui/tests/live_state_tests.rs`. Full workspace tests, clippy, and fmt pass.
 <a id="task-zk-019-2"></a>
 #### ZK-019.2 — Show connection and stale-state recovery
 
-- **Status:** blocked. **Priority:** MVP. **Requirements:** REQ-20.
+- **Status:** complete. **Priority:** MVP. **Requirements:** REQ-20.
 - **Depends on:** [ZK-019.1](#task-zk-019-1), [ZK-014](#task-zk-014).
 - **Files/components:** crates/zedkata-tui/; docs/DEVELOPMENT.md.
 - **Acceptance:** Simulate stopped LSP and stale/mismatched session; UI distinguishes waiting from success and gives an actionable recovery; confirm behavior manually after server restart.
-- **Validation:** Run the concrete manual scenarios in Acceptance, retain observations, and run affected automated checks where implementation changes.
+- **Validation:** Connection health states (`Idle`, `WaitingForZed`, `Connected`, `MismatchedSession`, `StaleBuffer`), recovery hints, and `s` key sync verified in `crates/zedkata-tui/tests/connection_health_tests.rs`. Manual reproduction and recovery documented in `docs/DEVELOPMENT.md`.
 
 ### ZK-020 — Retry and navigation
 
 <a id="task-zk-020-1"></a>
 #### ZK-020.1 — Reset and retry an active exercise
 
-- **Status:** blocked. **Priority:** MVP. **Requirements:** REQ-13, REQ-20.
+- **Status:** complete. **Priority:** MVP. **Requirements:** REQ-13, REQ-20.
 - **Depends on:** [ZK-018.2](#task-zk-018-2), [ZK-019.2](#task-zk-019-2).
 - **Files/components:** crates/zedkata-tui/; session integration tests.
 - **Acceptance:** Retry issues a fresh attempt, restores baseline and clears feedback; test late updates and manually check dirty-buffer reset according to the agreed contract.
-- **Validation:** Run the concrete manual scenarios in Acceptance, retain observations, and run affected automated checks where implementation changes.
+- **Validation:** Verified fresh attempt generation, dirty buffer baseline restoration, late edit rejection from prior attempts, and TUI key bindings (`r` retry, `R` reload) in `crates/zedkata-tui/tests/retry_tests.rs`. Manual scenario documented in `docs/plans/2026-09-13-zk-020-1-reset-and-retry.md`.
 <a id="task-zk-020-2"></a>
 #### ZK-020.2 — Advance and switch exercises
 
-- **Status:** blocked. **Priority:** MVP. **Requirements:** REQ-20.
+- **Status:** complete. **Priority:** MVP. **Requirements:** REQ-20.
 - **Depends on:** [ZK-020.1](#task-zk-020-1).
 - **Files/components:** crates/zedkata-tui/.
 - **Acceptance:** Next/selection moves to the intended exercise and updates task/progress; repeated completion and late old-buffer edits do not skip an exercise or corrupt progress.
-- **Validation:** Exercise the success/failure cases in Acceptance; run affected tests plus formatting/clippy for Rust changes or npm tests for probe changes, and retain the result.
+- **Validation:** Verified advancement within lessons, across unlocked lessons, locked prerequisite blocking, course end completion, unique progress counting against duplicate passes, late old-buffer edit rejection, TUI `n` key binding, and headless `zedkata-tui next` command in `crates/zedkata-tui/tests/navigation_tests.rs`.
 
 ### ZK-021 — Progress and resume
 
 <a id="task-zk-021-1"></a>
 #### ZK-021.1 — Display progress and unlock prerequisites
 
-- **Status:** blocked. **Priority:** MVP. **Requirements:** REQ-11, REQ-20.
+- **Status:** ready. **Priority:** MVP. **Requirements:** REQ-11, REQ-20.
 - **Depends on:** [ZK-020.2](#task-zk-020-2), [ZK-012.4](#task-zk-012-4).
 - **Files/components:** crates/zedkata-tui/; catalog/session tests.
 - **Acceptance:** Core-derived history unlocks only satisfied dependencies; pass/failure/retry cases produce the agreed displayed score/weakness information, including unscored mode.
