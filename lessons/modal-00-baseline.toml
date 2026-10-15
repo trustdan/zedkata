@@ -1,0 +1,72 @@
+[lesson]
+id = "modal-00-baseline"
+title = "Modal baseline"
+module = 0
+requires = []
+concepts = ["i", "a", "Esc", "ctrl-[", "h", "j", "k", "l", "u", "g ]"]
+
+prose = """
+Modal editing separates cursor movement from text entry.
+In Normal mode, the block cursor rests on a character: `i` enters Insert mode before it,
+and `a` appends after it. Exit Insert mode with `<Esc>` or `Ctrl-[` to commit atomic edits.
+Zed renders diagnostic errors inline directly beneath problematic code.
+"""
+
+# ---------------------------------------------------------------------------
+
+[[exercise]]
+id = "insert-visibility"
+task = "Make the 'timeout_ms' field public on line 2."
+start = "fixtures/modal-00/insert-visibility.start.kata"
+goal = "fixtures/modal-00/insert-visibility.goal.kata"
+par_edits = 1
+max_edits = 2
+cursor = [2, 5]
+hint = "Enter insert mode before the cursor to insert the visibility modifier."
+
+[exercise.forbid]
+backspace_run = 3
+
+# ---------------------------------------------------------------------------
+
+[[exercise]]
+id = "append-semicolon"
+task = "Terminate the 'endpoint' declaration with a semicolon on line 2."
+start = "fixtures/modal-00/append-semicolon.start.kata"
+goal = "fixtures/modal-00/append-semicolon.goal.kata"
+par_edits = 1
+max_edits = 2
+cursor = [2, 40]
+hint = "Append text after the cursor rather than inserting before it."
+
+[exercise.forbid]
+backspace_run = 3
+
+# ---------------------------------------------------------------------------
+
+[[exercise]]
+id = "navigate-and-insert"
+task = "Add the 'async' modifier to the 'fetch_status' function signature on line 4."
+start = "fixtures/modal-00/navigate-and-insert.start.kata"
+goal = "fixtures/modal-00/navigate-and-insert.goal.kata"
+par_edits = 1
+max_edits = 2
+cursor = [1, 1]
+hint = "Navigate directly to the target keyword before entering insert mode."
+
+[exercise.forbid]
+backspace_run = 3
+
+# ---------------------------------------------------------------------------
+# Not drillable — routes to zedkata-agent as a guided walkthrough.
+
+[[walkthrough]]
+id = "diagnostic-navigation"
+title = "Inline diagnostics and error jumping in Zed"
+prompt = """
+Demonstrate Zed's native inline diagnostic rendering. In standard Vim, diagnostics
+typically populate the sign column, quickfix list, or a floating hover window. In Zed,
+syntax and compiler diagnostics render inline directly below the problematic line.
+Guide the student to introduce a deliberate syntax mistake, observe the inline diagnostic
+display, jump to next/previous diagnostics using `g ]` and `g [`, and restore the clean buffer with `u`.
+"""

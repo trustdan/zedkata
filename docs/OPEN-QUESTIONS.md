@@ -107,13 +107,30 @@ There is also an ACP Registry, opened with `zed: acp registry`.
 
 ---
 
-## OQ-08 — Terminal Threads can host a TUI · VERIFIED
+## OQ-08 — Terminal hosting routes · VERIFIED
 
-Checked 2026-09-13. Zed's External Agents docs direct users to Terminal Threads when
-they want to run a CLI or TUI directly in a terminal-backed thread.
+Checked 2026-09-13 and finalized under ZK-023.2 against Zed 1.19.2 on Windows 11.
 
-Not yet verified: whether a full-screen ratatui app behaves correctly there
-(alt-screen, resize, mouse capture). Test in Phase 2.
+Evaluated four terminal hosting routes across fullscreen/alt-screen buffer takeover,
+dynamic resize with minimum 60x15 boundary handling, and clean restoration on exit/panic:
+
+1. **Standard Zed Terminal Pane (`workspace: new terminal`, `Ctrl-~`):** **VERIFIED & RECOMMENDED.**
+   Alternate screen buffer engages cleanly. ConPTY delivers `Event::Resize` signals smoothly.
+   Exiting with `q`, `Esc`, `Ctrl-C`, or via error/panic restores cooked mode and original cursor
+   cleanly without leaving escape artifacts in Zed's terminal buffer.
+2. **Zed Center Terminal Tab (`workspace: new center terminal`):** **VERIFIED & RECOMMENDED.**
+   Runs as a full workspace tab alongside editor buffers. Ideal for side-by-side split screen
+   (exercise buffer on left, drill conductor on right).
+3. **External Terminal Emulators (Windows Terminal, Alacritty, etc.):** **VERIFIED & RECOMMENDED.**
+   Native execution with complete ConPTY support, ideal for multi-monitor setups.
+4. **Assumed Terminal Thread Route (`agent: new thread` -> Terminal):** **NOT RECOMMENDED.**
+   Terminal Threads live in Zed's narrow Agent Panel dock (`agent.dock`), defaulting to ~35-45
+   columns which immediately triggers the `< 60x15` minimum dimension warning overlay. They
+   cannot be zoomed as editor tabs, and their thread container remains retained in Zed's
+   agent thread store after exit.
+
+**Advertised supported routes:** Standard Zed terminal pane, center terminal tab, and external
+terminals. See full report: [Supported terminal hosting routes evidence](evidence/terminal-hosting-routes.md).
 
 ---
 
@@ -185,10 +202,32 @@ Three outcomes are possible, and they are not equally good:
 - **No notification at all** — undo is invisible to us; buffer state and our
   reconstruction diverge, which is worse than either of the above.
 
----
+## OQ-12 — Zed vim mode capabilities and curriculum audit · VERIFIED
 
-## OQ-12 — Does Zed's vim mode still lack anything we plan to teach? · ASSUMED
+Audited 2026-10-15 against Zed 1.19.2, `assets/keymaps/vim.json`, and `crates/vim/src/object.rs`
+under [ZK-024.1](BACKLOG.md#task-zk-024-1).
 
-Registers and macros were missing early on and have since landed, but the long tail of
-operators and motions has never been audited against this curriculum. Before writing
-Module 3, diff the planned concept list against Zed's default vim keymap file.
+**Audit Findings:**
+1. **Core Motions & Operators:** Full native support for word motions (`w`, `e`, `b`, `ge`,
+   `W`, `E`, `B`), in-line find (`f`, `F`, `t`, `T`, `;`, `,`), and standard operators (`d`,
+   `c`, `y`, `p`, `P`, `r`, `s`, `S`, `x`, `~`).
+2. **Text Objects (`crates/vim/src/object.rs`):**
+   - Quotes (`"`, `'`, `` ` ``) and brackets (`(`, `[`, `{`, `<`, `tag`) are natively supported.
+   - Zed binds `"q"` to `vim::MiniQuotes` by default in `assets/keymaps/vim.json`.
+   - `AnyQuotes`, `AnyBrackets`, and `MiniBrackets` are implemented in `crates/vim/src/object.rs`,
+     with `AnyQuotes` and `AnyBrackets` available as alternative unbound actions.
+   - Traditional delimiter text objects (`i"`, `a"`, `i(`, `a(`, `i{`, `a{`) work out-of-the-box.
+3. **Surrounds & Extra Features:** Zed natively supports surround commands (`cs`, `ds`, `ys`),
+   subword motions, and dot repeat (`.`).
+4. **Registers & Macros:** Named registers (`"a` to `"z`), unnamed, clipboard, black hole,
+   and macros (`q`, `@`, `@@`) are fully implemented and verified.
+5. **Observation Boundaries:** Visual mode (`v`, `V`, `ctrl-v`) is fully supported in the
+   editor, but LSP `didChange` notifications cannot observe visual selection state without
+   cursor/keystroke APIs (OQ-04). Therefore, unobservable forbid rules (e.g. `visual_line_select`)
+   are excluded from curriculum forbid tables per REQ-10 and enforced via Par edit budgets.
+6. **Curriculum Classification:** Single-buffer text transformations are designed as scored
+   katas; features without deterministic pass/fail buffer states (multibuffers, read-only LSP
+   hops, project panel, agent panel) are classified as guided walkthroughs.
+
+See full specification: [Curriculum Module Map](curriculum-module-map.md).
+

@@ -1,0 +1,4 @@
+pub fn build_url() -> String {
+    let endpoint = "https://api.zed.dev"
+    format!("{}/v1/status", endpoint)
+}

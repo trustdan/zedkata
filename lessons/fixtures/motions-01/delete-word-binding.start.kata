@@ -1,0 +1,4 @@
+pub fn process_payload(payload: &[u8]) -> Result<(), AppError> {
+    let mut session = Session::new(payload)?;
+    session.dispatch()
+}

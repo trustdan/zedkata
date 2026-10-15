@@ -47,8 +47,13 @@ fn test_advance_within_lesson_updates_task_and_selection() -> Result<()> {
     let lessons_dir = repo_lessons_dir();
 
     let mut app = App::load(session_path.clone(), lessons_dir);
-    assert_eq!(app.selected_lesson_idx, 0);
-    assert_eq!(app.selected_exercise_idx, 0);
+    let word_idx = app
+        .lessons()
+        .iter()
+        .position(|l| l.lesson.id == "motions-01-word")
+        .expect("motions-01-word must be in catalog");
+    app.selected_lesson_idx = word_idx;
+    app.selected_exercise_idx = 0;
 
     let ex0 = app.current_exercise().expect("Exercise 0 expected");
     assert_eq!(ex0.id, "delete-word-arg");
@@ -73,16 +78,168 @@ fn test_advance_blocked_by_locked_prerequisites() -> Result<()> {
     let lessons_dir = repo_lessons_dir();
 
     let mut app = App::load(session_path.clone(), lessons_dir);
-    // Move to exercise 1 of lesson 0
-    app.selected_exercise_idx = 1;
+    // Move to the last exercise of motions-01-word
+    let word_idx = app
+        .lessons()
+        .iter()
+        .position(|l| l.lesson.id == "motions-01-word")
+        .expect("motions-01-word must be in catalog");
+    app.selected_lesson_idx = word_idx;
+    let last_idx = app.current_lesson().unwrap().lesson.exercises.len() - 1;
+    app.selected_exercise_idx = last_idx;
 
-    // Trying to advance past the last exercise of lesson 0 should try lesson 1 ("motions-03-textobjects")
+    // Trying to advance past the last exercise of motions-01-word should try "motions-03-textobjects"
     // which requires ["motions-01-word", "motions-02-find"].
     // Since session history is empty, it must be locked!
     let advanced = app.advance_exercise();
     assert!(!advanced);
-    assert_eq!(app.selected_lesson_idx, 0);
-    assert_eq!(app.selected_exercise_idx, 1);
+    assert_eq!(app.selected_lesson_idx, word_idx);
+    assert_eq!(app.selected_exercise_idx, last_idx);
+
+    let status = app.status_message.as_deref().unwrap_or("");
+    assert!(
+        status.contains("locked"),
+        "Status should report locked lesson, found: {}",
+        status
+    );
+    assert!(
+        status.contains("motions-02-find"),
+        "Status should name target lesson, found: {}",
+        status
+    );
+
+    cleanup_temp_workspace(&temp_dir);
+    Ok(())
+}
+
+#[test]
+fn test_advance_across_lessons_when_unlocked() -> Result<()> {
+    let (temp_dir, session_path) = setup_temp_workspace("nav_advance_unlocked");
+    let lessons_dir = repo_lessons_dir();
+
+    let mut initial_session = SessionState::default();
+    // Satisfy requirements for motions-02-find: motions-01-word
+    initial_session
+        .history
+        .push(zedkata_core::scoring::create_history_entry(
+            "motions-01-word",
+            "delete-word-arg",
+            true,
+            Some(1),
+            1,
+            100,
+            chrono::Utc::now(),
+        ));
+    initial_session
+        .history
+        .push(zedkata_core::scoring::create_history_entry(
+            "motions-01-word",
+            "delete-to-word-end",
+            true,
+            Some(1),
+            1,
+            100,
+            chrono::Utc::now(),
+        ));
+    initial_session
+        .history
+        .push(zedkata_core::scoring::create_history_entry(
+            "motions-01-word",
+            "delete-word-binding",
+            true,
+            Some(1),
+            1,
+            100,
+            chrono::Utc::now(),
+        ));
+    initial_session.save_to_file(&session_path)?;
+
+    let mut app = App::load(session_path.clone(), lessons_dir);
+    let word_idx = app
+        .lessons()
+        .iter()
+        .position(|l| l.lesson.id == "motions-01-word")
+        .expect("motions-01-word must be in catalog");
+    let find_idx = app
+        .lessons()
+        .iter()
+        .position(|l| l.lesson.id == "motions-02-find")
+        .expect("motions-02-find must be in catalog");
+    app.selected_lesson_idx = word_idx;
+    let last_idx = app.current_lesson().unwrap().lesson.exercises.len() - 1;
+    app.selected_exercise_idx = last_idx; // at end of motions-01-word
+
+    let advanced = app.advance_exercise();
+    assert!(advanced, "Should advance to next unlocked lesson");
+    assert_eq!(app.selected_lesson_idx, find_idx);
+    assert_eq!(app.selected_exercise_idx, 0);
+
+    let current_lesson = app.current_lesson().expect("motions-02-find expected");
+    assert_eq!(current_lesson.lesson.id, "motions-02-find");
+
+    cleanup_temp_workspace(&temp_dir);
+    Ok(())
+}
+
+#[test]
+fn test_advance_blocked_from_find_to_textobjects_when_prerequisites_incomplete() -> Result<()> {
+    let (temp_dir, session_path) = setup_temp_workspace("nav_advance_blocked_to_m3");
+    let lessons_dir = repo_lessons_dir();
+
+    let mut initial_session = SessionState::default();
+    // motions-01-word is completed, but motions-02-find is NOT completed
+    initial_session
+        .history
+        .push(zedkata_core::scoring::create_history_entry(
+            "motions-01-word",
+            "delete-word-arg",
+            true,
+            Some(1),
+            1,
+            100,
+            chrono::Utc::now(),
+        ));
+    initial_session
+        .history
+        .push(zedkata_core::scoring::create_history_entry(
+            "motions-01-word",
+            "delete-to-word-end",
+            true,
+            Some(1),
+            1,
+            100,
+            chrono::Utc::now(),
+        ));
+    initial_session
+        .history
+        .push(zedkata_core::scoring::create_history_entry(
+            "motions-01-word",
+            "delete-word-binding",
+            true,
+            Some(1),
+            1,
+            100,
+            chrono::Utc::now(),
+        ));
+    initial_session.save_to_file(&session_path)?;
+
+    let mut app = App::load(session_path.clone(), lessons_dir);
+    let find_idx = app
+        .lessons()
+        .iter()
+        .position(|l| l.lesson.id == "motions-02-find")
+        .expect("motions-02-find must be in catalog");
+    app.selected_lesson_idx = find_idx;
+    let last_idx = app.current_lesson().unwrap().lesson.exercises.len() - 1;
+    app.selected_exercise_idx = last_idx; // at end of motions-02-find
+
+    let advanced = app.advance_exercise();
+    assert!(
+        !advanced,
+        "Advancing to textobjects must be blocked without motions-02-find completion"
+    );
+    assert_eq!(app.selected_lesson_idx, find_idx);
+    assert_eq!(app.selected_exercise_idx, last_idx);
 
     let status = app.status_message.as_deref().unwrap_or("");
     assert!(
@@ -101,46 +258,79 @@ fn test_advance_blocked_by_locked_prerequisites() -> Result<()> {
 }
 
 #[test]
-fn test_advance_across_lessons_when_unlocked() -> Result<()> {
-    let (temp_dir, session_path) = setup_temp_workspace("nav_advance_unlocked");
+fn test_advance_across_lessons_to_textobjects_when_unlocked() -> Result<()> {
+    let (temp_dir, session_path) = setup_temp_workspace("nav_advance_to_m3_unlocked");
     let lessons_dir = repo_lessons_dir();
 
     let mut initial_session = SessionState::default();
-    // Satisfy requirements for motions-03-textobjects: motions-01-word and motions-02-find
-    initial_session
-        .history
-        .push(zedkata_core::scoring::create_history_entry(
-            "motions-01-word",
-            "delete-word-arg",
-            true,
-            Some(1),
-            1,
-            100,
-            chrono::Utc::now(),
-        ));
-    initial_session
-        .history
-        .push(zedkata_core::scoring::create_history_entry(
-            "motions-02-find",
-            "dummy",
-            true,
-            Some(1),
-            1,
-            100,
-            chrono::Utc::now(),
-        ));
+    // Complete all exercises in both motions-01-word and motions-02-find
+    for ex in &[
+        "delete-word-arg",
+        "delete-to-word-end",
+        "delete-word-binding",
+    ] {
+        initial_session
+            .history
+            .push(zedkata_core::scoring::create_history_entry(
+                "motions-01-word",
+                ex,
+                true,
+                Some(1),
+                1,
+                100,
+                chrono::Utc::now(),
+            ));
+    }
+    for ex in &[
+        "delete-find-delimiter",
+        "delete-till-char",
+        "change-till-char",
+    ] {
+        initial_session
+            .history
+            .push(zedkata_core::scoring::create_history_entry(
+                "motions-02-find",
+                ex,
+                true,
+                Some(1),
+                1,
+                100,
+                chrono::Utc::now(),
+            ));
+    }
     initial_session.save_to_file(&session_path)?;
 
     let mut app = App::load(session_path.clone(), lessons_dir);
-    app.selected_exercise_idx = 1; // at end of lesson 0
+    let find_idx = app
+        .lessons()
+        .iter()
+        .position(|l| l.lesson.id == "motions-02-find")
+        .expect("motions-02-find must be in catalog");
+    let textobjects_idx = app
+        .lessons()
+        .iter()
+        .position(|l| l.lesson.id == "motions-03-textobjects")
+        .expect("motions-03-textobjects must be in catalog");
+
+    app.selected_lesson_idx = find_idx;
+    let last_idx = app.current_lesson().unwrap().lesson.exercises.len() - 1;
+    app.selected_exercise_idx = last_idx; // at end of motions-02-find
 
     let advanced = app.advance_exercise();
-    assert!(advanced, "Should advance to next unlocked lesson");
-    assert_eq!(app.selected_lesson_idx, 1);
+    assert!(
+        advanced,
+        "Should advance to unlocked motions-03-textobjects lesson"
+    );
+    assert_eq!(app.selected_lesson_idx, textobjects_idx);
     assert_eq!(app.selected_exercise_idx, 0);
 
-    let current_lesson = app.current_lesson().expect("Lesson 1 expected");
+    let current_lesson = app
+        .current_lesson()
+        .expect("motions-03-textobjects expected");
     assert_eq!(current_lesson.lesson.id, "motions-03-textobjects");
+
+    let current_exercise = app.current_exercise().expect("exercise 0 expected");
+    assert_eq!(current_exercise.id, "swap-string-contents");
 
     cleanup_temp_workspace(&temp_dir);
     Ok(())

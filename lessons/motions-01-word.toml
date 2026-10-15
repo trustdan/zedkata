@@ -41,3 +41,18 @@ hint = "Delete forward to the end of the current word."
 
 [exercise.forbid]
 backspace_run = 3
+
+# ---------------------------------------------------------------------------
+
+[[exercise]]
+id = "delete-word-binding"
+task = "Remove the unused 'mut' binding modifier on line 2."
+start = "fixtures/motions-01/delete-word-binding.start.kata"
+goal = "fixtures/motions-01/delete-word-binding.goal.kata"
+par_edits = 1
+max_edits = 2
+cursor = [2, 5]
+hint = "Advance to the target word before deleting."
+
+[exercise.forbid]
+backspace_run = 3

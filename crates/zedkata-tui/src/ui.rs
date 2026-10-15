@@ -157,6 +157,25 @@ fn render_header(frame: &mut Frame, area: Rect, app: &App) {
                     Style::default().fg(Color::DarkGray),
                 ),
             ]),
+            ConnectionStatus::MissingFixture {
+                ref fixture_path,
+                is_start,
+            } => Line::from(vec![
+                Span::raw("Status: "),
+                Span::styled(
+                    "Missing Fixture",
+                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                ),
+                Span::raw(" | "),
+                Span::styled(
+                    format!(
+                        "{} fixture missing at {:?}",
+                        if is_start { "Start" } else { "Goal" },
+                        fixture_path.file_name().unwrap_or_default()
+                    ),
+                    Style::default().fg(Color::LightRed),
+                ),
+            ]),
             ConnectionStatus::Idle => Line::from(vec![
                 Span::raw("Status: "),
                 Span::styled("Idle", Style::default().fg(Color::DarkGray)),
@@ -420,14 +439,19 @@ fn render_task_pane(frame: &mut Frame, area: Rect, app: &App) {
     }
 
     // Budget & Rules
-    let par_text = current_ex
-        .par_edits
-        .map(|p| p.to_string())
-        .unwrap_or_else(|| "none".to_string());
-    let max_text = current_ex
-        .max_edits
-        .map(|m| m.to_string())
-        .unwrap_or_else(|| "none".to_string());
+    let budget_str = if let Some(par) = current_ex.par_edits {
+        let max_str = current_ex
+            .max_edits
+            .map(|m| format!(" | Max: {} edit(s)", m))
+            .unwrap_or_default();
+        format!("Par: {} edit(s){}", par, max_str)
+    } else {
+        let max_str = current_ex
+            .max_edits
+            .map(|m| format!(" | Max: {} edit(s)", m))
+            .unwrap_or_default();
+        format!("Goal-only (unscored){}", max_str)
+    };
     let forbid_text = if let Some(ref forbid) = current_ex.forbid {
         if let Some(br) = forbid.backspace_run {
             format!(" | Forbid: backspaces >= {}", br)
@@ -441,10 +465,7 @@ fn render_task_pane(frame: &mut Frame, area: Rect, app: &App) {
     lines.push(Line::from(vec![
         Span::raw("Budget: "),
         Span::styled(
-            format!(
-                "Par: {} edit(s) | Max: {} edit(s){}",
-                par_text, max_text, forbid_text
-            ),
+            format!("{}{}", budget_str, forbid_text),
             Style::default().fg(Color::Yellow),
         ),
     ]));
@@ -477,16 +498,59 @@ fn render_task_pane(frame: &mut Frame, area: Rect, app: &App) {
     };
     lines.push(hint_line);
 
-    // Practice instruction
-    lines.push(Line::from(vec![
-        Span::raw("Practice in Zed: "),
-        Span::styled(
-            "Press [o] to open in Zed editor",
-            Style::default()
-                .fg(Color::Green)
-                .add_modifier(Modifier::BOLD),
-        ),
-    ]));
+    // Practice instruction or fixture warning
+    match app.current_exercise_fixture_status() {
+        crate::app::FixtureStatus::Available { .. } => {
+            lines.push(Line::from(vec![
+                Span::raw("Practice in Zed: "),
+                Span::styled(
+                    "Press [o] to open in Zed editor",
+                    Style::default()
+                        .fg(Color::Green)
+                        .add_modifier(Modifier::BOLD),
+                ),
+            ]));
+        }
+        crate::app::FixtureStatus::MissingStart(ref p) => {
+            lines.push(Line::from(vec![
+                Span::styled(
+                    "Fixture Error: ",
+                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    format!(
+                        "Start fixture missing at {:?}",
+                        p.file_name().unwrap_or_default()
+                    ),
+                    Style::default().fg(Color::LightRed),
+                ),
+            ]));
+        }
+        crate::app::FixtureStatus::MissingGoal(ref p) => {
+            lines.push(Line::from(vec![
+                Span::styled(
+                    "Fixture Error: ",
+                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    format!(
+                        "Goal fixture missing at {:?}",
+                        p.file_name().unwrap_or_default()
+                    ),
+                    Style::default().fg(Color::LightRed),
+                ),
+            ]));
+        }
+        crate::app::FixtureStatus::ResolutionError(ref err) => {
+            lines.push(Line::from(vec![
+                Span::styled(
+                    "Fixture Error: ",
+                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(err.clone(), Style::default().fg(Color::LightRed)),
+            ]));
+        }
+    }
 
     let p = Paragraph::new(lines).block(block).wrap(Wrap { trim: true });
     frame.render_widget(p, area);
@@ -511,6 +575,25 @@ fn render_feedback_pane(frame: &mut Frame, area: Rect, app: &App) {
                     .add_modifier(Modifier::BOLD),
             ),
             Span::styled(warn.clone(), Style::default().fg(Color::Yellow)),
+        ]));
+    }
+
+    // Corrupt Backup Recovery Notice
+    if let Some(ref backup) = app.corrupt_backup_path {
+        lines.push(Line::from(vec![
+            Span::styled(
+                "Recovery:     ",
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                format!(
+                    "Preserved corrupt session at {:?}",
+                    backup.file_name().unwrap_or_default()
+                ),
+                Style::default().fg(Color::LightGreen),
+            ),
         ]));
     }
 
@@ -643,6 +726,39 @@ fn render_feedback_pane(frame: &mut Frame, area: Rect, app: &App) {
                 ),
             ]));
         }
+        ConnectionStatus::MissingFixture {
+            ref fixture_path,
+            is_start,
+        } => {
+            lines.push(Line::from(vec![
+                Span::raw("Connection: "),
+                Span::styled(
+                    "MISSING FIXTURE",
+                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                ),
+                Span::raw(" — "),
+                Span::styled(
+                    format!(
+                        "{} fixture file does not exist at {:?}",
+                        if *is_start { "Start" } else { "Goal" },
+                        fixture_path
+                    ),
+                    Style::default().fg(Color::LightRed),
+                ),
+            ]));
+            lines.push(Line::from(vec![
+                Span::styled(
+                    "Action:     ",
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    "Restore fixture file to lesson directory before starting drill",
+                    Style::default().fg(Color::White),
+                ),
+            ]));
+        }
         ConnectionStatus::Idle => {
             lines.push(Line::from(vec![
                 Span::raw("Connection: "),
@@ -670,14 +786,28 @@ fn render_feedback_pane(frame: &mut Frame, area: Rect, app: &App) {
     // Active Attempt Verdict
     if let Some(ref att) = app.session.attempt {
         let verdict_span = match &att.verdict {
-            Some(zedkata_core::session::Verdict::Passed { edits, par, score }) => Span::styled(
-                format!("PASSED! {} edit(s), par {:?}, score: {}", edits, par, score),
-                Style::default()
-                    .fg(Color::Green)
-                    .add_modifier(Modifier::BOLD),
-            ),
+            Some(zedkata_core::session::Verdict::Passed { edits, par, score }) => {
+                if let Some(par_val) = par {
+                    Span::styled(
+                        format!(
+                            "PASSED! {} edit(s), par {}, score: {}",
+                            edits, par_val, score
+                        ),
+                        Style::default()
+                            .fg(Color::Green)
+                            .add_modifier(Modifier::BOLD),
+                    )
+                } else {
+                    Span::styled(
+                        format!("PASSED! {} edit(s) (Goal-only / Unscored)", edits),
+                        Style::default()
+                            .fg(Color::Green)
+                            .add_modifier(Modifier::BOLD),
+                    )
+                }
+            }
             Some(zedkata_core::session::Verdict::Failed { reason }) => Span::styled(
-                format!("FAILED: {}", reason),
+                format!("FAILED: {} (score: 0)", reason),
                 Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
             ),
             Some(zedkata_core::session::Verdict::InProgress) => Span::styled(
@@ -774,12 +904,66 @@ fn render_feedback_pane(frame: &mut Frame, area: Rect, app: &App) {
             .iter()
             .rev()
             .take(3)
-            .map(|h| format!("{}/{} (score {})", h.lesson_id, h.exercise_id, h.score))
+            .map(|h| {
+                if !h.passed {
+                    format!("{}/{} (failed)", h.lesson_id, h.exercise_id)
+                } else if h.par_edits.is_some() {
+                    format!("{}/{} (score {})", h.lesson_id, h.exercise_id, h.score)
+                } else {
+                    format!("{}/{} (unscored)", h.lesson_id, h.exercise_id)
+                }
+            })
             .collect();
         lines.push(Line::from(vec![
             Span::raw("Recent:   "),
             Span::styled(last_attempts.join(", "), Style::default().fg(Color::Gray)),
         ]));
+    }
+
+    // Concept Weakness Tracking
+    if app.session.weaknesses.is_empty() {
+        lines.push(Line::from(vec![
+            Span::raw("Weakness: "),
+            Span::styled(
+                "None recorded (clean)",
+                Style::default().fg(Color::DarkGray),
+            ),
+        ]));
+    } else {
+        let mut sorted_weaknesses: Vec<(&String, &f64)> = app.session.weaknesses.iter().collect();
+        sorted_weaknesses.sort_by(|a, b| b.1.partial_cmp(a.1).unwrap_or(std::cmp::Ordering::Equal));
+        let count = sorted_weaknesses.len();
+        let items: Vec<Span> = sorted_weaknesses
+            .into_iter()
+            .take(4)
+            .enumerate()
+            .flat_map(|(idx, (concept, val))| {
+                let pct = (*val * 100.0).round() as u32;
+                let color = if *val >= 0.7 {
+                    Color::LightRed
+                } else if *val >= 0.3 {
+                    Color::Yellow
+                } else {
+                    Color::Green
+                };
+                let mut spans = vec![
+                    Span::styled(concept.clone(), Style::default().fg(Color::White)),
+                    Span::raw(": "),
+                    Span::styled(
+                        format!("{}%", pct),
+                        Style::default().fg(color).add_modifier(Modifier::BOLD),
+                    ),
+                ];
+                if idx + 1 < count.min(4) {
+                    spans.push(Span::styled(" | ", Style::default().fg(Color::DarkGray)));
+                }
+                spans
+            })
+            .collect();
+
+        let mut row = vec![Span::raw("Weakness: ")];
+        row.extend(items);
+        lines.push(Line::from(row));
     }
 
     lines.push(Line::from(vec![

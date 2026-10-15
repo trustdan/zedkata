@@ -39,8 +39,8 @@ is only how granular the data is.
 
 ### `zedkata-tui`
 
-ratatui + crossterm. Runs as a Zed Terminal Thread (`zed: new terminal thread`) or in a
-terminal pane.
+ratatui + crossterm. Runs in a standard Zed terminal pane (`workspace: new terminal`),
+a center workspace tab (`workspace: new center terminal`), or an external terminal.
 
 Panes: lesson list, current task text, live attempt feedback, progress/score.
 

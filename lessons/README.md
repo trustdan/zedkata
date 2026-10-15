@@ -1,12 +1,11 @@
 # Lessons
 
-[motions-03-textobjects.toml](motions-03-textobjects.toml) is a draft reference for
-the [lesson format](../docs/ARCHITECTURE.md#lesson-format), not a runnable lesson.
+- [modal-00-baseline.toml](modal-00-baseline.toml) is the shipped, fully-calibrated modal foundations lesson covering mode entry/exit (`i`, `a`, `<Esc>`, `ctrl-[`), directional navigation (`h`/`j`/`k`/`l`), and inline diagnostic error jumping (`g ]`/`g [`).
+- [motions-01-word.toml](motions-01-word.toml) is the shipped, fully-calibrated starter course lesson covering word motions (`dw`, `de`, `w` + `dw`).
+- [motions-02-find.toml](motions-02-find.toml) is the shipped, fully-calibrated find-motions lesson covering intra-line delimiter navigation and operators (`df`, `dt`, `ct`, `;`, `,`).
+- [motions-03-textobjects.toml](motions-03-textobjects.toml) is the shipped, fully-calibrated text-objects lesson covering delimited text objects (`ci"`, `ci{`, `ci(`) and Zed agnostic quotes/brackets, admitted under [ZK-025.3](../docs/BACKLOG.md#task-zk-025-3).
 
-Its prerequisite lessons (`motions-01-word` and `motions-02-find`) and the six
-referenced start/goal fixture files have not been created. Its edit budgets are
-theoretical and require manual calibration after the
-[Phase 0 gate](../docs/BACKLOG.md#phase-0--feasibility-spike-gate).
+For the full curriculum sequence, prerequisites DAG, and capability audit, see:
+- [Curriculum Module Map](../docs/curriculum-module-map.md)
+- [Curriculum Author Instructions](../.claude/agents/curriculum-author.md)
 
-See the [curriculum author instructions](../.claude/agents/curriculum-author.md)
-before adding or calibrating lesson content.

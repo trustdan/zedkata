@@ -220,6 +220,58 @@ impl Catalog {
         Ok(())
     }
 
+    /// Check if all exercises in a lesson have been passed in session history.
+    pub fn is_lesson_completed(
+        &self,
+        lesson_id: &str,
+        history: &[crate::session::HistoryEntry],
+    ) -> bool {
+        let Some(entry) = self.lessons.get(lesson_id) else {
+            return false;
+        };
+        if entry.lesson.exercises.is_empty() {
+            return false;
+        }
+        entry.lesson.exercises.iter().all(|ex| {
+            history
+                .iter()
+                .any(|h| h.lesson_id == lesson_id && h.exercise_id == ex.id && h.passed)
+        })
+    }
+
+    /// Check if a lesson's prerequisites are satisfied by session history.
+    ///
+    /// Returns `(is_unlocked, missing_prerequisites)`:
+    /// - If a required lesson is in the catalog, all of its exercises must be completed (`is_lesson_completed`).
+    /// - If a required lesson is not in the catalog (e.g. external lesson), at least one passed attempt
+    ///   for that lesson ID must exist in `history`.
+    /// - Failed attempts (`passed: false`) never satisfy a prerequisite.
+    pub fn is_lesson_unlocked(
+        &self,
+        lesson_id: &str,
+        history: &[crate::session::HistoryEntry],
+    ) -> (bool, Vec<String>) {
+        let Some(entry) = self.lessons.get(lesson_id) else {
+            return (true, Vec::new());
+        };
+
+        let mut missing = Vec::new();
+        for req in &entry.lesson.requires {
+            let satisfied = if self.lessons.contains_key(req) {
+                self.is_lesson_completed(req, history)
+            } else {
+                history.iter().any(|h| h.lesson_id == *req && h.passed)
+            };
+
+            if !satisfied {
+                missing.push(req.clone());
+            }
+        }
+
+        let is_unlocked = missing.is_empty();
+        (is_unlocked, missing)
+    }
+
     fn check_prerequisites<'a, I>(&self, entries: I) -> Result<(), CoreError>
     where
         I: IntoIterator<Item = &'a LessonEntry>,

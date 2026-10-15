@@ -1,0 +1,4 @@
+pub struct NodeHealth {
+    status_flag: HealthState,
+    latency_ms: u32,
+}

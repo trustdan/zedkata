@@ -1,0 +1,4 @@
+pub fn bind_service() -> SocketAddr {
+    let addr = ":8080";
+    addr.parse().expect("valid address")
+}

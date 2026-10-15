@@ -1,0 +1,4 @@
+pub fn process_event(event: &Event) -> Result<(), EventError> {
+    dispatch_event(event)?;
+    Ok(())
+}

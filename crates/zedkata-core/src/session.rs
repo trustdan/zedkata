@@ -190,6 +190,52 @@ impl SessionState {
         }
     }
 
+    /// Safely preserves a corrupt or incompatible session file by renaming it to a timestamped backup
+    /// (`<filename>.corrupt.<timestamp>.bak`) so that subsequent writes do not silently destroy recoverable data.
+    ///
+    /// Returns the backup PathBuf on success.
+    pub fn backup_corrupt_file(path: &Path) -> Result<PathBuf, CoreError> {
+        if !path.exists() {
+            return Err(CoreError::IoError(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                format!("Cannot backup nonexistent file: {:?}", path),
+            )));
+        }
+
+        let nanos = Utc::now().timestamp_nanos_opt().unwrap_or(0);
+        let orig_name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("session.json");
+        let backup_name = format!("{}.corrupt.{}.bak", orig_name, nanos);
+        let backup_path = match path.parent() {
+            Some(parent) => parent.join(backup_name),
+            None => PathBuf::from(backup_name),
+        };
+
+        std::fs::rename(path, &backup_path)?;
+        Ok(backup_path)
+    }
+
+    /// Load session state from file if valid; if the file is absent, initializes a default session.
+    /// If the file is present but corrupt or incompatible, preserves the corrupt file to a timestamped backup
+    /// (`<filename>.corrupt.<timestamp>.bak`) and returns a fresh default session along with the backup path.
+    pub fn load_or_recover(path: &Path) -> Result<(Self, Option<PathBuf>), CoreError> {
+        if !path.exists() {
+            return Ok((Self::default(), None));
+        }
+
+        match Self::load_from_file(path) {
+            Ok(session) => Ok((session, None)),
+            Err(CoreError::IncompatibleSessionVersion { .. })
+            | Err(CoreError::SessionCorruptError { .. }) => {
+                let backup_path = Self::backup_corrupt_file(path)?;
+                Ok((Self::default(), Some(backup_path)))
+            }
+            Err(err) => Err(err),
+        }
+    }
+
     /// Load session state from file if it exists, or initialize a fresh default session if absent.
     pub fn load_or_init(path: &Path) -> Result<Self, CoreError> {
         if !path.exists() {
@@ -340,6 +386,27 @@ impl SessionState {
                 att.verdict = Some(Verdict::Failed {
                     reason: reason.clone(),
                 });
+
+                // Prevent duplicate history entries for the exact same failed attempt
+                let already_recorded = self.history.iter().any(|h| {
+                    h.lesson_id == self.current.lesson_id
+                        && h.exercise_id == exercise_id
+                        && !h.passed
+                        && h.actual_edits == att.edit_count
+                });
+
+                if !already_recorded {
+                    self.history.push(crate::scoring::create_history_entry(
+                        &self.current.lesson_id,
+                        exercise_id,
+                        false,
+                        None,
+                        att.edit_count,
+                        0,
+                        Utc::now(),
+                    ));
+                }
+
                 self.weaknesses =
                     crate::scoring::update_weaknesses(&self.weaknesses, concepts, false, 0);
                 true

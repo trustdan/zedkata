@@ -41,7 +41,7 @@ written.** See [the backlog](docs/BACKLOG.md).
 ```
 ┌────────────────────────── Zed ───────────────────────────┐
 │                                                          │
-│  Editor pane                    Terminal thread          │
+│  Editor pane                    Terminal pane / tab      │
 │  ┌────────────────────┐         ┌────────────────────┐   │
 │  │ exercise buffer    │         │ zedkata-tui        │   │
 │  │  ↕ LSP             │         │  (ratatui)         │   │

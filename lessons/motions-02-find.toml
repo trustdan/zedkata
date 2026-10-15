@@ -1,0 +1,72 @@
+[lesson]
+id = "motions-02-find"
+title = "Character find motions"
+module = 2
+requires = ["motions-01-word"]
+concepts = ["f", "F", "t", "T", ";", ",", "df", "dt", "ct"]
+
+prose = """
+In-line character find jumps precisely to targets without counting words.
+`f` finds forward inclusive, while `t` stops till the character. `F` and `T` search backward.
+Repeat with `;` or reverse with `,`. Combined with `d` or `c`, find motions make surgical
+edits inside compound identifiers and delimited values. Zed find motions stay on the current line.
+"""
+
+# ---------------------------------------------------------------------------
+
+[[exercise]]
+id = "delete-find-delimiter"
+task = "Remove the 'legacy_' prefix including the underscore from the function call on line 2."
+start = "fixtures/motions-02/delete-find-delimiter.start.kata"
+goal = "fixtures/motions-02/delete-find-delimiter.goal.kata"
+par_edits = 1
+max_edits = 2
+cursor = [2, 5]
+hint = "Delete forward through the delimiter character."
+
+[exercise.forbid]
+backspace_run = 3
+
+# ---------------------------------------------------------------------------
+
+[[exercise]]
+id = "delete-till-char"
+task = "Clear the default address value inside the socket string on line 2, keeping the port and quotes."
+start = "fixtures/motions-02/delete-till-char.start.kata"
+goal = "fixtures/motions-02/delete-till-char.goal.kata"
+par_edits = 1
+max_edits = 2
+cursor = [2, 17]
+hint = "Delete forward up to, but not including, the delimiter character."
+
+[exercise.forbid]
+backspace_run = 3
+
+# ---------------------------------------------------------------------------
+
+[[exercise]]
+id = "change-till-char"
+task = "Change the status field name on line 2 to 'state', keeping the trailing colon."
+start = "fixtures/motions-02/change-till-char.start.kata"
+goal = "fixtures/motions-02/change-till-char.goal.kata"
+par_edits = 1
+max_edits = 2
+cursor = [2, 5]
+hint = "Change text forward up to the delimiter."
+
+[exercise.forbid]
+backspace_run = 3
+
+# ---------------------------------------------------------------------------
+# Not drillable — routes to zedkata-agent as a guided walkthrough.
+
+[[walkthrough]]
+id = "single-line-find-scope"
+title = "Single-line find scope and repeat motions in Zed"
+prompt = """
+Explain Zed's single-line character search behavior (`\"multiline\": false`). In standard Vim, find
+motions (`f`/`t`) can optionally cross line boundaries depending on plugins. In Zed's native Vim
+emulation, character searches are strictly scoped to the active line. Demonstrate navigating across
+multiple instances of a character on a line using `;` (repeat forward) and `,` (repeat backward),
+and explain how Zed safely confines search motions to prevent unexpected multiline jumps.
+"""

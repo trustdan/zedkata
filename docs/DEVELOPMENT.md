@@ -270,8 +270,74 @@ To test manually:
 2. Close the `.kata` tab in Zed. Observe the TUI status change.
 3. In Zed, trigger `workspace: restart language server`. Re-open the buffer and confirm the live attempt immediately reconnects.
 
+## Resume and Recovery After Restart (ZK-021.2)
+
+Session persistence and restart lifecycle guarantees are tested in `crates/zedkata-tui/tests/restart_recovery_tests.rs`:
+
+```powershell
+cargo test -p zedkata-tui --test restart_recovery_tests
+```
+
+### 1. Manual Quit / Restart Restoring Completion
+- When the student quits (`q`, `Esc`, or process exit) and relaunches `zedkata-tui` (or runs headless CLI commands), the application reloads `session.json`.
+- Completed exercises and technique scores in `history` are preserved and reloaded.
+- Core-derived prerequisite unlocks are re-evaluated: lessons whose required completed exercises are fulfilled remain unlocked, and completed lessons display `[✓]`.
+- Navigation and active drill focus restore directly to the session's active `current.lesson_id` and `current.exercise_index`.
+
+### 2. Unfinished Attempt Handling
+- If an attempt was in progress (`verdict: in_progress` or unfinalized) when the student quit:
+  - The attempt identity (`id`), recorded edit count, and buffer path are retained.
+  - An unfinished attempt is **never counted as a failure in history** until explicitly abandoned or finalized.
+  - If the buffer remains on disk, re-opening Zed or pressing `[o]` seamlessly reconnects.
+  - If the buffer was deleted or cleaned up while the app was closed, the TUI detects `Connection: STALE BUFFER` with actionable recovery: press `[o]` to regenerate the pristine fixture, or press `[r]` to reset.
+
+### 3. Corrupt and Incompatible State Recovery (No Silent Overwrite)
+- If `session.json` is corrupted (syntax error, truncated file) or has an unsupported future schema version (`version > 1`):
+  - The application **never silently overwrites** the file with default state.
+  - `SessionState::load_or_recover` automatically renames and preserves the unparseable file to `session.json.corrupt.<nanos>.bak`.
+  - A clean default state is initialized in memory, and an actionable warning is surfaced in the TUI header and feedback pane:
+    `Recovery: Preserved corrupt session at "session.json.corrupt.<nanos>.bak"`
+  - Subsequent session writes create a valid `session.json` without destroying the backed-up file, allowing manual inspection and recovery.
+
+### 4. Missing Fixture Safeguards
+- If a curriculum lesson references a start or goal fixture that is missing or deleted from disk:
+  - `App::current_exercise_fixture_status` detects `MissingStart` or `MissingGoal`.
+  - The TUI surfaces a high-visibility `Fixture Error: Start fixture missing at <path>` notice in the Task pane.
+  - `launch_selected` and `reset_active` safely abort without spawning invalid Zed processes or corrupting session state.
+
+## Supported Terminal Hosting Routes (ZK-023.2, OQ-08)
+
+The `zedkata-tui` drill conductor requires an interactive terminal emulator supporting raw mode, alternate screen buffers (`crossterm::terminal::EnterAlternateScreen`), and responsive geometry reflow. Following the empirical verification in [ZK-023.2](BACKLOG.md#task-zk-023-2) (recorded in `docs/evidence/terminal-hosting-routes.md`), ZedKata advertises and officially supports three hosting routes:
+
+### 1. Standard Zed Terminal Pane (Officially Supported & Recommended)
+- **How to launch:** Run command `workspace: new terminal` (`Ctrl-~` or bottom dock toggle).
+- **Execution:** Run `cargo run -p zedkata-tui` or the compiled `zedkata-tui.exe` binary.
+- **Behavior:** ConPTY and Zed's internal VTE terminal cleanly engage alternate screen mode, hide the cursor, and capture vim navigation keystrokes without conflicting with Zed editor keymaps.
+- **Fullscreen / Zoom:** The dock can be zoomed to full editor height using `Shift+Esc` or double-clicking the dock tab header.
+
+### 2. Zed Center Terminal Tab (Officially Supported & Recommended)
+- **How to launch:** Run command `workspace: new center terminal`.
+- **Execution:** Opens a terminal session as a standard editor tab in Zed's central workspace.
+- **Side-by-Side Split:** Can be dragged to a vertical split next to the active exercise buffer (e.g., student buffer on the left, `zedkata-tui` drill conductor on the right). This provides the highest ergonomic workflow inside a single Zed window.
+
+### 3. External Terminal Emulator (Officially Supported & Recommended)
+- **How to launch:** Windows Terminal, Alacritty, WezTerm, PowerShell, or macOS/Linux native terminals.
+- **Execution:** Ideal for multi-monitor workstations where the student dedicates one screen to Zed and an adjacent screen to the TUI drill conductor.
+
+### Non-Recommended Route: Zed Terminal Threads
+- **Evaluation:** Zed's Assistant / Agent Panel supports a `Terminal` thread route (`agent::NewTerminalThread`), designed primarily for streaming AI CLI agents (Claude Code, Amp, etc.).
+- **Why not advertised:** The Agent Panel defaults to a narrow sidebar dock (~30–45 columns), which immediately triggers the `< 60x15` minimum dimension overlay. Furthermore, Terminal Threads cannot be split or zoomed as standard workspace tabs, and their thread container remains retained in Zed's agent metadata store upon process exit. Students should use standard terminal panes or center terminal tabs instead.
+
+### Terminal Sizing & Restoration Guarantees
+- **Minimum Geometry:** The TUI requires a minimum of **60 columns by 15 rows**. When the terminal is resized below this threshold, a centered warning overlay (`Terminal size too small (WxH). Minimum size is 60x15.`) is displayed until adequate space is restored.
+- **Restoration:** `zedkata-tui` incorporates an RAII `TerminalGuard` and a custom `std::panic::set_hook`. On exit (`q`, `Esc`), interrupt (`Ctrl-C`), unhandled error (`--test-error`), or panic (`--test-panic`), the terminal is guaranteed to leave the alternate screen, disable raw mode, and restore cursor visibility, leaving the shell prompt completely clean.
+
 ## Task handoff
 
-ZK-001 through ZK-019 (exercise launch, writable buffer preparation, bounded live polling, and connection health/stale-state recovery) are complete. Next is **ZK-020: Add retry and next exercise** ([ZK-020.1](BACKLOG.md#task-zk-020-1) to reset and retry an active exercise).
+ZK-001 through ZK-022, **ZK-023.1** (Accept the starter-course user journey), and **ZK-023.2** (Check supported terminal hosting routes) are complete. Local MVP milestone **ZK-023** is fully accepted! Full evidence is recorded in `docs/evidence/local-mvp.md` and `docs/evidence/terminal-hosting-routes.md`.
+
+Next is **Phase 3 (Reference Curriculum & Full Release)** starting with **ZK-024.1** ([ZK-024.1](BACKLOG.md#task-zk-024-1) — Audit capabilities and settle module ordering).
+
+
 
 

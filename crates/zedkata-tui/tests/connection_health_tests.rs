@@ -13,12 +13,16 @@ use zedkata_tui::{
     ui,
 };
 
+static TEST_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
 fn setup_temp_workspace() -> (PathBuf, PathBuf) {
+    let count = TEST_COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     let nonce = chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0);
     let temp_dir = std::env::temp_dir().join(format!(
-        "zedkata_conn_test_{}_{}",
+        "zedkata_conn_test_{}_{}_{}",
         std::process::id(),
-        nonce
+        nonce,
+        count
     ));
     fs::create_dir_all(&temp_dir).expect("create temp dir");
     let session_file = temp_dir.join("session.json");
@@ -162,11 +166,16 @@ fn test_mismatched_session_and_sync_recovery() -> Result<()> {
     session.save_to_file(&session_file)?;
 
     let mut app = App::load(session_file, lessons_dir);
-    assert_eq!(app.selected_lesson_idx, 0);
+    let active_idx = app
+        .lessons()
+        .iter()
+        .position(|l| l.lesson.id == "motions-01-word")
+        .expect("motions-01-word must be in catalog");
+    assert_eq!(app.selected_lesson_idx, active_idx);
 
     // User navigates away to next lesson in TUI
     app.next_lesson();
-    assert_ne!(app.selected_lesson_idx, 0);
+    assert_ne!(app.selected_lesson_idx, active_idx);
 
     match app.connection_status() {
         ConnectionStatus::MismatchedSession {
@@ -189,7 +198,7 @@ fn test_mismatched_session_and_sync_recovery() -> Result<()> {
     handle_event(&mut app, make_key_event(KeyCode::Char('s')))?;
 
     // Now selection is synchronized back to active session drill
-    assert_eq!(app.selected_lesson_idx, 0);
+    assert_eq!(app.selected_lesson_idx, active_idx);
     assert_eq!(app.selected_exercise_idx, 0);
     assert!(matches!(
         app.connection_status(),

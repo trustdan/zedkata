@@ -324,3 +324,33 @@ fn test_switch_exercise_clears_attempt() {
     assert!(state.attempt.is_none());
     assert!(state.current.buffer_path.is_none());
 }
+
+#[test]
+fn test_backup_corrupt_file_and_load_or_recover() {
+    let temp_dir = create_temp_dir("recover_corrupt");
+    let state_file = temp_dir.join("session.json");
+
+    // 1. Write corrupted JSON
+    let corrupt_payload = "{ not valid json at all }";
+    fs::write(&state_file, corrupt_payload).expect("write corrupt file");
+
+    // 2. load_or_recover should preserve the corrupted file and return clean state
+    let (state, backup_path) =
+        SessionState::load_or_recover(&state_file).expect("load_or_recover should succeed");
+    assert_eq!(state.version, CURRENT_SCHEMA_VERSION);
+    assert!(backup_path.is_some());
+    let backup = backup_path.unwrap();
+    assert!(backup.exists());
+    assert_eq!(
+        fs::read_to_string(&backup).expect("read backup"),
+        corrupt_payload
+    );
+    assert!(!state_file.exists());
+
+    // 3. Saving clean state does not overwrite backup
+    state.save_to_file(&state_file).expect("save clean state");
+    assert!(state_file.exists());
+    assert!(backup.exists());
+
+    let _ = fs::remove_dir_all(&temp_dir);
+}

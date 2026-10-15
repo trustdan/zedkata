@@ -1,0 +1,13 @@
+use std::collections::HashMap;
+
+pub struct SessionManager {
+    sessions: HashMap<u64, String>,
+}
+
+impl SessionManager {
+    pub fn verify_session(&self, user_id: u64, raw_token: &str) -> bool {
+        let id = sanitize_id(user_id);
+        let token = normalize_token(raw_token);
+        validate_credentials(compute_digest(id, token), self.get_salt(id))
+    }
+}

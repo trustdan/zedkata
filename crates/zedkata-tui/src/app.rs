@@ -42,6 +42,23 @@ pub enum ConnectionStatus {
         buffer_path: PathBuf,
         reason: String,
     },
+    /// Start or goal fixture is missing on disk.
+    MissingFixture {
+        fixture_path: PathBuf,
+        is_start: bool,
+    },
+}
+
+/// Status of start and goal fixtures on disk for an exercise.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FixtureStatus {
+    Available {
+        start_path: PathBuf,
+        goal_path: PathBuf,
+    },
+    MissingStart(PathBuf),
+    MissingGoal(PathBuf),
+    ResolutionError(String),
 }
 
 /// State for the interactive terminal application shell.
@@ -62,6 +79,7 @@ pub struct App {
     pub last_session_poll: Instant,
     pub last_session_mtime: Option<SystemTime>,
     pub session_warning: Option<String>,
+    pub corrupt_backup_path: Option<PathBuf>,
     pub poll_interval: Duration,
 }
 
@@ -84,32 +102,50 @@ impl App {
             last_session_poll: Instant::now(),
             last_session_mtime: None,
             session_warning: None,
+            corrupt_backup_path: None,
             poll_interval: Duration::from_millis(100),
         }
     }
 
     /// Load application state: reads session from disk and loads the curriculum catalog.
+    ///
+    /// If session.json exists but is corrupt or has an incompatible version, it is safely
+    /// preserved to `session.json.corrupt.<nanos>.bak` to avoid destroying recoverable student data.
     pub fn load(session_path: PathBuf, lessons_dir: PathBuf) -> Self {
         let (catalog, catalog_error) = match Catalog::load_from_dir(&lessons_dir) {
             Ok(cat) => (Some(cat), None),
             Err(err) => (None, Some(err.to_string())),
         };
 
-        let (session, session_warning, initial_mtime) = if session_path.exists() {
-            let mtime = std::fs::metadata(&session_path)
-                .and_then(|m| m.modified())
-                .ok();
-            match SessionState::load_from_file(&session_path) {
-                Ok(s) => (s, None, mtime),
-                Err(err) => (
-                    SessionState::default(),
-                    Some(format!("Session load error: {}", err)),
-                    mtime,
-                ),
-            }
-        } else {
-            (SessionState::default(), None, None)
-        };
+        let (session, session_warning, initial_mtime, corrupt_backup_path) =
+            if session_path.exists() {
+                let mtime = std::fs::metadata(&session_path)
+                    .and_then(|m| m.modified())
+                    .ok();
+                match SessionState::load_from_file(&session_path) {
+                    Ok(s) => (s, None, mtime, None),
+                    Err(err) => {
+                        let backup_res = SessionState::backup_corrupt_file(&session_path);
+                        let backup_path = backup_res.ok();
+                        let warning_msg = if let Some(ref bp) = backup_path {
+                            format!(
+                                "Damaged state preserved at {:?}. Clean session initialized.",
+                                bp.file_name().unwrap_or_default()
+                            )
+                        } else {
+                            format!("Session load error: {}", err)
+                        };
+                        (
+                            SessionState::default(),
+                            Some(warning_msg),
+                            None,
+                            backup_path,
+                        )
+                    }
+                }
+            } else {
+                (SessionState::default(), None, None, None)
+            };
 
         let mut app = Self {
             should_quit: false,
@@ -127,6 +163,7 @@ impl App {
             last_session_poll: Instant::now(),
             last_session_mtime: initial_mtime,
             session_warning,
+            corrupt_backup_path,
             poll_interval: Duration::from_millis(100),
         };
 
@@ -166,6 +203,42 @@ impl App {
             .lesson
             .exercises
             .get(self.selected_exercise_idx)
+    }
+
+    /// Check whether the start and goal fixtures for the currently selected exercise exist on disk.
+    pub fn current_exercise_fixture_status(&self) -> FixtureStatus {
+        let Some(lesson_entry) = self.current_lesson() else {
+            return FixtureStatus::ResolutionError("No lesson selected".to_string());
+        };
+        let Some(exercise) = self.current_exercise() else {
+            return FixtureStatus::ResolutionError("No exercise selected".to_string());
+        };
+        let Some(catalog) = &self.catalog else {
+            return FixtureStatus::ResolutionError("Catalog not loaded".to_string());
+        };
+
+        let start_path = match catalog.resolve_fixture(&lesson_entry.lesson.id, &exercise.id, true)
+        {
+            Ok(p) => p,
+            Err(e) => return FixtureStatus::ResolutionError(e.to_string()),
+        };
+        if !start_path.is_file() {
+            return FixtureStatus::MissingStart(start_path);
+        }
+
+        let goal_path = match catalog.resolve_fixture(&lesson_entry.lesson.id, &exercise.id, false)
+        {
+            Ok(p) => p,
+            Err(e) => return FixtureStatus::ResolutionError(e.to_string()),
+        };
+        if !goal_path.is_file() {
+            return FixtureStatus::MissingGoal(goal_path);
+        }
+
+        FixtureStatus::Available {
+            start_path,
+            goal_path,
+        }
     }
 
     /// Move to the next lesson in the curriculum list.
@@ -307,32 +380,21 @@ impl App {
 
     /// Check if a lesson is locked due to incomplete prerequisites.
     pub fn is_lesson_locked(&self, lesson: &Lesson) -> (bool, Vec<String>) {
-        let mut missing = Vec::new();
-        for req in &lesson.requires {
-            let passed = self
-                .session
-                .history
-                .iter()
-                .any(|h| h.lesson_id == *req && h.passed);
-            if !passed {
-                missing.push(req.clone());
-            }
+        if let Some(ref cat) = self.catalog {
+            let (unlocked, missing) = cat.is_lesson_unlocked(&lesson.id, &self.session.history);
+            (!unlocked, missing)
+        } else {
+            (false, Vec::new())
         }
-        let is_locked = !missing.is_empty();
-        (is_locked, missing)
     }
 
     /// Check if all exercises in a lesson have been passed in session history.
     pub fn is_lesson_completed(&self, lesson: &Lesson) -> bool {
-        if lesson.exercises.is_empty() {
-            return false;
+        if let Some(ref cat) = self.catalog {
+            cat.is_lesson_completed(&lesson.id, &self.session.history)
+        } else {
+            false
         }
-        lesson.exercises.iter().all(|ex| {
-            self.session
-                .history
-                .iter()
-                .any(|h| h.lesson_id == lesson.id && h.exercise_id == ex.id && h.passed)
-        })
     }
 
     /// Activate the currently selected exercise and save state to session.json.
@@ -356,6 +418,13 @@ impl App {
             }
 
             if let Some(ex_id) = ex_id {
+                // If destination session.json on disk contains corrupt/unparseable data, preserve it first
+                if self.session_path.exists()
+                    && SessionState::load_from_file(&self.session_path).is_err()
+                {
+                    let _ = SessionState::backup_corrupt_file(&self.session_path);
+                }
+
                 self.session
                     .switch_exercise(lesson_id.clone(), self.selected_exercise_idx);
                 self.session
@@ -394,6 +463,25 @@ impl App {
         } else {
             return Ok(());
         };
+
+        // Check fixture status before launching
+        match self.current_exercise_fixture_status() {
+            FixtureStatus::MissingStart(ref p) => {
+                self.status_message =
+                    Some(format!("Cannot launch: start fixture missing at {:?}", p));
+                return Ok(());
+            }
+            FixtureStatus::MissingGoal(ref p) => {
+                self.status_message =
+                    Some(format!("Cannot launch: goal fixture missing at {:?}", p));
+                return Ok(());
+            }
+            FixtureStatus::ResolutionError(ref err) => {
+                self.status_message = Some(format!("Fixture error: {}", err));
+                return Ok(());
+            }
+            FixtureStatus::Available { .. } => {}
+        }
 
         let Some(catalog) = &self.catalog else {
             self.status_message = Some("Catalog not loaded".to_string());
@@ -434,6 +522,11 @@ impl App {
 
         if self.session.current.lesson_id.is_empty() {
             self.status_message = Some("No active exercise to reset".to_string());
+            return Ok(());
+        }
+
+        if let FixtureStatus::MissingStart(ref p) = self.current_exercise_fixture_status() {
+            self.status_message = Some(format!("Cannot reset: start fixture missing at {:?}", p));
             return Ok(());
         }
 
@@ -542,6 +635,20 @@ impl App {
                 active_lesson: active_lesson.clone(),
                 active_exercise: active_ex_idx,
             };
+        }
+
+        // Check if start fixture for active exercise is missing
+        if let Some(ref cat) = self.catalog {
+            if let Some(ex) = self.current_exercise() {
+                if let Ok(start_path) = cat.resolve_fixture(active_lesson, &ex.id, true) {
+                    if !start_path.is_file() {
+                        return ConnectionStatus::MissingFixture {
+                            fixture_path: start_path,
+                            is_start: true,
+                        };
+                    }
+                }
+            }
         }
 
         // Selected matches active session. Check buffer path and attempt.

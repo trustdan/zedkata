@@ -65,25 +65,30 @@ fn test_tui_render_catalog_and_task_panes() -> Result<()> {
 
     // Curriculum pane checks
     assert!(
-        rendered.contains("Curriculum (2)"),
+        rendered.contains("Curriculum (4)"),
         "Should display lesson count in curriculum title"
+    );
+    assert!(
+        rendered.contains("modal-00-baseline"),
+        "Should list modal-00-baseline lesson"
     );
     assert!(
         rendered.contains("motions-01-word"),
         "Should list motions-01-word lesson"
     );
     assert!(
+        rendered.contains("motions-02-find"),
+        "Should list motions-02-find lesson"
+    );
+    assert!(
         rendered.contains("motions-03-textobjects"),
         "Should list motions-03-textobjects lesson"
     );
-    assert!(
-        rendered.contains("[L]"),
-        "Should mark motions-03-textobjects as locked"
-    );
+    assert!(rendered.contains("[L]"), "Should mark locked lessons");
 
-    // Task pane checks for motions-01-word
+    // Task pane checks for modal-00-baseline (initial selected lesson 0)
     assert!(
-        rendered.contains("Delete the unused parameter name 'target'"),
+        rendered.contains("Make the 'timeout_ms' field public on line 2."),
         "Should display exercise 0 task description"
     );
     assert!(
@@ -141,7 +146,7 @@ fn test_tui_hint_toggle() -> Result<()> {
     assert!(app.show_hint);
     terminal.draw(|f| ui::render(f, &app))?;
     let r2 = buffer_to_string(&terminal);
-    assert!(r2.contains("A single word deletion will remove the identifier"));
+    assert!(r2.contains("Enter insert mode before the cursor"));
 
     // Toggle off with '?'
     handle_event(
@@ -174,12 +179,26 @@ fn test_tui_vim_navigation_and_locked_state() -> Result<()> {
     assert_eq!(app.selected_lesson_idx, 0);
     assert_eq!(app.selected_exercise_idx, 0);
 
-    // 'j' moves down to motions-03-textobjects
+    // 'j' moves down to motions-01-word (idx 1)
     handle_event(
         &mut app,
         make_key_event(KeyCode::Char('j'), KeyModifiers::NONE),
     )?;
     assert_eq!(app.selected_lesson_idx, 1);
+
+    // 'j' moves down to motions-02-find (idx 2)
+    handle_event(
+        &mut app,
+        make_key_event(KeyCode::Char('j'), KeyModifiers::NONE),
+    )?;
+    assert_eq!(app.selected_lesson_idx, 2);
+
+    // 'j' moves down to motions-03-textobjects (idx 3)
+    handle_event(
+        &mut app,
+        make_key_event(KeyCode::Char('j'), KeyModifiers::NONE),
+    )?;
+    assert_eq!(app.selected_lesson_idx, 3);
 
     // motions-03-textobjects is locked because motions-01-word and motions-02-find are required
     terminal.draw(|f| ui::render(f, &app))?;
@@ -197,12 +216,17 @@ fn test_tui_vim_navigation_and_locked_state() -> Result<()> {
         .unwrap()
         .contains("Cannot select locked lesson"));
 
-    // 'k' moves back up to motions-01-word
+    // 'k' twice moves back up to motions-01-word (idx 1)
     handle_event(
         &mut app,
         make_key_event(KeyCode::Char('k'), KeyModifiers::NONE),
     )?;
-    assert_eq!(app.selected_lesson_idx, 0);
+    assert_eq!(app.selected_lesson_idx, 2);
+    handle_event(
+        &mut app,
+        make_key_event(KeyCode::Char('k'), KeyModifiers::NONE),
+    )?;
+    assert_eq!(app.selected_lesson_idx, 1);
 
     // 'l' switches to next exercise (exercise 1: delete-to-word-end)
     handle_event(

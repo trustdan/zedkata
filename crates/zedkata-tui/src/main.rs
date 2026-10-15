@@ -93,8 +93,15 @@ fn handle_select(
     lesson_id: &str,
     exercise_index: usize,
 ) -> Result<()> {
-    let mut session = SessionState::load_or_init(session_path)
+    let (mut session, corrupt_backup) = SessionState::load_or_recover(session_path)
         .with_context(|| format!("Failed to load session from {:?}", session_path))?;
+
+    if let Some(backup) = corrupt_backup {
+        eprintln!(
+            "Warning: Corrupted session state preserved at {:?}. Clean state initialized.",
+            backup
+        );
+    }
 
     session.switch_exercise(lesson_id.to_string(), exercise_index);
     session
@@ -127,8 +134,24 @@ fn handle_select(
 }
 
 fn handle_status(session_path: &Path) -> Result<()> {
-    let session = SessionState::load_or_init(session_path)
-        .with_context(|| format!("Failed to load session from {:?}", session_path))?;
+    if !session_path.exists() {
+        println!("No active session file found at {:?}", session_path);
+        println!("(A default session will be created on first exercise selection or launch.)");
+        return Ok(());
+    }
+
+    let session = match SessionState::load_from_file(session_path) {
+        Ok(s) => s,
+        Err(err) => {
+            eprintln!(
+                "Zedkata Session Status Error: Failed to load valid session state from {:?}",
+                session_path
+            );
+            eprintln!("  Reason: {}", err);
+            eprintln!("  Recovery: Running 'zedkata-tui' or 'zedkata-tui reset' will automatically preserve this file as a backup (.corrupt.<ts>.bak) and initialize a clean state without data loss.");
+            return Err(err.into());
+        }
+    };
 
     println!("Zedkata Session Status:");
     println!("  Session File:   {:?}", session_path);
@@ -157,13 +180,20 @@ fn handle_status(session_path: &Path) -> Result<()> {
         println!("  Edit Count:     {}", att.edit_count);
         match &att.verdict {
             Some(Verdict::Passed { edits, par, score }) => {
-                println!(
-                    "  Verdict:        PASSED (edits: {}, par: {:?}, score: {})",
-                    edits, par, score
-                );
+                if let Some(par_val) = par {
+                    println!(
+                        "  Verdict:        PASSED (edits: {}, par: {}, score: {})",
+                        edits, par_val, score
+                    );
+                } else {
+                    println!(
+                        "  Verdict:        PASSED (edits: {}, Goal-only / Unscored)",
+                        edits
+                    );
+                }
             }
             Some(Verdict::Failed { reason }) => {
-                println!("  Verdict:        FAILED ({})", reason);
+                println!("  Verdict:        FAILED ({}, score: 0)", reason);
             }
             Some(Verdict::InProgress) => {
                 println!("  Verdict:        IN PROGRESS");
@@ -178,20 +208,36 @@ fn handle_status(session_path: &Path) -> Result<()> {
     }
 
     println!();
-    println!(
-        "History Count:    {} completed exercise(s)",
-        session.history.len()
-    );
+    println!("History Count:    {} attempt(s)", session.history.len());
     for (i, h) in session.history.iter().enumerate() {
+        let score_str = if !h.passed {
+            "score: 0".to_string()
+        } else if h.par_edits.is_some() {
+            format!("score: {}", h.score)
+        } else {
+            "unscored".to_string()
+        };
         println!(
-            "  [{}] {}/{} - {} (score: {}, edits: {})",
+            "  [{}] {}/{} - {} ({}, edits: {})",
             i + 1,
             h.lesson_id,
             h.exercise_id,
             if h.passed { "PASSED" } else { "FAILED" },
-            h.score,
+            score_str,
             h.actual_edits
         );
+    }
+
+    println!();
+    println!("Tracked Weaknesses: {}", session.weaknesses.len());
+    if session.weaknesses.is_empty() {
+        println!("  (none recorded)");
+    } else {
+        let mut sorted: Vec<(&String, &f64)> = session.weaknesses.iter().collect();
+        sorted.sort_by(|a, b| b.1.partial_cmp(a.1).unwrap_or(std::cmp::Ordering::Equal));
+        for (concept, val) in sorted {
+            println!("  • {:<16} {:.2} ({:.0}%)", concept, val, val * 100.0);
+        }
     }
 
     Ok(())
@@ -212,8 +258,14 @@ fn handle_reset(session_path: &Path, lessons_dir: &Path) -> Result<()> {
         }
     }
 
-    let mut session = SessionState::load_or_init(session_path)
+    let (mut session, corrupt_backup) = SessionState::load_or_recover(session_path)
         .with_context(|| format!("Failed to load session from {:?}", session_path))?;
+    if let Some(backup) = corrupt_backup {
+        eprintln!(
+            "Warning: Corrupted session state preserved at {:?}. Clean state initialized.",
+            backup
+        );
+    }
 
     let now_id = format!("attempt_{}", chrono::Utc::now().timestamp_millis());
     session.retry_attempt(now_id.clone());
@@ -272,8 +324,14 @@ fn handle_launch(
     let catalog = Catalog::load_from_dir(lessons_dir)
         .with_context(|| format!("Failed to load catalog from {:?}", lessons_dir))?;
 
-    let session = SessionState::load_or_init(session_path)
+    let (session, corrupt_backup) = SessionState::load_or_recover(session_path)
         .with_context(|| format!("Failed to load session from {:?}", session_path))?;
+    if let Some(backup) = corrupt_backup {
+        eprintln!(
+            "Warning: Corrupted session state preserved at {:?}. Clean state initialized.",
+            backup
+        );
+    }
 
     let lid = match lesson_id {
         Some(id) => id,

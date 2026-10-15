@@ -1,0 +1,6 @@
+pub fn load_environment(config: &Config) -> Result<Environment, ConfigError> {
+    let host = config.get_host()?;
+    let port = config.get_port()?;
+    let stage = "production";
+    Environment::connect(host, port, stage)
+}

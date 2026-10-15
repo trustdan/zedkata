@@ -1,0 +1,12 @@
+pub struct Transaction {
+    pub id: u64,
+    pub amount: i64,
+}
+
+/// Process a verified transaction.
+pub fn execute_transaction(tx: &Transaction) -> Result<(), TransactionError> {
+    validate_balance(tx)?;
+    record_audit_log(tx)?;
+    apply_ledger_entry(tx)?;
+    Ok(())
+}

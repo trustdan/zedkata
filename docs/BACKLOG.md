@@ -6,8 +6,8 @@ Coverage: [requirements matrix](REQUIREMENTS.md). The approved
 [backlog expansion plan](plans/2026-09-13-full-backlog-plan.md) has been applied.
 The roadmap below preserves the original task history; detailed execution cards follow.
 
-**Next task: ZK-021 (save and resume progress).**
-Phase 0 (ZK-001–005), ZK-007 (native Rust scaffold), ZK-008 (native CI), ZK-009 (lesson loading), ZK-010 (goal verification), ZK-011 (scoring and forbid rules), ZK-012 (session persistence), ZK-013 (production LSP observer), ZK-014 (connect verification, state, and diagnostics), ZK-015 (development extension), ZK-016 (one-exercise acceptance), ZK-017 (TUI shell), ZK-018 (exercise launch), ZK-019 (live state and connection health), and ZK-020 (retry and navigation) are complete. State contracts are documented in ARCHITECTURE.md (ZK-006).
+**Next task: ZK-026.1 (Author supported native operator drills).**
+Phase 0 (ZK-001–005), ZK-007 (native Rust scaffold), ZK-008 (native CI), ZK-009 (lesson loading), ZK-010 (goal verification), ZK-011 (scoring and forbid rules), ZK-012 (session persistence), ZK-013 (production LSP observer), ZK-014 (connect verification, state, and diagnostics), ZK-015 (development extension), ZK-016 (one-exercise acceptance), ZK-017 (TUI shell), ZK-018 (exercise launch), ZK-019 (live state and connection health), ZK-020 (retry and navigation), ZK-021 (progress and restart recovery), ZK-022 (starter course: ZK-022.1, ZK-022.2, ZK-022.3), ZK-023 (local MVP acceptance), ZK-024 (reference curriculum audit: ZK-024.1, ZK-024.2, ZK-024.3), ZK-025.1 (modal baseline lesson), ZK-025.2 (find-motion lesson), and ZK-025.3 (text-object lesson admission, completing ZK-025) are complete. State contracts are documented in ARCHITECTURE.md (ZK-006).
 
 ## Phase 0 — Feasibility spike (GATE)
 
@@ -174,33 +174,39 @@ Granular edits remain a proxy for technique, not keystroke verification.
   **Done:** tests reject late prior-attempt updates; manual checks cover dirty buffers,
   reset, duplicate completion, and moving between exercises. Verified in `retry_tests.rs` and `navigation_tests.rs`.
 <a id="task-zk-021"></a>
-- [ ] **ZK-021 — Save and resume progress.** Add prerequisite unlocking and restart behavior.
+- [x] **ZK-021 — Save and resume progress.** Add prerequisite unlocking and restart behavior.
   **Done:** completion survives restart; unfinished attempts resume or reset according
   to the contract; incompatible state has a recovery path.
 <a id="task-zk-022"></a>
-- [ ] **ZK-022 — Author the three-exercise starter course.** Add complete fixture pairs,
+- [x] **ZK-022 — Author the three-exercise starter course.** Add complete fixture pairs,
   concise tasks, and hints following the curriculum instructions.
   **Done (manual):** each exercise is performed in Zed, prerequisites resolve, and any
   scoring budgets are calibrated from captured observations.
 <a id="task-zk-023"></a>
-- [ ] **ZK-023 — Accept the local MVP.** Depends on ZK-017–022.
+- [x] **ZK-023 — Accept the local MVP.** Depends on ZK-017–022.
   **Done (manual):** from documented setup, complete three exercises, make a mistake,
   retry, quit, and resume without editing session files. Check the regular terminal
   pane and assumed Terminal Thread route (OQ-08); document the supported result.
+  **Completed 2026-09-14:** Executed end-to-end starter course user journey (ZK-023.1)
+  and verified supported terminal hosting routes across standard panes, center tabs,
+  and external terminals (ZK-023.2). Full evidence recorded in docs/evidence/local-mvp.md
+  and docs/evidence/terminal-hosting-routes.md.
 
 ## Phase 3 — Curriculum expansion
 
 <a id="task-zk-024"></a>
-- [ ] **ZK-024 — Audit and finish the text-object draft.** Depends on ZK-023. Verify
+- [x] **ZK-024 — Audit and finish the text-object draft.** Depends on ZK-023. Verify
   capabilities against primary sources (OQ-12), reconcile module numbering, add
   prerequisites/fixtures, and resolve the `visual_line_select` rule.
   **Done:** included exercises are calibrated and enter the validated catalog;
   unsupported concepts are explicitly deferred.
+  **Completed 2026-10-15:** Completed capability audit (ZK-024.1), complete fixtures (ZK-024.2), and manual calibration, admission validation, and LSP integration tests (ZK-024.3). All three exercises calibrated to Par 1; `draft = true` retained pending runnable prerequisite `motions-02-find`. Evidence recorded in `docs/evidence/reference-lesson-calibration.md`.
 <a id="task-zk-025"></a>
-- [ ] **ZK-025 — Add baseline and motion lessons.** Cover carry-over behavior, Zed
+- [x] **ZK-025 — Add baseline and motion lessons.** Cover carry-over behavior, Zed
   differences, word/find motions, and supported text objects.
   **Done:** each lesson has sources for Zed-specific claims, valid dependencies,
   complete fixtures, and a recorded manual run.
+  **Completed 2026-10-15:** Completed modal baseline lesson (ZK-025.1), find-motion lesson (ZK-025.2), and text-object lesson admission (ZK-025.3). All four modules (`modal-00-baseline`, `motions-01-word`, `motions-02-find`, `motions-03-textobjects`) with 12 calibrated Par 1 drills are fully runnable in the catalog. All 155 workspace tests pass cleanly.
 <a id="task-zk-026"></a>
 - [ ] **ZK-026 — Add native operator and keymap lessons.** Audit proposed register,
   replace/exchange motions, and keymap contexts before authoring.
@@ -809,126 +815,162 @@ completed with a usable route.
 <a id="task-zk-021-1"></a>
 #### ZK-021.1 — Display progress and unlock prerequisites
 
-- **Status:** ready. **Priority:** MVP. **Requirements:** REQ-11, REQ-20.
+- **Status:** done. **Priority:** MVP. **Requirements:** REQ-11, REQ-20.
 - **Depends on:** [ZK-020.2](#task-zk-020-2), [ZK-012.4](#task-zk-012-4).
 - **Files/components:** crates/zedkata-tui/; catalog/session tests.
 - **Acceptance:** Core-derived history unlocks only satisfied dependencies; pass/failure/retry cases produce the agreed displayed score/weakness information, including unscored mode.
-- **Validation:** Exercise the success/failure cases in Acceptance; run affected tests plus formatting/clippy for Rust changes or npm tests for probe changes, and retain the result.
+- **Completed 2026-09-13:** Implemented core-derived history prerequisite unlocking across sessions in `Catalog::is_lesson_completed` and `Catalog::is_lesson_unlocked` (`crates/zedkata-core/src/catalog.rs`) with failed attempt tracking (`session.rs`). Updated `zedkata-tui` (`ui.rs`, `main.rs`) to format scored attempts with par/score, explicitly surface goal-only mode as unscored, and render concept weaknesses sorted by severity.
+- **Validation:** Automated integration tests in `crates/zedkata-tui/tests/progress_prerequisites_tests.rs` and unit tests in `crates/zedkata-core/tests/lesson_loading.rs` verify incomplete prerequisite blocking, failed attempt rejection, cross-session completion unlocking, scored vs unscored mode rendering, weakness descending sorting, and exact 60x15 terminal fit. All 126 workspace tests passing, clippy clean, fmt clean.
 <a id="task-zk-021-2"></a>
 #### ZK-021.2 — Resume or recover after restart
 
-- **Status:** blocked. **Priority:** MVP. **Requirements:** REQ-13, REQ-20.
+- **Status:** done. **Priority:** MVP. **Requirements:** REQ-13, REQ-20.
 - **Depends on:** [ZK-021.1](#task-zk-021-1).
 - **Files/components:** crates/zedkata-tui/; docs/DEVELOPMENT.md.
 - **Acceptance:** Manual quit/restart restores completion and handles unfinished attempts per contract; missing fixture and incompatible/corrupt state have an explicit recovery that does not silently overwrite recoverable progress.
-- **Validation:** Run the concrete manual scenarios in Acceptance, retain observations, and run affected automated checks where implementation changes.
+- **Completed 2026-09-14:** Implemented restart resume & recovery mechanics:
+  - Non-destructive corrupt state recovery in `SessionState::backup_corrupt_file` and `SessionState::load_or_recover` (`crates/zedkata-core/src/session.rs`), automatically preserving unparseable or future-version state to `session.json.corrupt.<nanos>.bak` before initializing clean state.
+  - TUI shell and headless CLI updates (`crates/zedkata-tui/src/app.rs`, `main.rs`, `ui.rs`) surfacing actionable preservation feedback in header and feedback panes, preventing silent data loss upon subsequent saves.
+  - Unfinished attempt retention across restart: in-progress attempts retain attempt ID and edit count, are never recorded as failure in history, and support resumption or `[r]` reset.
+  - Stale buffer and missing fixture detection: `ConnectionStatus::MissingFixture`, `App::current_exercise_fixture_status`, and safe guards blocking broken launches.
+- **Validation:** Automated integration tests in `crates/zedkata-tui/tests/restart_recovery_tests.rs` verify completion restoration, prerequisite unlocking, unfinished attempt retention, stale buffer recovery, corrupt state backup preservation, incompatible schema version backup preservation, and missing fixture detection. All 131 workspace tests pass, clippy clean, fmt clean.
 
 ### ZK-022 — Starter course
 
 <a id="task-zk-022-1"></a>
 #### ZK-022.1 — Author the first starter exercise
 
-- **Status:** blocked. **Priority:** MVP. **Requirements:** REQ-21, REQ-22.
+- **Status:** done. **Priority:** MVP. **Requirements:** REQ-21, REQ-22.
 - **Depends on:** [ZK-021](#task-zk-021), [ZK-009.3](#task-zk-009-3).
 - **Files/components:** lessons/; fixture pairs.
 - **Acceptance:** Reuse or refine the standalone lesson as starter exercise one; one verified concept, goal-focused task, category hint, short prose and plausible-code fixtures; catalog validation passes.
-- **Validation:** Run catalog validation and the authoring checklist; perform the specified editor examples and retain calibration/source evidence.
+- **Completed 2026-09-14:** Authored and verified the first starter exercise (`delete-word-arg` in `lessons/motions-01-word.toml`) according to REQ-21, REQ-22, and the curriculum author checklist:
+  - Reused and refined the standalone lesson fixture pair (`lessons/fixtures/motions-01/delete-word-arg.{start,goal}.kata`) covering a realistic Rust event dispatcher signature.
+  - Concept verified in Zed: single-operation word deletion (`dw`) from cursor `[2, 5]`.
+  - Goal-focused task text: "Delete the unused parameter name 'target' on line 2." (states the goal, not keystrokes).
+  - Category hint: "A single word deletion will remove the identifier and trailing space."
+  - Calibrated budget: `par_edits = 1`, `max_edits = 2`, `forbid.backspace_run = 3`.
+  - Sourced and calibrated against real Zed 1.19.2 run in `docs/evidence/one-exercise.md`.
+- **Validation:** Catalog validation, fixture resolution, and full test suite pass cleanly (131 tests).
 <a id="task-zk-022-2"></a>
 #### ZK-022.2 — Author the second starter exercise
 
-- **Status:** blocked. **Priority:** MVP. **Requirements:** REQ-21, REQ-22.
+- **Status:** done. **Priority:** MVP. **Requirements:** REQ-21, REQ-22.
 - **Depends on:** [ZK-022.1](#task-zk-022-1).
-- **Files/components:** lessons/; fixture pairs.
+- **Files/components:** lessons/; fixture pairs; docs/evidence/exercise-2-calibration.md.
 - **Acceptance:** A second verified concept has a complete start/goal pair and honest prerequisite on already taught material; authoring checklist and catalog checks pass.
-- **Validation:** Run catalog validation and the authoring checklist; perform the specified editor examples and retain calibration/source evidence.
+- **Completed 2026-09-14:** Authored, aligned, and verified the second starter exercise (`delete-to-word-end` in `lessons/motions-01-word.toml`):
+  - Aligned fixture pair `delete-to-word-end.{start,goal}.kata` to realistic Rust struct `SessionError` -> `Session`, making `Error` a true identifier suffix.
+  - Verified modal technique: single-operation delete-to-word-end (`de`) from cursor `[1, 19]` (`E`).
+  - Goal-focused task text: "Delete the suffix 'Error' from the struct name on line 1."
+  - Category hint: "Delete forward to the end of the current word."
+  - Calibration: `par_edits = 1`, `max_edits = 2`, `forbid.backspace_run = 3`. `de` achieves par by preserving trailing whitespace before `{`; `dw` eats whitespace and requires an extra edit; mashing backspaces triggers forbid rule.
+  - Documentation and calibration retained in `docs/evidence/exercise-2-calibration.md`.
+- **Validation:** Catalog validation, fixture resolution, and automated LSP integration test (`test_exercise_2_delete_to_word_end_par_pass`) pass cleanly. All 132 workspace tests pass, clippy clean, fmt clean.
 <a id="task-zk-022-3"></a>
 #### ZK-022.3 — Author and calibrate the third starter exercise
 
-- **Status:** blocked. **Priority:** MVP. **Requirements:** REQ-21, REQ-22.
+- **Status:** done. **Priority:** MVP. **Requirements:** REQ-21, REQ-22.
 - **Depends on:** [ZK-022.2](#task-zk-022-2).
-- **Files/components:** lessons/; fixtures; docs/evidence/.
+- **Files/components:** lessons/; fixtures; docs/evidence/exercise-3-calibration.md.
 - **Acceptance:** Third exercise and all three manual runs are recorded; calibrate each supported budget against observed intended and alternative edits. In goal-only mode verify goals and label technique as unscored.
-- **Validation:** Run the concrete manual scenarios in Acceptance, retain observations, and run affected automated checks where implementation changes.
+- **Completed 2026-09-14:** Authored, calibrated, and verified the third starter exercise (`delete-word-binding` in `lessons/motions-01-word.toml`), completing the three-exercise starter course:
+  - Authored realistic fixture pair `delete-word-binding.{start,goal}.kata` covering redundant `mut` removal on variable binding.
+  - Verified modal technique: word-forward navigation (`w`) from cursor `[2, 5]` (`l` in `let`) to column 9 (`m` in `mut`) followed by clean word deletion (`dw`).
+  - Goal-focused task text: "Remove the unused 'mut' binding modifier on line 2."
+  - Category hint: "Advance to the target word before deleting."
+  - Calibration: `par_edits = 1`, `max_edits = 2`, `forbid.backspace_run = 3`. Intended `w` + `dw` reaches par in 1 edit; `de` leaves double spacing and requires a second edit; premature `dw` deletes `let`; backspacing in insert mode fails forbid rule.
+  - Formulated full three-exercise calibration matrix and verified goal-only mode (unscored labeling) in `docs/evidence/exercise-3-calibration.md`.
+- **Validation:** Automated LSP integration tests `test_exercise_3_delete_word_binding_par_pass` and `test_goal_only_mode_labeled_unscored`, fixture checks, and navigation checks pass cleanly. All 135 workspace tests pass, clippy clean, fmt clean.
 
 ### ZK-023 — Local MVP acceptance
 
 <a id="task-zk-023-1"></a>
 #### ZK-023.1 — Accept the starter-course user journey
 
-- **Status:** blocked. **Priority:** MVP. **Requirements:** REQ-01, REQ-21.
+- **Status:** done. **Priority:** MVP. **Requirements:** REQ-01, REQ-21.
 - **Depends on:** [ZK-022.3](#task-zk-022-3), [ZK-021](#task-zk-021), [ZK-017](#task-zk-017), [ZK-018](#task-zk-018), [ZK-019](#task-zk-019), [ZK-020](#task-zk-020).
-- **Files/components:** docs/evidence/local-mvp.md.
+- **Files/components:** docs/evidence/local-mvp.md; crates/zedkata-tui/tests/starter_journey_tests.rs.
 - **Acceptance:** From setup, select exercises, reveal hint, make a mistake, retry, finish three exercises, quit and resume with no manual session-file editing; record observed outcomes.
 - **Validation:** Run the concrete manual scenarios in Acceptance, retain observations, and run affected automated checks where implementation changes.
+- **Completed 2026-09-14:** Executed the end-to-end starter-course user journey across setup, selecting exercises, revealing category hints, mistake observation via `forbid.backspace_run` LSP diagnostic error, reset/retry restoring pristine buffer and clearing diagnostics, Par completions for all three exercises (`dw`, `de`, `w` + `dw`), exit, and flawless resume with zero manual session-file editing. Recorded full evidence in `docs/evidence/local-mvp.md`. Added automated test `test_starter_course_user_journey_end_to_end` in `crates/zedkata-tui/tests/starter_journey_tests.rs`. All 136 workspace tests pass cleanly.
 <a id="task-zk-023-2"></a>
 #### ZK-023.2 — Check supported terminal hosting routes
 
-- **Status:** blocked. **Priority:** MVP. **Requirements:** REQ-18.
+- **Status:** done. **Priority:** MVP. **Requirements:** REQ-18.
 - **Depends on:** [ZK-023.1](#task-zk-023-1).
-- **Files/components:** docs/OPEN-QUESTIONS.md; docs/DEVELOPMENT.md.
+- **Files/components:** docs/OPEN-QUESTIONS.md; docs/DEVELOPMENT.md; docs/evidence/terminal-hosting-routes.md.
 - **Acceptance:** Manually check standard Zed terminal pane and assumed Terminal Thread route for fullscreen/resize/cleanup; record OQ-08 and advertise only observed supported routes.
 - **Validation:** Run the concrete manual scenarios in Acceptance, retain observations, and run affected automated checks where implementation changes.
+- **Completed 2026-09-14:** Evaluated standard Zed terminal pane (`workspace: new terminal`), center terminal tab (`workspace: new center terminal`), assumed Terminal Thread route (`agent: new thread` -> Terminal), and external terminals across fullscreen/alt-screen buffer switch, dynamic resizing (with 60x15 boundary warning overlay), and clean restoration upon exit/error/panic. Documented that standard terminal panes, center tabs, and external terminals are fully supported and recommended, whereas the assumed Terminal Thread route inside Zed's Agent Panel is degraded/not recommended due to narrow dock constraints, lack of zoom into editor splits, and retained thread metadata. Closed OQ-08 in `docs/OPEN-QUESTIONS.md`, documented supported routes in `docs/DEVELOPMENT.md`, updated architectural references in `README.md` and `docs/ARCHITECTURE.md`, and recorded evidence in `docs/evidence/terminal-hosting-routes.md`.
 
 ### ZK-024 — Reference curriculum audit
 
 <a id="task-zk-024-1"></a>
 #### ZK-024.1 — Audit capabilities and settle module ordering
 
-- **Status:** blocked. **Priority:** full release. **Requirements:** REQ-04, REQ-23.
+- **Status:** done. **Priority:** full release. **Requirements:** REQ-04, REQ-23.
 - **Depends on:** [ZK-023](#task-zk-023).
-- **Files/components:** docs/OPEN-QUESTIONS.md; curriculum module map.
+- **Files/components:** docs/OPEN-QUESTIONS.md; docs/curriculum-module-map.md.
 - **Acceptance:** Check sources for planned capabilities (OQ-12), including missing citations in load-bearing VERIFIED entries; record sources/date, prerequisites and drill-versus-walkthrough decisions without fabricating verification.
 - **Validation:** Run catalog validation and the authoring checklist; perform the specified editor examples and retain calibration/source evidence.
+- **Completed 2026-10-15:** Audited Zed 1.19.2 Vim implementation (`assets/keymaps/vim.json`, `crates/vim/src/object.rs`) across word motions, in-line character find, text objects (`MiniQuotes`, `DoubleQuotes`, `Quotes`, `Parentheses`, `CurlyBrackets`), core operators, surrounds (`cs`, `ds`, `ys`), and registers/macros. Established that `"q"` maps to `vim::MiniQuotes` by default in Zed, whereas `AnyQuotes` and `AnyBrackets` are unbound alternatives. Reconciled `visual_line_select`: identified that visual line mode cannot be observed via LSP `didChange` notifications without cursor APIs (OQ-04/REQ-10) and must not be used as a forbid rule. Formulated the complete acyclic module prerequisites DAG in `docs/curriculum-module-map.md`, classified single-buffer katas vs. guided walkthroughs, closed OQ-12 as VERIFIED in `docs/OPEN-QUESTIONS.md`, and validated catalog loading.
+
 <a id="task-zk-024-2"></a>
 #### ZK-024.2 — Complete the reference text-object fixtures
 
-- **Status:** blocked. **Priority:** full release. **Requirements:** REQ-08, REQ-10, REQ-23.
+- **Status:** done. **Priority:** full release. **Requirements:** REQ-08, REQ-10, REQ-23.
 - **Depends on:** [ZK-024.1](#task-zk-024-1).
 - **Files/components:** lessons/motions-03-textobjects.toml; six fixture files.
 - **Acceptance:** Add all six missing start/goal files, resolve prerequisites/module number and visual_line_select against evidence; preserve the Mini/Any walkthrough as walkthrough data, not a scored exercise.
 - **Validation:** Run catalog validation and the authoring checklist; perform the specified editor examples and retain calibration/source evidence.
+- **Completed 2026-10-15:** Authored all six start and goal fixtures in `lessons/fixtures/motions-03/` for `swap-string-contents`, `gut-the-block`, and `nested-brackets` using plausible Rust domain code. Removed unobservable `visual_line_select = true` forbid rule (resolved in ZK-024.1 per REQ-10/OQ-04), configured 1-based initial cursor coordinates (`[4, 18]`, `[8, 5]`, `[11, 45]`), clarified replacement task requirements, and preserved `mini-vs-any` as a guided walkthrough. Added integration test `test_reference_lesson_motions_03_textobjects_fixtures_and_schema` in `crates/zedkata-core/tests/lesson_loading.rs`. Workspace tests, clippy, and formatting pass cleanly. Next: ZK-024.3.
 <a id="task-zk-024-3"></a>
 #### ZK-024.3 — Calibrate and admit the reference lesson
 
-- **Status:** blocked. **Priority:** full release. **Requirements:** REQ-22, REQ-23.
+- **Status:** done. **Priority:** full release. **Requirements:** REQ-22, REQ-23.
 - **Depends on:** [ZK-024.2](#task-zk-024-2).
 - **Files/components:** lessons/; docs/evidence/.
 - **Acceptance:** Manually run each included exercise and observe alternative methods; record calibration, pass catalog validation and remove draft exclusion only when prerequisites are runnable.
 - **Validation:** Run the concrete manual scenarios in Acceptance, retain observations, and run affected automated checks where implementation changes.
+- **Completed 2026-10-15:** Calibrated all three exercises in `motions-03-textobjects` against Zed 1.19.2 modal behavior: `swap-string-contents` (`ci"` / `ciq`, Par 1, Max 3), `gut-the-block` (`di{` / `ci{`, Par 1, Max 2), and `nested-brackets` (`ci(` on inner call, Par 1, Max 4). Analyzed alternative techniques, typo penalties (score 85), linewise deletion pitfalls, and forbid patterns (`backspace_run = 3`). Retained `draft = true` in `lessons/motions-03-textobjects.toml` per REQ-08/REQ-23 pending implementation of prerequisite `motions-02-find` in ZK-025.2. Verified catalog validation passes with zero errors, added admission test `test_reference_lesson_admission_and_prerequisite_validation`, and added end-to-end LSP integration tests covering all three exercises and forbid violations. Recorded full calibration evidence in `docs/evidence/reference-lesson-calibration.md`. Next: ZK-025.1.
 
 ### ZK-025 — Baseline and motions
 
 <a id="task-zk-025-1"></a>
 #### ZK-025.1 — Author the modal-editing baseline lesson
 
-- **Status:** blocked. **Priority:** full release. **Requirements:** REQ-22, REQ-24.
+- **Status:** done. **Priority:** full release. **Requirements:** REQ-22, REQ-24.
 - **Depends on:** [ZK-024.1](#task-zk-024-1).
 - **Files/components:** lessons/; fixtures; docs/evidence/.
 - **Acceptance:** Teach carry-over and verified Zed differences for existing vim users; one concept per exercise, honest dependencies, authoring checklist and manual goal/calibration records pass.
 - **Validation:** Run the concrete manual scenarios in Acceptance, retain observations, and run affected automated checks where implementation changes.
+- **Completed 2026-10-15:** Authored Module 0 foundational lesson `lessons/modal-00-baseline.toml` with 3 calibrated drills (`insert-visibility` [Par 1], `append-semicolon` [Par 1], `navigate-and-insert` [Par 1]) and 1 guided walkthrough (`diagnostic-navigation`) covering Zed inline error rendering, error jumping (`g ]`/`g [`), and undo (`u`). Authored 6 plausible Rust fixtures in `lessons/fixtures/modal-00/`. Admitted `modal-00-baseline` as runnable (`requires = []`, `draft = false`), expanding the catalog to 2 runnable lessons. Added unit, catalog, and end-to-end LSP integration tests in `crates/zedkata-core` and `crates/zedkata-lsp`. All 147 workspace tests pass cleanly. Recorded evidence in `docs/evidence/baseline-lesson-calibration.md`. Next: ZK-025.2.
 <a id="task-zk-025-2"></a>
 #### ZK-025.2 — Author word and find-motion lessons
 
-- **Status:** blocked. **Priority:** full release. **Requirements:** REQ-24.
+- **Status:** done. **Priority:** full release. **Requirements:** REQ-24.
 - **Depends on:** [ZK-025.1](#task-zk-025-1).
 - **Files/components:** lessons/; fixtures; docs/evidence/.
 - **Acceptance:** Implement motions-01-word and motions-02-find or explicitly reconcile their IDs; each lesson has complete fixture pairs, sourced differences and recorded manual calibration.
 - **Validation:** Run the concrete manual scenarios in Acceptance, retain observations, and run affected automated checks where implementation changes.
+- **Completed 2026-10-15:** Authored Module 2 lesson `lessons/motions-02-find.toml` with 3 calibrated drills (`delete-find-delimiter` [Par 1], `delete-till-char` [Par 1], `change-till-char` [Par 1]) and 1 guided walkthrough (`single-line-find-scope`) covering single-line find scope and `;`/`,` repetition. Authored 6 plausible Rust fixtures in `lessons/fixtures/motions-02/`. Reconciled dependencies (`requires = ["motions-01-word"]`) and admitted lesson as runnable (`draft = false`), expanding the catalog to 3 runnable lessons. Added catalog validation in `crates/zedkata-core`, 4 end-to-end LSP integration tests in `crates/zedkata-lsp`, and updated TUI prerequisite/navigation journey tests in `crates/zedkata-tui`. All 152 workspace tests pass cleanly. Recorded calibration evidence in `docs/evidence/find-motions-calibration.md`. Next: ZK-025.3.
 <a id="task-zk-025-3"></a>
 #### ZK-025.3 — Integrate the supported text-object sequence
 
-- **Status:** blocked. **Priority:** full release. **Requirements:** REQ-23, REQ-24.
+- **Status:** complete. **Priority:** full release. **Requirements:** REQ-23, REQ-24.
 - **Depends on:** [ZK-025.2](#task-zk-025-2), [ZK-024.2](#task-zk-024-2).
 - **Files/components:** lessons/; fixtures; docs/evidence/.
 - **Acceptance:** Include verified Any/Mini concepts and the existing draft in prerequisite order; manually validate each included drill and route non-drillable behavior to walkthroughs.
 - **Validation:** Run the concrete manual scenarios in Acceptance, retain observations, and run affected automated checks where implementation changes.
+- **Completed 2026-10-15:** Reconciled `lessons/motions-03-textobjects.toml` dependencies (`requires = ["motions-01-word", "motions-02-find"]`) now that both `motions-01-word` and `motions-02-find` are runnable. Completed admission from `draft = true` to `draft = false`, expanding the runnable catalog to 4 modules (`modal-00-baseline`, `motions-01-word`, `motions-02-find`, `motions-03-textobjects`) and 12 calibrated Par 1 drills. Added 4-module curriculum admission and fixture test `test_four_module_runnable_curriculum_admission_and_prerequisites` in `crates/zedkata-core/tests/lesson_loading.rs` and cross-module navigation advancement tests in `crates/zedkata-tui/tests/navigation_tests.rs`. All 155 workspace tests pass cleanly. Recorded evidence in `docs/evidence/reference-lesson-calibration.md`. Next: ZK-026.1.
 
 ### ZK-026 — Operators and keymaps
 
 <a id="task-zk-026-1"></a>
 #### ZK-026.1 — Author supported native operator drills
 
-- **Status:** blocked. **Priority:** full release. **Requirements:** REQ-22, REQ-24.
+- **Status:** ready. **Priority:** full release. **Requirements:** REQ-22, REQ-24.
 - **Depends on:** [ZK-025](#task-zk-025).
 - **Files/components:** lessons/; fixtures; docs/evidence/.
 - **Acceptance:** Audit proposed register/replace/exchange and indent motions, then author/calibrate supported exercises; explicitly defer unsupported concepts rather than claiming key support.

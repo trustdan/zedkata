@@ -1,15 +1,11 @@
-# Reference lesson. Not calibrated — par_edits values here are theoretical and must be
-# re-derived by hand per .claude/agents/curriculum-author.md (from the repository root)
-# before shipping. Referenced fixtures and prerequisite lessons are not included yet.
-#
-# Depends on OQ-01. If Phase 0 finds that Zed coalesces didChange, delete every
-# par_edits / max_edits / [exercise.forbid] key in this file.
+# Reference lesson: Delimited text objects and agnostic quotes/brackets in Zed.
+# Module 3 in curriculum-module-map.md, depending on motions-01-word and motions-02-find.
 
 [lesson]
 id = "motions-03-textobjects"
 title = "Text objects"
 module = 3
-draft = true
+draft = false
 requires = ["motions-01-word", "motions-02-find"]
 concepts = ["ci", "ca", "di", "AnyQuotes", "AnyBrackets", "MiniQuotes"]
 
@@ -23,11 +19,12 @@ mini.ai's behavior instead, which differs on nesting and on whitespace handling.
 
 [[exercise]]
 id = "swap-string-contents"
-task = "Replace the contents of the string on line 4. Leave the quotes alone."
+task = "Replace the string on line 4 with \"production\". Leave the quotes alone."
 start = "fixtures/motions-03/swap-string.start.kata"
 goal = "fixtures/motions-03/swap-string.goal.kata"
 par_edits = 1
 max_edits = 3
+cursor = [4, 18]
 hint = "You do not need to know which kind of quote it is."
 
 [exercise.forbid]
@@ -42,22 +39,26 @@ start = "fixtures/motions-03/gut-block.start.kata"
 goal = "fixtures/motions-03/gut-block.goal.kata"
 par_edits = 1
 max_edits = 2
+cursor = [8, 5]
 hint = "Inner versus around is the whole distinction here."
 
 [exercise.forbid]
 backspace_run = 3
-visual_line_select = true   # passes, but not the technique being taught
 
 # ---------------------------------------------------------------------------
 
 [[exercise]]
 id = "nested-brackets"
-task = "Replace the arguments inside the inner call on line 11. Outer call untouched."
+task = "Replace the arguments inside the inner call on line 11 with \"id, token\". Outer call untouched."
 start = "fixtures/motions-03/nested.start.kata"
 goal = "fixtures/motions-03/nested.goal.kata"
 par_edits = 1
 max_edits = 4
+cursor = [11, 45]
 hint = "Cursor position decides which bracket pair you get. Think about where you start."
+
+[exercise.forbid]
+backspace_run = 3
 
 # ---------------------------------------------------------------------------
 # Not drillable — routes to zedkata-agent as a guided walkthrough.
