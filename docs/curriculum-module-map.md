@@ -47,8 +47,9 @@ The audit of Zed's native Vim implementation (`crates/vim/src/object.rs` and `as
 | **Visual Line Select** | `V` linewise selection | **Native** in editor, but **unobservable via LSP** | `shift-v` | Excluded from forbid rules; constrained via fixture budget |
 | **Keymap Contexts** | Context hierarchy (`Workspace` > `Pane` > `Editor`), `VimControl`, `vim_mode`, `vim_operator` | **Native** in GPUI, but **unobservable via LSP** | Configured in `keymap.json` | Walkthrough (`keymap-contexts`) |
 | **Normal LSP Actions** | `gd`, `gh`, `c d` (rename), `g .` (code action), `g ]`/`g [` (diagnostic), `g A` (references) | **Native** (`editor::*`) | `c d`, `g .`, `g ]`, `g [`, `gd`, `gh`, `g A`, `:clist` | Walkthrough (`lsp-actions-walkthrough`) per REQ-25 / OQ-14 |
+| **Project Panel & Netrw** | Project panel focus (`ctrl-shift-e`/`<escape>`), tree navigation (`j`/`k`, `h`/`l`, `-`), splits (`v`, `o`), file ops (`%`, `d`, `R`, `D`, `ctrl-z`) | **Native** (`project_panel::*`) | `ctrl-shift-e`, `j`, `k`, `h`, `l`, `-`, `enter`, `v`, `o`, `p`, `%`, `d`, `R`, `D` | Walkthrough (`project-panel-walkthrough`) per REQ-25 / OQ-15 |
 | **Multibuffer** | Project-wide multi-file search and concurrent edit buffers | **Native** | `pane::DeploySearch` (`g /`) | Walkthrough |
-| **Workspace & Agent** | Project panel, tasks (`tasks.json`), agent panel | **Native** | Standard Zed workspace | Walkthrough |
+| **Workspace & Agent** | Tasks (`tasks.json`), debugger, agent panel & ACP | **Native** | Standard Zed workspace | Walkthrough |
 
 ---
 
@@ -62,8 +63,9 @@ graph TD
     M3 --> M4["operators-01-edit<br/>(Core operators, counts & dot repeat)"]
     M4 --> M5["operators-02-registers<br/>(Registers & macros)"]
     M4 --> M6["zed-01-lsp-actions<br/>(LSP normal-mode intelligence)"]
-    M6 --> M7["zed-02-multibuffer<br/>(Multibuffer cross-file workflows)"]
-    M7 --> M8["zed-03-workflow<br/>(Project panel, tasks & agent panel)"]
+    M4 --> M7["zed-02-project-panel<br/>(Project panel & netrw navigation)"]
+    M6 --> M8["zed-03-multibuffer<br/>(Multibuffer cross-file workflows)"]
+    M8 --> M9["zed-04-workflow<br/>(Tasks, debugger & agent panel)"]
 ```
 
 ### Module Breakdown
@@ -129,15 +131,23 @@ graph TD
 - **Walkthroughs:**
   - `lsp-actions-walkthrough`: Normal-mode language server capabilities using `lessons/fixtures/walkthroughs/lsp/sample_service.rs` (detailed recipes in `docs/walkthroughs/lsp-actions.md`).
 
-#### Module 7: `zed-02-multibuffer` — Multibuffer Project Editing
+#### Module 7: `zed-02-project-panel` — Project Panel & Netrw Navigation
+- **Type:** Guided Walkthrough (Unscored per REQ-25, REQ-29, OQ-15)
+- **Prerequisites:** `["operators-01-edit"]`
+- **Concepts:** `ctrl-shift-e` / `<escape>` (Focus toggle), `j`/`k`/`h`/`l`/`-` (Netrw navigation), `v`/`o` (Split panes), `enter`/`p` (Open/preview), `%`/`d`/`R`/`D` (File operations), `ctrl-z` (Undo file ops), `z d` (Diff comparison), `] c`/`[ c` (Git navigation), `] d`/`[ d` (Diagnostic navigation)
+- **Status:** **Authored & Sourced (ZK-027.2)**
+- **Walkthroughs:**
+  - `project-panel-walkthrough`: Netrw-style keyboard navigation and multi-pane workflow using `lessons/fixtures/walkthroughs/project_panel/` (detailed recipes in `docs/walkthroughs/project-panel.md`).
+
+#### Module 8: `zed-03-multibuffer` — Multibuffer Project Editing
 - **Type:** Guided Walkthroughs
 - **Prerequisites:** `["zed-01-lsp-actions"]`
 - **Concepts:** Project search (`pane::DeploySearch` / `g /`), multi-file excerpts, concurrent multi-file edits.
 
-#### Module 8: `zed-03-workflow` — Workspace Panels & Tools
+#### Module 9: `zed-04-workflow` — Workspace Tasks, Debugger & Agent
 - **Type:** Guided Walkthroughs
-- **Prerequisites:** `["zed-02-multibuffer"]`
-- **Concepts:** Project panel (`netrw`-like file management), tasks (`tasks.json`), agent panel.
+- **Prerequisites:** `["zed-03-multibuffer"]`
+- **Concepts:** Tasks (`tasks.json`), debugger setup, agent panel and ACP.
 
 ---
 

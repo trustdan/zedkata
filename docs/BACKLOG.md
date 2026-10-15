@@ -1010,11 +1010,12 @@ completed with a usable route.
 <a id="task-zk-027-2"></a>
 #### ZK-027.2 — Create project-panel material
 
-- **Status:** ready. **Priority:** full release. **Requirements:** REQ-25.
+- **Status:** done. **Priority:** full release. **Requirements:** REQ-25.
 - **Depends on:** [ZK-025](#task-zk-025).
 - **Files/components:** lessons/; walkthrough notes; docs/evidence/.
 - **Acceptance:** Audit proposed netrw-like bindings and teach verified behavior with reproducible files; record manual run and whether completion is self-reported.
 - **Validation:** Run the concrete manual scenarios in Acceptance, retain observations, and run affected automated checks where implementation changes.
+- **Completed 2026-10-15:** Audited Zed's native `netrw` compatibility bindings under `ProjectPanel && not_editing` (`ctrl-shift-e` toggle, `<escape>` return to editor, `j`/`k`/`h`/`l`/`-` directory traversal, `v`/`o` vertical/horizontal splits, `enter`/`p` open/preview, `%`/`d` new file/folder, `R` rename, `D` delete, `ctrl-z` undo, `z d` diff, `] c`/`[ c` git jump, `] d`/`[ d` diagnostic jump) against Zed 1.19.2, official documentation (`https://zed.dev/docs/project-panel`), and native keymap `assets/keymaps/vim.json`. Recorded OQ-15 as VERIFIED in `docs/OPEN-QUESTIONS.md`. Evaluated observability boundaries per REQ-25 and REQ-29: panel focus and tree cursor transitions are internal to GPUI, and file creation/renaming alters disk state rather than emitting incremental `didChange` notifications on active `.kata` drill buffers. Formally classified project panel workflows as guided walkthroughs with self-reported verification criteria. Authored multi-file sample workspace fixture `lessons/fixtures/walkthroughs/project_panel/` (`Cargo.toml`, `README.md`, `src/main.rs`, `src/lib.rs`, `src/utils/format.rs`, `tests/integration_test.rs`). Authored comprehensive walkthrough guide `docs/walkthroughs/project-panel.md` with 5 concrete reproducible recipes. Authored lesson file `lessons/zed-02-project-panel.toml` (`module = 7`, `requires = ["operators-01-edit"]`, `draft = true`). Added schema and fixture verification test `test_project_panel_lesson_schema_and_walkthrough` in `crates/zedkata-core/tests/lesson_loading.rs` and updated TUI shell assertions. All 163 workspace tests, clippy, and rustfmt pass cleanly. Recorded calibration evidence in `docs/evidence/project-panel-material.md`. Next: ZK-027.3.
 <a id="task-zk-027-3"></a>
 #### ZK-027.3 — Create multibuffer walkthrough content
 

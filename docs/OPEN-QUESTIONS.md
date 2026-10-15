@@ -290,4 +290,24 @@ Audited 2026-10-15 against Zed 1.19.2 (`df181c6f58d02677b385fa947d6bfde6d3530078
 3. **Curriculum Classification:**
    - Per REQ-25 and REQ-29, all normal-mode LSP actions are formally classified as **Guided Walkthroughs** with complete reproducible fixtures (`lessons/fixtures/walkthroughs/lsp/sample_service.rs`), verified instructions (`docs/walkthroughs/lsp-actions.md`), and self-reported verification criteria, rather than false automated drill scores.
 
+---
+
+## OQ-15 — Zed Project Panel netrw bindings and observation boundaries · VERIFIED (2026-10-15)
+
+Audited 2026-10-15 against Zed 1.19.2 (`df181c6f58d02677b385fa947d6bfde6d3530078`), official Zed documentation (`https://zed.dev/docs/project-panel`), and native keymap `assets/keymaps/vim.json` under [ZK-027.2](BACKLOG.md#task-zk-027-2).
+
+**Audit Findings & Keybindings:**
+1. **Native Netrw Compatibility (`ProjectPanel && not_editing`):**
+   - **Focus Handoff:** `ctrl-shift-e` (macOS `cmd-shift-e`) toggles panel focus (`project_panel::ToggleFocus`). In the panel, `<escape>` returns focus instantly to the active editor pane (`vim::ToggleProjectPanelFocus`).
+   - **Tree Traversal:** `j` / `down` and `k` / `up` for vertical motion; `h` collapses folder or ascends to parent; `l` expands folder; `-` ascends directly to parent directory (`project_panel::SelectParent`); `g g` and `G` jump to tree extremities; `}` and `{` jump between folders.
+   - **Multi-Pane Splits:** `v` opens file in vertical split (`project_panel::OpenSplitVertical`); `o` opens file in horizontal split (`project_panel::OpenSplitHorizontal`); `enter` or `t` opens permanent tab; `p` or `<space>` opens ephemeral preview tab.
+   - **Netrw File Manipulation:** `%` creates new file (`project_panel::NewFile`); `d` creates new directory (`project_panel::NewDirectory`); `R` (`shift-r`) renames with stem pre-selected (`project_panel::Rename`); `D` (`shift-d`) deletes entry (`project_panel::Delete`); `<delete>` moves to system trash; `ctrl-z` undoes panel file creation, rename, and trash operations.
+   - **Diagnostics & Git:** `] d` / `[ d` navigates files with diagnostics; `] c` / `[ c` navigates files with git modifications; `z d` opens visual diff when 2 files are marked.
+2. **Outcome Classification & Observability Boundaries (REQ-25, REQ-29):**
+   - **Panel navigation and focus transitions** (`ctrl-shift-e`, `escape`, `j`, `k`, `h`, `l`, `-`, `g g`, `G`) are purely GPUI view states and emit **zero buffer modifications** and zero LSP `textDocument/didChange` deltas.
+   - **File operations** (`%`, `d`, `R`, `D`) mutate disk files directly rather than emitting incremental editing deltas within an active `.kata` buffer.
+   - `zedkata-lsp` has no access to tree cursor coordinates or filesystem manipulation hooks (OQ-04, REQ-10).
+3. **Curriculum Classification:**
+   - Per REQ-25 and REQ-29, project panel navigation and netrw workflows are formally classified as **Guided Walkthroughs** (`[[walkthrough]] id = "project-panel-walkthrough"`) with complete reproducible multi-file fixtures (`lessons/fixtures/walkthroughs/project_panel/`), verified recipes (`docs/walkthroughs/project-panel.md`), and self-reported verification criteria.
+
 

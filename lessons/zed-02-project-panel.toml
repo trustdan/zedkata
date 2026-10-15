@@ -1,0 +1,33 @@
+[lesson]
+id = "zed-02-project-panel"
+title = "Project panel and netrw navigation"
+module = 7
+requires = ["operators-01-edit"]
+concepts = ["ctrl-shift-e", "j", "k", "h", "l", "enter", "o", "v", "p", "%", "d", "shift-r", "shift-d", "-", "] c", "[ c", "] d", "[ d"]
+draft = true
+
+prose = """
+Zed's project panel natively emulates Vim's classic netrw file browser.
+Toggle panel focus with `ctrl-shift-e` and return to the active editor with `escape`.
+Navigate directory trees without touching the mouse using `j`, `k`, `h`, `l`, and `-`.
+Open files directly into splits using `v` (vertical) and `o` (horizontal), or manage
+files in place with `%` (new file), `d` (new directory), and `R` (rename).
+"""
+
+# ---------------------------------------------------------------------------
+# Not drillable — routes to zedkata-agent as an unscored guided walkthrough.
+# See docs/walkthroughs/project-panel.md for full walkthrough recipes and verification.
+
+[[walkthrough]]
+id = "project-panel-walkthrough"
+title = "Netrw-style project panel navigation and file management"
+prompt = """
+Demonstrate Zed's native netrw-compatible project panel keyboard workflows using
+the sample project tree in `lessons/fixtures/walkthroughs/project_panel/`.
+Guide the student through:
+1. Toggling panel focus with `ctrl-shift-e` and returning to the editor with `escape`.
+2. Tree traversal and directory folding using `j`, `k`, `h`, `l`, and `-`.
+3. Opening files in multi-pane splits (`v` for vertical, `o` for horizontal, `enter` for tab).
+4. Creating and managing files using `%` (new file), `d` (new folder), `shift-r` (rename), and undo (`ctrl-z`).
+5. Navigating modified Git entries (`] c` / `[ c`) and diagnostics (`] d` / `[ d`).
+"""

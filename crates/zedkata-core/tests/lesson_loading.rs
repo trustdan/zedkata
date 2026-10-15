@@ -1237,6 +1237,82 @@ fn test_lsp_actions_lesson_schema_and_walkthrough() {
     assert_eq!(runnable.len(), 5);
 }
 
+#[test]
+fn test_project_panel_lesson_schema_and_walkthrough() {
+    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let lessons_dir = manifest_dir
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("lessons");
+
+    let catalog = Catalog::load_from_dir(&lessons_dir).expect("failed to load lessons catalog");
+
+    // 1. Verify zed-02-project-panel exists in catalog
+    let entry = catalog
+        .get("zed-02-project-panel")
+        .expect("zed-02-project-panel lesson must exist in catalog");
+    let lesson = &entry.lesson;
+
+    assert_eq!(lesson.id, "zed-02-project-panel");
+    assert_eq!(lesson.title, "Project panel and netrw navigation");
+    assert_eq!(lesson.module, Some(7));
+    assert!(lesson.draft, "zed-02-project-panel is retained as draft");
+    assert_eq!(lesson.requires, vec!["operators-01-edit"]);
+    assert!(lesson.concepts.contains(&"ctrl-shift-e".to_string()));
+    assert!(lesson.concepts.contains(&"j".to_string()));
+    assert!(lesson.concepts.contains(&"k".to_string()));
+    assert!(lesson.concepts.contains(&"h".to_string()));
+    assert!(lesson.concepts.contains(&"l".to_string()));
+    assert!(lesson.concepts.contains(&"enter".to_string()));
+    assert!(lesson.concepts.contains(&"o".to_string()));
+    assert!(lesson.concepts.contains(&"v".to_string()));
+    assert!(lesson.concepts.contains(&"%".to_string()));
+    assert!(lesson.concepts.contains(&"d".to_string()));
+    assert!(lesson.concepts.contains(&"shift-r".to_string()));
+    assert!(lesson.concepts.contains(&"shift-d".to_string()));
+    assert!(lesson.concepts.contains(&"-".to_string()));
+
+    // 2. Verify walkthrough
+    assert_eq!(lesson.walkthroughs.len(), 1);
+    assert_eq!(lesson.walkthroughs[0].id, "project-panel-walkthrough");
+    assert_eq!(
+        lesson.walkthroughs[0].title,
+        "Netrw-style project panel navigation and file management"
+    );
+
+    // 3. Verify sample fixture files exist on disk
+    let fixture_dir = lessons_dir
+        .join("fixtures")
+        .join("walkthroughs")
+        .join("project_panel");
+    assert!(
+        fixture_dir.is_dir(),
+        "Project panel fixture directory must exist"
+    );
+    assert!(fixture_dir.join("Cargo.toml").is_file());
+    assert!(fixture_dir.join("README.md").is_file());
+    assert!(fixture_dir.join("src").join("main.rs").is_file());
+    assert!(fixture_dir.join("src").join("lib.rs").is_file());
+    assert!(fixture_dir
+        .join("src")
+        .join("utils")
+        .join("format.rs")
+        .is_file());
+    assert!(fixture_dir
+        .join("tests")
+        .join("integration_test.rs")
+        .is_file());
+
+    // 4. Verify catalog-wide prerequisite and DAG acyclicity validation passes
+    assert!(catalog.validate_catalog().is_ok());
+
+    // 5. Verify runnable lessons remain the 5 admitted modules
+    let runnable = catalog.runnable_lessons();
+    assert_eq!(runnable.len(), 5);
+}
+
 fn tempfile_dir() -> std::path::PathBuf {
     use std::time::{SystemTime, UNIX_EPOCH};
     let nanos = SystemTime::now()
