@@ -65,7 +65,7 @@ fn test_tui_render_catalog_and_task_panes() -> Result<()> {
 
     // Curriculum pane checks
     assert!(
-        rendered.contains("Curriculum (4)"),
+        rendered.contains("Curriculum (6)"),
         "Should display lesson count in curriculum title"
     );
     assert!(
@@ -83,6 +83,14 @@ fn test_tui_render_catalog_and_task_panes() -> Result<()> {
     assert!(
         rendered.contains("motions-03-textobjects"),
         "Should list motions-03-textobjects lesson"
+    );
+    assert!(
+        rendered.contains("operators-01-edit"),
+        "Should list operators-01-edit lesson"
+    );
+    assert!(
+        rendered.contains("zed-01-lsp-actions"),
+        "Should list zed-01-lsp-actions lesson"
     );
     assert!(rendered.contains("[L]"), "Should mark locked lessons");
 

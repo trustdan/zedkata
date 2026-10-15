@@ -1,0 +1,88 @@
+# Core operators, counts, and repetition in Zed.
+# Module 4 in curriculum-module-map.md, depending on motions-03-textobjects.
+
+[lesson]
+id = "operators-01-edit"
+title = "Core operators and repeat"
+module = 4
+draft = false
+requires = ["motions-03-textobjects"]
+concepts = ["r", "count", "indent", "dot-repeat", "surround"]
+
+prose = """
+Operators act on motions and text objects, but also work with counts and line
+modifiers. Single-character replace and linewise indentation execute immediate
+buffer edits, while count prefixes multiply an operation into a single atomic
+edit unit. Zed also includes native surround commands out of the box.
+"""
+
+# ---------------------------------------------------------------------------
+
+[[exercise]]
+id = "replace-char-literal"
+task = "Replace the erroneous 'u' type suffix with 'i' on line 2."
+start = "fixtures/operators-01/replace-char.start.kata"
+goal = "fixtures/operators-01/replace-char.goal.kata"
+par_edits = 1
+max_edits = 2
+cursor = [2, 29]
+hint = "Replace the single character at the cursor without entering insert mode."
+
+[exercise.forbid]
+backspace_run = 3
+
+# ---------------------------------------------------------------------------
+
+[[exercise]]
+id = "delete-counted-words"
+task = "Delete the two modifier keywords 'pub unsafe' on line 1, leaving the function declaration."
+start = "fixtures/operators-01/delete-counted-words.start.kata"
+goal = "fixtures/operators-01/delete-counted-words.goal.kata"
+par_edits = 1
+max_edits = 2
+cursor = [1, 1]
+hint = "Use a numerical count with the word deletion operator to remove both keywords at once."
+
+[exercise.forbid]
+backspace_run = 3
+
+# ---------------------------------------------------------------------------
+
+[[exercise]]
+id = "indent-line-block"
+task = "Indent the match arm on line 3 to align with the rest of the match block."
+start = "fixtures/operators-01/indent-line-block.start.kata"
+goal = "fixtures/operators-01/indent-line-block.goal.kata"
+par_edits = 1
+max_edits = 2
+cursor = [3, 5]
+hint = "Shift the current line right using the linewise indent operator."
+
+[exercise.forbid]
+backspace_run = 3
+
+# ---------------------------------------------------------------------------
+# Not drillable — routes to zedkata-agent as a guided walkthrough.
+
+[[walkthrough]]
+id = "exchange-and-surround"
+title = "Text exchange vs surround operators"
+prompt = """
+Demonstrate the difference between external plugins like vim-exchange and
+Zed's native modal capabilities. Zed does not bundle vim-exchange ('cx'),
+relying on delete-and-paste ('dd', 'p') or editor line-swap shortcuts.
+Conversely, vim-surround ('cs', 'ds', 'ys') is built in natively.
+"""
+
+# ---------------------------------------------------------------------------
+# Not drillable — routes to zedkata-agent as a guided walkthrough.
+
+[[walkthrough]]
+id = "keymap-contexts"
+title = "Keymap contexts and modal binding customization"
+prompt = """
+Configure and inspect custom keybindings in Zed using context expressions.
+Demonstrate scoping shortcuts to 'Editor && vim_mode == normal', using the
+'VimControl' helper across normal/visual/operator states, and inspecting
+active context trees with the 'dev: open key context view' command.
+"""

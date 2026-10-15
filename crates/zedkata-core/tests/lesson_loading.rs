@@ -463,22 +463,24 @@ fn test_workspace_production_lessons_validate() {
 
     let catalog = Catalog::load_from_dir(&lessons_dir).expect("failed to load lessons catalog");
 
-    // All lessons include modal-00-baseline, motions-01-word, motions-02-find, and motions-03-textobjects
+    // All lessons include modal-00-baseline, motions-01-word, motions-02-find, motions-03-textobjects, and operators-01-edit
     let all = catalog.all_lessons();
     assert!(all.iter().any(|e| e.lesson.id == "modal-00-baseline"));
     assert!(all.iter().any(|e| e.lesson.id == "motions-01-word"));
     assert!(all.iter().any(|e| e.lesson.id == "motions-02-find"));
     assert!(all.iter().any(|e| e.lesson.id == "motions-03-textobjects"));
+    assert!(all.iter().any(|e| e.lesson.id == "operators-01-edit"));
 
-    // Runnable lessons must include modal-00-baseline, motions-01-word, motions-02-find, and motions-03-textobjects
+    // Runnable lessons must include all 5 admitted modules
     let runnable = catalog.runnable_lessons();
-    assert_eq!(runnable.len(), 4);
+    assert_eq!(runnable.len(), 5);
     assert!(runnable.iter().any(|e| e.lesson.id == "modal-00-baseline"));
     assert!(runnable.iter().any(|e| e.lesson.id == "motions-01-word"));
     assert!(runnable.iter().any(|e| e.lesson.id == "motions-02-find"));
     assert!(runnable
         .iter()
         .any(|e| e.lesson.id == "motions-03-textobjects"));
+    assert!(runnable.iter().any(|e| e.lesson.id == "operators-01-edit"));
 
     // validate_runnable must succeed with zero errors
     catalog
@@ -487,7 +489,7 @@ fn test_workspace_production_lessons_validate() {
 }
 
 #[test]
-fn test_four_module_runnable_curriculum_admission_and_prerequisites() {
+fn test_five_module_runnable_curriculum_admission_and_prerequisites() {
     let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
     let lessons_dir = manifest_dir
         .parent()
@@ -498,12 +500,12 @@ fn test_four_module_runnable_curriculum_admission_and_prerequisites() {
 
     let catalog = Catalog::load_from_dir(&lessons_dir).expect("failed to load lessons catalog");
 
-    // 1. All 4 curriculum modules must be admitted and runnable
+    // 1. All 5 curriculum modules must be admitted and runnable
     let runnable = catalog.runnable_lessons();
     assert_eq!(
         runnable.len(),
-        4,
-        "Runnable curriculum must contain exactly 4 modules"
+        5,
+        "Runnable curriculum must contain exactly 5 modules"
     );
 
     let ids: Vec<&str> = runnable.iter().map(|e| e.lesson.id.as_str()).collect();
@@ -514,6 +516,7 @@ fn test_four_module_runnable_curriculum_admission_and_prerequisites() {
             "motions-01-word",
             "motions-02-find",
             "motions-03-textobjects",
+            "operators-01-edit",
         ]
     );
 
@@ -545,10 +548,16 @@ fn test_four_module_runnable_curriculum_admission_and_prerequisites() {
     assert!(!m3.lesson.draft);
     assert_eq!(m3.lesson.exercises.len(), 3);
 
+    let m4 = catalog.get("operators-01-edit").unwrap();
+    assert_eq!(m4.lesson.module, Some(4));
+    assert_eq!(m4.lesson.requires, vec!["motions-03-textobjects"]);
+    assert!(!m4.lesson.draft);
+    assert_eq!(m4.lesson.exercises.len(), 3);
+
     // 3. Runnable validation passes with zero errors
     assert!(catalog.validate_runnable().is_ok());
 
-    // 4. Verify all 12 drills have existing, non-empty start and goal fixtures
+    // 4. Verify all 15 drills have existing, non-empty start and goal fixtures
     let mut total_drills = 0;
     for entry in &runnable {
         for ex in &entry.lesson.exercises {
@@ -573,9 +582,74 @@ fn test_four_module_runnable_curriculum_admission_and_prerequisites() {
         }
     }
     assert_eq!(
-        total_drills, 12,
-        "Must have exactly 12 runnable drills across the 4 modules"
+        total_drills, 15,
+        "Must have exactly 15 runnable drills across the 5 modules"
     );
+}
+
+#[test]
+fn test_operators_lesson_operators_01_edit_fixtures_and_schema() {
+    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let lessons_dir = manifest_dir
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("lessons");
+
+    let catalog = Catalog::load_from_dir(&lessons_dir).expect("failed to load lessons catalog");
+
+    let entry = catalog
+        .get("operators-01-edit")
+        .expect("operators-01-edit lesson must exist in catalog");
+    let lesson = &entry.lesson;
+
+    assert_eq!(lesson.id, "operators-01-edit");
+    assert_eq!(lesson.title, "Core operators and repeat");
+    assert_eq!(lesson.module, Some(4));
+    assert!(
+        !lesson.draft,
+        "operators-01-edit must be runnable, not draft"
+    );
+    assert_eq!(lesson.requires, vec!["motions-03-textobjects"]);
+    assert_eq!(lesson.exercises.len(), 3);
+    assert_eq!(lesson.walkthroughs.len(), 2);
+    assert_eq!(lesson.walkthroughs[0].id, "exchange-and-surround");
+    assert_eq!(lesson.walkthroughs[1].id, "keymap-contexts");
+
+    // Verify all 3 exercise fixtures exist and resolve cleanly
+    for ex in &lesson.exercises {
+        assert!(ex.par_edits.is_some());
+        assert!(ex.max_edits.is_some());
+        assert!(ex.cursor.is_some());
+        assert!(ex.hint.is_some());
+
+        let start_path = catalog
+            .resolve_fixture(&lesson.id, &ex.id, true)
+            .expect("start fixture must resolve");
+        let goal_path = catalog
+            .resolve_fixture(&lesson.id, &ex.id, false)
+            .expect("goal fixture must resolve");
+
+        assert!(
+            start_path.exists(),
+            "start fixture must exist: {:?}",
+            start_path
+        );
+        assert!(
+            goal_path.exists(),
+            "goal fixture must exist: {:?}",
+            goal_path
+        );
+        assert_ne!(
+            std::fs::read_to_string(&start_path).unwrap(),
+            std::fs::read_to_string(&goal_path).unwrap(),
+            "start and goal fixtures must differ"
+        );
+    }
+
+    // Verify walkthrough
+    assert_eq!(lesson.walkthroughs[0].id, "exchange-and-surround");
 }
 
 #[test]
@@ -1094,6 +1168,73 @@ max_edits = 2
     }
 
     let _ = std::fs::remove_dir_all(&temp_dir);
+}
+
+#[test]
+fn test_lsp_actions_lesson_schema_and_walkthrough() {
+    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let lessons_dir = manifest_dir
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("lessons");
+
+    let catalog = Catalog::load_from_dir(&lessons_dir).expect("failed to load lessons catalog");
+
+    // 1. Verify zed-01-lsp-actions exists in catalog
+    let entry = catalog
+        .get("zed-01-lsp-actions")
+        .expect("zed-01-lsp-actions lesson must exist in catalog");
+    let lesson = &entry.lesson;
+
+    assert_eq!(lesson.id, "zed-01-lsp-actions");
+    assert_eq!(lesson.title, "Normal-mode code intelligence");
+    assert_eq!(lesson.module, Some(6));
+    assert!(lesson.draft, "zed-01-lsp-actions is retained as draft");
+    assert_eq!(lesson.requires, vec!["operators-01-edit"]);
+    assert!(lesson.concepts.contains(&"c d".to_string()));
+    assert!(lesson.concepts.contains(&"g .".to_string()));
+    assert!(lesson.concepts.contains(&"g ]".to_string()));
+    assert!(lesson.concepts.contains(&"g [".to_string()));
+    assert!(lesson.concepts.contains(&"g d".to_string()));
+    assert!(lesson.concepts.contains(&"g h".to_string()));
+
+    // 2. Verify walkthrough
+    assert_eq!(lesson.walkthroughs.len(), 1);
+    assert_eq!(lesson.walkthroughs[0].id, "lsp-actions-walkthrough");
+    assert_eq!(
+        lesson.walkthroughs[0].title,
+        "Normal-mode LSP intelligence in Zed"
+    );
+
+    // 3. Verify sample fixture exists on disk
+    let fixture_path = lessons_dir
+        .join("fixtures")
+        .join("walkthroughs")
+        .join("lsp")
+        .join("sample_service.rs");
+    assert!(
+        fixture_path.is_file(),
+        "LSP walkthrough sample fixture must exist: {:?}",
+        fixture_path
+    );
+    let fixture_content = std::fs::read_to_string(&fixture_path).unwrap();
+    assert!(
+        fixture_content.contains("pub fn record_metric"),
+        "Fixture must contain record_metric"
+    );
+    assert!(
+        fixture_content.contains("TelemetryClient"),
+        "Fixture must contain TelemetryClient"
+    );
+
+    // 4. Verify catalog-wide prerequisite and DAG acyclicity validation passes
+    assert!(catalog.validate_catalog().is_ok());
+
+    // 5. Verify runnable lessons remain the 5 admitted modules
+    let runnable = catalog.runnable_lessons();
+    assert_eq!(runnable.len(), 5);
 }
 
 fn tempfile_dir() -> std::path::PathBuf {

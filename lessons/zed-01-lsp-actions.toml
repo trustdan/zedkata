@@ -1,0 +1,31 @@
+[lesson]
+id = "zed-01-lsp-actions"
+title = "Normal-mode code intelligence"
+module = 6
+requires = ["operators-01-edit"]
+concepts = ["c d", "g .", "g ]", "g [", "g d", "g h", "g A", ":clist"]
+draft = true
+
+prose = """
+Zed integrates language server intelligence directly into normal-mode editing.
+Instead of switching to a mouse or typing complex chords, use native Vim shortcuts:
+`c d` to rename symbols across a buffer, `g .` for code actions, `g ]` and `g [` for
+inline diagnostic navigation, and `g d` and `g h` for definitions and documentation hover.
+"""
+
+# ---------------------------------------------------------------------------
+# Not drillable — routes to zedkata-agent as an unscored guided walkthrough.
+# See docs/walkthroughs/lsp-actions.md for full walkthrough recipes and verification.
+
+[[walkthrough]]
+id = "lsp-actions-walkthrough"
+title = "Normal-mode LSP intelligence in Zed"
+prompt = """
+Demonstrate Zed's native normal-mode language server capabilities using
+`lessons/fixtures/walkthroughs/lsp/sample_service.rs`.
+Guide the student through:
+1. Multi-site symbol rename using `c d` (change definition).
+2. Applying quick-fix code actions using `g .`.
+3. Navigating inline compiler diagnostics using `g ]` / `g [` and opening the diagnostic list with `:clist`.
+4. Inspecting types and docs with hover (`g h`) and jumping to definitions (`g d` / `<ctrl-w> g d`).
+"""

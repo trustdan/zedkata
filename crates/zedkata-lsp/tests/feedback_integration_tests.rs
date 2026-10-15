@@ -2471,3 +2471,451 @@ async fn test_find_motions_lesson_exercise_1_forbid_backspace_run() {
         let _ = std::fs::remove_dir(parent);
     }
 }
+
+#[tokio::test]
+async fn test_operators_lesson_exercise_1_replace_char_par_pass() {
+    let session_path = create_temp_session_path("operators_ex1_pass");
+    let mut session = SessionState::default();
+    session.current.lesson_id = "operators-01-edit".to_string();
+    session.current.exercise_index = 0;
+    session.save_to_file(&session_path).unwrap();
+
+    let catalog = Catalog::load_from_dir(&lessons_dir()).unwrap();
+    let start_fixture_path = catalog
+        .resolve_fixture("operators-01-edit", "replace-char-literal", true)
+        .unwrap();
+    let start_fixture_text = std::fs::read_to_string(&start_fixture_path).unwrap();
+    let start_uri = path_to_uri(&start_fixture_path);
+
+    let feedback = FeedbackEngine::new(session_path.clone(), catalog);
+    let server = LspServer::with_feedback(feedback);
+
+    let (client_io, server_io) = tokio::io::duplex(8192);
+    let (client_read, mut client_write) = tokio::io::split(client_io);
+    let (server_read, server_write) = tokio::io::split(server_io);
+
+    tokio::spawn(async move { run_server_with_engine(server_read, server_write, server).await });
+
+    let mut reader = MessageReader::new(client_read);
+
+    // Initialize
+    let init_req = Request::new(RequestId::Int(1), "initialize", None);
+    write_message(&mut client_write, &serde_json::to_vec(&init_req).unwrap())
+        .await
+        .unwrap();
+    let _init_resp = reader.read_message().await.unwrap().unwrap();
+
+    let init_notif = Notification::new("initialized", None);
+    write_message(&mut client_write, &serde_json::to_vec(&init_notif).unwrap())
+        .await
+        .unwrap();
+
+    // didOpen
+    let did_open_params = DidOpenTextDocumentParams {
+        text_document: TextDocumentItem {
+            uri: start_uri.clone(),
+            language_id: "zedkata".to_string(),
+            version: 0,
+            text: start_fixture_text,
+        },
+    };
+    write_message(
+        &mut client_write,
+        &serde_json::to_vec(&Notification::new(
+            "textDocument/didOpen",
+            Some(serde_json::to_value(did_open_params).unwrap()),
+        ))
+        .unwrap(),
+    )
+    .await
+    .unwrap();
+    let _ = reader.read_message().await.unwrap().unwrap();
+
+    // Single character replace: `ri` on line 1, col 28..29 replacing 'u' with 'i'
+    let did_change_params = DidChangeTextDocumentParams {
+        text_document: VersionedTextDocumentIdentifier {
+            uri: start_uri.clone(),
+            version: 1,
+        },
+        content_changes: vec![TextDocumentContentChangeEvent {
+            range: Some(Range::new(Position::new(1, 28), Position::new(1, 29))),
+            range_length: Some(1),
+            text: "i".to_string(),
+        }],
+    };
+    write_message(
+        &mut client_write,
+        &serde_json::to_vec(&Notification::new(
+            "textDocument/didChange",
+            Some(serde_json::to_value(did_change_params).unwrap()),
+        ))
+        .unwrap(),
+    )
+    .await
+    .unwrap();
+
+    // Verification diagnostic
+    let resp = reader.read_message().await.unwrap().unwrap();
+    let diag_val: serde_json::Value = serde_json::from_slice(&resp).unwrap();
+    let diags = diag_val["params"]["diagnostics"].as_array().unwrap();
+    assert_eq!(diags.len(), 1);
+    let diag = &diags[0];
+    assert_eq!(diag["severity"], 3); // Information
+    assert!(diag["message"].as_str().unwrap().contains("Passed"));
+    assert!(diag["message"].as_str().unwrap().contains("score 100"));
+
+    // Verify session
+    let updated_session = SessionState::load_from_file(&session_path).unwrap();
+    let att = updated_session.attempt.unwrap();
+    assert_eq!(att.edit_count, 1);
+    match att.verdict {
+        Some(Verdict::Passed { score, edits, par }) => {
+            assert_eq!(score, 100);
+            assert_eq!(edits, 1);
+            assert_eq!(par, Some(1));
+        }
+        _ => panic!("Expected Passed verdict, got {:?}", att.verdict),
+    }
+
+    let _ = std::fs::remove_file(&session_path);
+    if let Some(parent) = session_path.parent() {
+        let _ = std::fs::remove_dir(parent);
+    }
+}
+
+#[tokio::test]
+async fn test_operators_lesson_exercise_2_delete_counted_words_par_pass() {
+    let session_path = create_temp_session_path("operators_ex2_pass");
+    let mut session = SessionState::default();
+    session.current.lesson_id = "operators-01-edit".to_string();
+    session.current.exercise_index = 1;
+    session.save_to_file(&session_path).unwrap();
+
+    let catalog = Catalog::load_from_dir(&lessons_dir()).unwrap();
+    let start_fixture_path = catalog
+        .resolve_fixture("operators-01-edit", "delete-counted-words", true)
+        .unwrap();
+    let start_fixture_text = std::fs::read_to_string(&start_fixture_path).unwrap();
+    let start_uri = path_to_uri(&start_fixture_path);
+
+    let feedback = FeedbackEngine::new(session_path.clone(), catalog);
+    let server = LspServer::with_feedback(feedback);
+
+    let (client_io, server_io) = tokio::io::duplex(8192);
+    let (client_read, mut client_write) = tokio::io::split(client_io);
+    let (server_read, server_write) = tokio::io::split(server_io);
+
+    tokio::spawn(async move { run_server_with_engine(server_read, server_write, server).await });
+
+    let mut reader = MessageReader::new(client_read);
+
+    // Initialize
+    let init_req = Request::new(RequestId::Int(1), "initialize", None);
+    write_message(&mut client_write, &serde_json::to_vec(&init_req).unwrap())
+        .await
+        .unwrap();
+    let _init_resp = reader.read_message().await.unwrap().unwrap();
+
+    let init_notif = Notification::new("initialized", None);
+    write_message(&mut client_write, &serde_json::to_vec(&init_notif).unwrap())
+        .await
+        .unwrap();
+
+    // didOpen
+    let did_open_params = DidOpenTextDocumentParams {
+        text_document: TextDocumentItem {
+            uri: start_uri.clone(),
+            language_id: "zedkata".to_string(),
+            version: 0,
+            text: start_fixture_text,
+        },
+    };
+    write_message(
+        &mut client_write,
+        &serde_json::to_vec(&Notification::new(
+            "textDocument/didOpen",
+            Some(serde_json::to_value(did_open_params).unwrap()),
+        ))
+        .unwrap(),
+    )
+    .await
+    .unwrap();
+    let _ = reader.read_message().await.unwrap().unwrap();
+
+    // 2dw: deletes "pub unsafe " (line 0, cols 0..11)
+    let did_change_params = DidChangeTextDocumentParams {
+        text_document: VersionedTextDocumentIdentifier {
+            uri: start_uri.clone(),
+            version: 1,
+        },
+        content_changes: vec![TextDocumentContentChangeEvent {
+            range: Some(Range::new(Position::new(0, 0), Position::new(0, 11))),
+            range_length: Some(11),
+            text: "".to_string(),
+        }],
+    };
+    write_message(
+        &mut client_write,
+        &serde_json::to_vec(&Notification::new(
+            "textDocument/didChange",
+            Some(serde_json::to_value(did_change_params).unwrap()),
+        ))
+        .unwrap(),
+    )
+    .await
+    .unwrap();
+
+    // Verification diagnostic
+    let resp = reader.read_message().await.unwrap().unwrap();
+    let diag_val: serde_json::Value = serde_json::from_slice(&resp).unwrap();
+    let diags = diag_val["params"]["diagnostics"].as_array().unwrap();
+    assert_eq!(diags.len(), 1);
+    let diag = &diags[0];
+    assert_eq!(diag["severity"], 3); // Information
+    assert!(diag["message"].as_str().unwrap().contains("Passed"));
+    assert!(diag["message"].as_str().unwrap().contains("score 100"));
+
+    // Verify session
+    let updated_session = SessionState::load_from_file(&session_path).unwrap();
+    let att = updated_session.attempt.unwrap();
+    assert_eq!(att.edit_count, 1);
+    match att.verdict {
+        Some(Verdict::Passed { score, edits, par }) => {
+            assert_eq!(score, 100);
+            assert_eq!(edits, 1);
+            assert_eq!(par, Some(1));
+        }
+        _ => panic!("Expected Passed verdict, got {:?}", att.verdict),
+    }
+
+    let _ = std::fs::remove_file(&session_path);
+    if let Some(parent) = session_path.parent() {
+        let _ = std::fs::remove_dir(parent);
+    }
+}
+
+#[tokio::test]
+async fn test_operators_lesson_exercise_3_indent_line_block_par_pass() {
+    let session_path = create_temp_session_path("operators_ex3_pass");
+    let mut session = SessionState::default();
+    session.current.lesson_id = "operators-01-edit".to_string();
+    session.current.exercise_index = 2;
+    session.save_to_file(&session_path).unwrap();
+
+    let catalog = Catalog::load_from_dir(&lessons_dir()).unwrap();
+    let start_fixture_path = catalog
+        .resolve_fixture("operators-01-edit", "indent-line-block", true)
+        .unwrap();
+    let start_fixture_text = std::fs::read_to_string(&start_fixture_path).unwrap();
+    let start_uri = path_to_uri(&start_fixture_path);
+
+    let feedback = FeedbackEngine::new(session_path.clone(), catalog);
+    let server = LspServer::with_feedback(feedback);
+
+    let (client_io, server_io) = tokio::io::duplex(8192);
+    let (client_read, mut client_write) = tokio::io::split(client_io);
+    let (server_read, server_write) = tokio::io::split(server_io);
+
+    tokio::spawn(async move { run_server_with_engine(server_read, server_write, server).await });
+
+    let mut reader = MessageReader::new(client_read);
+
+    // Initialize
+    let init_req = Request::new(RequestId::Int(1), "initialize", None);
+    write_message(&mut client_write, &serde_json::to_vec(&init_req).unwrap())
+        .await
+        .unwrap();
+    let _init_resp = reader.read_message().await.unwrap().unwrap();
+
+    let init_notif = Notification::new("initialized", None);
+    write_message(&mut client_write, &serde_json::to_vec(&init_notif).unwrap())
+        .await
+        .unwrap();
+
+    // didOpen
+    let did_open_params = DidOpenTextDocumentParams {
+        text_document: TextDocumentItem {
+            uri: start_uri.clone(),
+            language_id: "zedkata".to_string(),
+            version: 0,
+            text: start_fixture_text,
+        },
+    };
+    write_message(
+        &mut client_write,
+        &serde_json::to_vec(&Notification::new(
+            "textDocument/didOpen",
+            Some(serde_json::to_value(did_open_params).unwrap()),
+        ))
+        .unwrap(),
+    )
+    .await
+    .unwrap();
+    let _ = reader.read_message().await.unwrap().unwrap();
+
+    // >> shifts line 2 right by 4 spaces: insert "    " at line 2, col 0
+    let did_change_params = DidChangeTextDocumentParams {
+        text_document: VersionedTextDocumentIdentifier {
+            uri: start_uri.clone(),
+            version: 1,
+        },
+        content_changes: vec![TextDocumentContentChangeEvent {
+            range: Some(Range::new(Position::new(2, 0), Position::new(2, 0))),
+            range_length: Some(0),
+            text: "    ".to_string(),
+        }],
+    };
+    write_message(
+        &mut client_write,
+        &serde_json::to_vec(&Notification::new(
+            "textDocument/didChange",
+            Some(serde_json::to_value(did_change_params).unwrap()),
+        ))
+        .unwrap(),
+    )
+    .await
+    .unwrap();
+
+    // Verification diagnostic
+    let resp = reader.read_message().await.unwrap().unwrap();
+    let diag_val: serde_json::Value = serde_json::from_slice(&resp).unwrap();
+    let diags = diag_val["params"]["diagnostics"].as_array().unwrap();
+    assert_eq!(diags.len(), 1);
+    let diag = &diags[0];
+    assert_eq!(diag["severity"], 3); // Information
+    assert!(diag["message"].as_str().unwrap().contains("Passed"));
+    assert!(diag["message"].as_str().unwrap().contains("score 100"));
+
+    // Verify session
+    let updated_session = SessionState::load_from_file(&session_path).unwrap();
+    let att = updated_session.attempt.unwrap();
+    assert_eq!(att.edit_count, 1);
+    match att.verdict {
+        Some(Verdict::Passed { score, edits, par }) => {
+            assert_eq!(score, 100);
+            assert_eq!(edits, 1);
+            assert_eq!(par, Some(1));
+        }
+        _ => panic!("Expected Passed verdict, got {:?}", att.verdict),
+    }
+
+    let _ = std::fs::remove_file(&session_path);
+    if let Some(parent) = session_path.parent() {
+        let _ = std::fs::remove_dir(parent);
+    }
+}
+
+#[tokio::test]
+async fn test_operators_lesson_exercise_1_forbid_backspace_run() {
+    let session_path = create_temp_session_path("operators_ex1_forbid");
+    let mut session = SessionState::default();
+    session.current.lesson_id = "operators-01-edit".to_string();
+    session.current.exercise_index = 0;
+    session.save_to_file(&session_path).unwrap();
+
+    let catalog = Catalog::load_from_dir(&lessons_dir()).unwrap();
+    let start_fixture_path = catalog
+        .resolve_fixture("operators-01-edit", "replace-char-literal", true)
+        .unwrap();
+    let start_fixture_text = std::fs::read_to_string(&start_fixture_path).unwrap();
+    let start_uri = path_to_uri(&start_fixture_path);
+
+    let feedback = FeedbackEngine::new(session_path.clone(), catalog);
+    let server = LspServer::with_feedback(feedback);
+
+    let (client_io, server_io) = tokio::io::duplex(8192);
+    let (client_read, mut client_write) = tokio::io::split(client_io);
+    let (server_read, server_write) = tokio::io::split(server_io);
+
+    tokio::spawn(async move { run_server_with_engine(server_read, server_write, server).await });
+
+    let mut reader = MessageReader::new(client_read);
+
+    // Initialize
+    let init_req = Request::new(RequestId::Int(1), "initialize", None);
+    write_message(&mut client_write, &serde_json::to_vec(&init_req).unwrap())
+        .await
+        .unwrap();
+    let _init_resp = reader.read_message().await.unwrap().unwrap();
+
+    let init_notif = Notification::new("initialized", None);
+    write_message(&mut client_write, &serde_json::to_vec(&init_notif).unwrap())
+        .await
+        .unwrap();
+
+    // didOpen
+    let did_open_params = DidOpenTextDocumentParams {
+        text_document: TextDocumentItem {
+            uri: start_uri.clone(),
+            language_id: "zedkata".to_string(),
+            version: 0,
+            text: start_fixture_text,
+        },
+    };
+    write_message(
+        &mut client_write,
+        &serde_json::to_vec(&Notification::new(
+            "textDocument/didOpen",
+            Some(serde_json::to_value(did_open_params).unwrap()),
+        ))
+        .unwrap(),
+    )
+    .await
+    .unwrap();
+    let _ = reader.read_message().await.unwrap().unwrap();
+
+    // Mashing 3 backspaces deleting characters on line 1 from col 29 down to 26
+    let backspaces = [(28, 29), (27, 28), (26, 27)];
+    for (idx, (start_col, end_col)) in backspaces.iter().enumerate() {
+        let did_change_params = DidChangeTextDocumentParams {
+            text_document: VersionedTextDocumentIdentifier {
+                uri: start_uri.clone(),
+                version: (idx + 1) as i64,
+            },
+            content_changes: vec![TextDocumentContentChangeEvent {
+                range: Some(Range::new(
+                    Position::new(1, *start_col),
+                    Position::new(1, *end_col),
+                )),
+                range_length: Some(1),
+                text: "".to_string(),
+            }],
+        };
+        write_message(
+            &mut client_write,
+            &serde_json::to_vec(&Notification::new(
+                "textDocument/didChange",
+                Some(serde_json::to_value(did_change_params).unwrap()),
+            ))
+            .unwrap(),
+        )
+        .await
+        .unwrap();
+    }
+
+    // After 3rd backspace, server emits failure diagnostic
+    let resp = reader.read_message().await.unwrap().unwrap();
+    let fail_val: serde_json::Value = serde_json::from_slice(&resp).unwrap();
+    let diag = &fail_val["params"]["diagnostics"][0];
+    assert_eq!(diag["severity"], 1); // Error
+    assert!(diag["message"].as_str().unwrap().contains("Failed"));
+    assert!(diag["message"]
+        .as_str()
+        .unwrap()
+        .contains("backspace run of 3 consecutive deletions exceeds limit of 3"));
+
+    // Verify session recorded failure
+    let updated_session = SessionState::load_from_file(&session_path).unwrap();
+    let att = updated_session.attempt.unwrap();
+    match att.verdict {
+        Some(Verdict::Failed { reason }) => {
+            assert!(reason.contains("backspace run of 3 consecutive deletions exceeds limit of 3"));
+        }
+        _ => panic!("Expected Failed verdict, got {:?}", att.verdict),
+    }
+
+    let _ = std::fs::remove_file(&session_path);
+    if let Some(parent) = session_path.parent() {
+        let _ = std::fs::remove_dir(parent);
+    }
+}

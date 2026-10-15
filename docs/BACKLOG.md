@@ -6,8 +6,8 @@ Coverage: [requirements matrix](REQUIREMENTS.md). The approved
 [backlog expansion plan](plans/2026-09-13-full-backlog-plan.md) has been applied.
 The roadmap below preserves the original task history; detailed execution cards follow.
 
-**Next task: ZK-026.1 (Author supported native operator drills).**
-Phase 0 (ZK-001–005), ZK-007 (native Rust scaffold), ZK-008 (native CI), ZK-009 (lesson loading), ZK-010 (goal verification), ZK-011 (scoring and forbid rules), ZK-012 (session persistence), ZK-013 (production LSP observer), ZK-014 (connect verification, state, and diagnostics), ZK-015 (development extension), ZK-016 (one-exercise acceptance), ZK-017 (TUI shell), ZK-018 (exercise launch), ZK-019 (live state and connection health), ZK-020 (retry and navigation), ZK-021 (progress and restart recovery), ZK-022 (starter course: ZK-022.1, ZK-022.2, ZK-022.3), ZK-023 (local MVP acceptance), ZK-024 (reference curriculum audit: ZK-024.1, ZK-024.2, ZK-024.3), ZK-025.1 (modal baseline lesson), ZK-025.2 (find-motion lesson), and ZK-025.3 (text-object lesson admission, completing ZK-025) are complete. State contracts are documented in ARCHITECTURE.md (ZK-006).
+**Next task: ZK-027.2 (Create project-panel material).**
+Phase 0 (ZK-001–005), ZK-007 (native Rust scaffold), ZK-008 (native CI), ZK-009 (lesson loading), ZK-010 (goal verification), ZK-011 (scoring and forbid rules), ZK-012 (session persistence), ZK-013 (production LSP observer), ZK-014 (connect verification, state, and diagnostics), ZK-015 (development extension), ZK-016 (one-exercise acceptance), ZK-017 (TUI shell), ZK-018 (exercise launch), ZK-019 (live state and connection health), ZK-020 (retry and navigation), ZK-021 (progress and restart recovery), ZK-022 (starter course: ZK-022.1, ZK-022.2, ZK-022.3), ZK-023 (local MVP acceptance), ZK-024 (reference curriculum audit: ZK-024.1, ZK-024.2, ZK-024.3), ZK-025 (modal baseline and motion lessons: ZK-025.1, ZK-025.2, ZK-025.3), ZK-026 (native operator drills and keymaps: ZK-026.1, ZK-026.2, ZK-026.3), and ZK-027.1 (LSP-backed action material) are complete. State contracts are documented in ARCHITECTURE.md (ZK-006).
 
 ## Phase 0 — Feasibility spike (GATE)
 
@@ -208,10 +208,11 @@ Granular edits remain a proxy for technique, not keystroke verification.
   complete fixtures, and a recorded manual run.
   **Completed 2026-10-15:** Completed modal baseline lesson (ZK-025.1), find-motion lesson (ZK-025.2), and text-object lesson admission (ZK-025.3). All four modules (`modal-00-baseline`, `motions-01-word`, `motions-02-find`, `motions-03-textobjects`) with 12 calibrated Par 1 drills are fully runnable in the catalog. All 155 workspace tests pass cleanly.
 <a id="task-zk-026"></a>
-- [ ] **ZK-026 — Add native operator and keymap lessons.** Audit proposed register,
+- [x] **ZK-026 — Add native operator and keymap lessons.** Audit proposed register,
   replace/exchange motions, and keymap contexts before authoring.
   **Done:** supported concepts have calibrated exercises; configuration-only material
   has walkthrough notes rather than automatic-verification claims.
+  **Completed 2026-10-15:** Completed native operator drills (ZK-026.1), keymap context teaching material (ZK-026.2), and manual acceptance review (ZK-026.3). All 3 operator drills (`replace-char-literal`, `delete-counted-words`, `indent-line-block`) calibrated to Par 1 in `operators-01-edit.toml`; unsupported `vim-exchange` and GPUI keymap contexts classified as guided walkthroughs. All 161 workspace tests pass cleanly.
 <a id="task-zk-027"></a>
 - [ ] **ZK-027 — Add editor-feature material.** Cover LSP-backed actions, project panel,
   multibuffer, tasks, and debugger where verified.
@@ -970,42 +971,46 @@ completed with a usable route.
 <a id="task-zk-026-1"></a>
 #### ZK-026.1 — Author supported native operator drills
 
-- **Status:** ready. **Priority:** full release. **Requirements:** REQ-22, REQ-24.
+- **Status:** done. **Priority:** full release. **Requirements:** REQ-22, REQ-24.
 - **Depends on:** [ZK-025](#task-zk-025).
 - **Files/components:** lessons/; fixtures; docs/evidence/.
 - **Acceptance:** Audit proposed register/replace/exchange and indent motions, then author/calibrate supported exercises; explicitly defer unsupported concepts rather than claiming key support.
 - **Validation:** Run catalog validation and the authoring checklist; perform the specified editor examples and retain calibration/source evidence.
+- **Completed 2026-10-15:** Audited register, replace, exchange, and indent capabilities against Zed 1.19.2. Explicitly deferred `vim-exchange` (`cx`) as an unsupported external plugin to unscored walkthrough `exchange-and-surround`. Authored `lessons/operators-01-edit.toml` (Module 4, `requires = ["motions-03-textobjects"]`, `draft = false`) and 3 calibrated Par 1 drills (`replace-char-literal`, `delete-counted-words`, `indent-line-block`) with start/goal fixtures. Added schema and 5-module runnable curriculum tests in `crates/zedkata-core/tests/lesson_loading.rs`, 4 LSP feedback and scoring integration tests in `crates/zedkata-lsp/tests/feedback_integration_tests.rs`, and cross-module navigation advancement tests in `crates/zedkata-tui/tests/navigation_tests.rs`. All 161 workspace tests pass cleanly. Recorded evidence in `docs/evidence/operators-lesson-calibration.md`. Next: ZK-026.2.
 <a id="task-zk-026-2"></a>
 #### ZK-026.2 — Create keymap-context teaching material
 
-- **Status:** blocked. **Priority:** full release. **Requirements:** REQ-24.
+- **Status:** done. **Priority:** full release. **Requirements:** REQ-24.
 - **Depends on:** [ZK-026.1](#task-zk-026-1).
 - **Files/components:** lessons/; walkthrough notes.
 - **Acceptance:** Verify documented contexts, define a concrete configuration outcome and reproducible example; classify as walkthrough unless automatically observable; keep task wording focused on outcome.
 - **Validation:** Run catalog validation and the authoring checklist; perform the specified editor examples and retain calibration/source evidence.
+- **Completed 2026-10-15:** Audited Zed's GPUI context tree hierarchy, modal context variables (`VimControl`, `vim_mode == normal`, `vim_mode == insert`, `vim_mode == visual`, `vim_mode == operator`, `vim_operator`), and precedence rules against official documentation (`https://zed.dev/docs/key-bindings.md`, `https://zed.dev/docs/vim.md`) and local Zed 1.19.2. Recorded OQ-13 as VERIFIED in `docs/OPEN-QUESTIONS.md`. Identified that keymap configuration and context evaluation are internal to Zed's UI event loop and produce no LSP notifications (OQ-04/REQ-10), strictly classifying keymap material as an unscored guided walkthrough per REQ-24/REQ-25/REQ-29. Authored comprehensive walkthrough guide in `docs/walkthroughs/keymap-contexts.md` with 5 concrete, reproducible outcomes (`space w` leader save, `j k` insert escape, subword motion scoping, delimiter operator scoping, and live context diagnostics via `dev: open key context view`). Added `[[walkthrough]] id = "keymap-contexts"` to `lessons/operators-01-edit.toml` and updated curriculum test assertions in `crates/zedkata-core/tests/lesson_loading.rs`. All 161 workspace tests, clippy, and rustfmt pass cleanly. Recorded calibration evidence in `docs/evidence/keymap-context-walkthrough.md`. Next: ZK-026.3.
 <a id="task-zk-026-3"></a>
 #### ZK-026.3 — Review and manually accept operator/keymap content
 
-- **Status:** blocked. **Priority:** full release. **Requirements:** REQ-22, REQ-24.
+- **Status:** done. **Priority:** full release. **Requirements:** REQ-22, REQ-24.
 - **Depends on:** [ZK-026.2](#task-zk-026-2).
 - **Files/components:** docs/evidence/; lesson catalog.
 - **Acceptance:** Run all new examples in Zed, check prerequisites and task/hint/prose conventions, record goal and any budget calibration; admit only validated content.
 - **Validation:** Run catalog validation and the authoring checklist; perform the specified editor examples and retain calibration/source evidence.
+- **Completed 2026-10-15:** Audited and manually verified all 3 drills (`replace-char-literal`, `delete-counted-words`, `indent-line-block`) and both walkthroughs (`exchange-and-surround`, `keymap-contexts`) in Zed 1.19.2. Confirmed that single-char replacement (`ri`), count prefixes (`2dw`), and linewise indentation (`>>`) achieve Par 1 in exactly 1 edit unit, while multi-step alternatives miss Par and backspace runs fail forbid rules. Verified that keymap contexts and non-native plugin emulation are appropriately classified as guided walkthroughs with reproducible recipes. Confirmed 5-module curriculum DAG acyclicity and prerequisite unlocking (`operators-01-edit` -> `motions-03-textobjects`). Formally admitted content to the runnable curriculum catalog. All 161 workspace tests pass cleanly. Recorded evidence in `docs/evidence/operators-lesson-calibration.md`. Completes epic ZK-026. Next: ZK-027.1.
 
 ### ZK-027 — Editor features
 
 <a id="task-zk-027-1"></a>
 #### ZK-027.1 — Create LSP-backed action material
 
-- **Status:** blocked. **Priority:** full release. **Requirements:** REQ-25.
+- **Status:** done. **Priority:** full release. **Requirements:** REQ-25.
 - **Depends on:** [ZK-025](#task-zk-025).
 - **Files/components:** lessons/; walkthrough notes; docs/evidence/.
 - **Acceptance:** Verify rename/code-action/diagnostic examples, classify observable outcomes and create complete fixtures or a walkthrough; manually reproduce instructions and record source/version.
 - **Validation:** Run the concrete manual scenarios in Acceptance, retain observations, and run affected automated checks where implementation changes.
+- **Completed 2026-10-15:** Audited Zed normal-mode language server keybindings (`c d` symbol rename, `g .` code actions, `g ]`/`g [` and `] d`/`[ d` diagnostic navigation, `g d` definition, `<ctrl-w> g d` split definition, `g y` type definition, `g I` implementation, `g h` hover, `g A` references, and `:clist` diagnostics panel) against Zed 1.19.2 and official docs (`https://zed.dev/docs/vim.md#language-server`). Recorded OQ-14 as VERIFIED in `docs/OPEN-QUESTIONS.md`. Evaluated observability boundaries per REQ-25 and REQ-29: non-mutating navigation emits zero buffer modifications, while mutating refactors require semantic language servers (`rust-analyzer`, etc.) that are unavailable in `.kata` observer buffers. Formally classified LSP actions as guided walkthroughs with reproducible recipes. Authored sample code fixture `lessons/fixtures/walkthroughs/lsp/sample_service.rs`, comprehensive walkthrough guide `docs/walkthroughs/lsp-actions.md`, and lesson file `lessons/zed-01-lsp-actions.toml`. Added schema and walkthrough test in `crates/zedkata-core/tests/lesson_loading.rs` and updated TUI shell assertions. All 162 workspace tests pass cleanly. Recorded calibration evidence in `docs/evidence/lsp-action-material.md`. Next: ZK-027.2.
 <a id="task-zk-027-2"></a>
 #### ZK-027.2 — Create project-panel material
 
-- **Status:** blocked. **Priority:** full release. **Requirements:** REQ-25.
+- **Status:** ready. **Priority:** full release. **Requirements:** REQ-25.
 - **Depends on:** [ZK-025](#task-zk-025).
 - **Files/components:** lessons/; walkthrough notes; docs/evidence/.
 - **Acceptance:** Audit proposed netrw-like bindings and teach verified behavior with reproducible files; record manual run and whether completion is self-reported.
@@ -1013,7 +1018,7 @@ completed with a usable route.
 <a id="task-zk-027-3"></a>
 #### ZK-027.3 — Create multibuffer walkthrough content
 
-- **Status:** blocked. **Priority:** full release. **Requirements:** REQ-25.
+- **Status:** ready. **Priority:** full release. **Requirements:** REQ-25.
 - **Depends on:** [ZK-027.1](#task-zk-027-1).
 - **Files/components:** lessons/; walkthrough notes; docs/evidence/.
 - **Acceptance:** Provide verified steps and sample files for a concrete multibuffer workflow; manual walkthrough succeeds without representing unobservable completion as a drill verdict.
@@ -1021,7 +1026,7 @@ completed with a usable route.
 <a id="task-zk-027-4"></a>
 #### ZK-027.4 — Create tasks and debugger walkthrough content
 
-- **Status:** blocked. **Priority:** full release. **Requirements:** REQ-25.
+- **Status:** ready. **Priority:** full release. **Requirements:** REQ-25.
 - **Depends on:** [ZK-027.1](#task-zk-027-1).
 - **Files/components:** lessons/; sample task/debug configuration; docs/evidence/.
 - **Acceptance:** Verify tasks.json semantics and debugger setup for a small example; run both workflows manually and record current config sources and prerequisites. Split by feature before coding if one session is insufficient.

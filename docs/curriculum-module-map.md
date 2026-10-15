@@ -45,7 +45,8 @@ The audit of Zed's native Vim implementation (`crates/vim/src/object.rs` and `as
 | **Surrounds** | `cs`, `ds`, `ys` | **Native** (`crates/vim/src/surrounds.rs`) | Enabled out of the box in Zed | Drill |
 | **Registers & Macros** | Named registers `"a`–`"z`, unnamed `""`, clipboard `"+`, black hole `"_`, macros `q`, `@`, `@@` | **Native** | Standard | Drill |
 | **Visual Line Select** | `V` linewise selection | **Native** in editor, but **unobservable via LSP** | `shift-v` | Excluded from forbid rules; constrained via fixture budget |
-| **Normal LSP Actions** | `gd`, `gh`, `g r n` (rename), `g .` (code action), `g ]` (diagnostic) | **Native** (`editor::*`) | `gd`, `gh`, `g r n`, `g .`, `g ]` | Walkthrough (`gd`/`gh`) / Drill (`g r n`) |
+| **Keymap Contexts** | Context hierarchy (`Workspace` > `Pane` > `Editor`), `VimControl`, `vim_mode`, `vim_operator` | **Native** in GPUI, but **unobservable via LSP** | Configured in `keymap.json` | Walkthrough (`keymap-contexts`) |
+| **Normal LSP Actions** | `gd`, `gh`, `c d` (rename), `g .` (code action), `g ]`/`g [` (diagnostic), `g A` (references) | **Native** (`editor::*`) | `c d`, `g .`, `g ]`, `g [`, `gd`, `gh`, `g A`, `:clist` | Walkthrough (`lsp-actions-walkthrough`) per REQ-25 / OQ-14 |
 | **Multibuffer** | Project-wide multi-file search and concurrent edit buffers | **Native** | `pane::DeploySearch` (`g /`) | Walkthrough |
 | **Workspace & Agent** | Project panel, tasks (`tasks.json`), agent panel | **Native** | Standard Zed workspace | Walkthrough |
 
@@ -102,10 +103,18 @@ graph TD
   - `mini-vs-any`: Guided comparison of tree-sitter context matching (`MiniQuotes`/`MiniBrackets`) vs traditional delimiter matching (`AnyQuotes`/`AnyBrackets`).
 
 #### Module 4: `operators-01-edit` — Core Operators, Counts & Repeat
-- **Type:** Scored Drills
+- **Type:** Scored Drills + Guided Walkthrough
 - **Prerequisites:** `["motions-03-textobjects"]`
-- **Concepts:** `d`, `c`, `y`, `p`, `P`, `r`, `s`, `S`, `x`, `.`, counts (`2dw`, `3dd`)
-- **Key Zed Distinction:** Zed includes built-in surround commands (`cs`, `ds`, `ys`).
+- **Status:** **Shipped & Calibrated (ZK-026.1, ZK-026.2, ZK-026.3)**
+- **Concepts:** `r`, `count` (`2dw`), `indent` (`>>`), `dot-repeat`, `surround` (`cs`, `ds`, `ys`)
+- **Key Zed Distinction:** Built-in surround commands (`cs`, `ds`, `ys`); third-party `vim-exchange` (`cx`) is unsupported and deferred to native cut/paste (`dd`, `p`) or line-swap shortcuts.
+- **Exercises:**
+  1. `replace-char-literal` (`ri`, Par: 1, `forbid.backspace_run = 3`)
+  2. `delete-counted-words` (`2dw`, Par: 1, `forbid.backspace_run = 3`)
+  3. `indent-line-block` (`>>`, Par: 1, `forbid.backspace_run = 3`)
+- **Walkthroughs:**
+  - `exchange-and-surround`: Comparison of unsupported `vim-exchange` plugin emulation vs Zed native cut/paste and built-in surrounds.
+  - `keymap-contexts`: Scoping custom bindings using `Editor && vim_mode == normal`, `VimControl`, and inspecting active context trees with `dev: open key context view`.
 
 #### Module 5: `operators-02-registers` — Registers & Macros
 - **Type:** Scored Drills
@@ -113,9 +122,12 @@ graph TD
 - **Concepts:** `"a`–`"z`, unnamed `""`, clipboard `"+`, black hole `"_`, recording `q{reg}`, playback `@{reg}`, repeat `@@`
 
 #### Module 6: `zed-01-lsp-actions` — Normal-Mode Code Intelligence
-- **Type:** Hybrid (Scored Drills for mutating refactors + Walkthroughs for navigation)
+- **Type:** Guided Walkthrough (Unscored per REQ-25, REQ-29, OQ-14)
 - **Prerequisites:** `["operators-01-edit"]`
-- **Concepts:** `gd` (Go to definition), `gh` (Hover), `g r n` (Symbol rename), `g .` (Code action)
+- **Concepts:** `c d` (Symbol rename), `g .` (Code action), `g ]`/`g [` (Diagnostic navigation), `g d` (Go to definition), `g h` (Hover), `g A` (Find all references), `:clist` (Diagnostics panel)
+- **Status:** **Authored & Sourced (ZK-027.1)**
+- **Walkthroughs:**
+  - `lsp-actions-walkthrough`: Normal-mode language server capabilities using `lessons/fixtures/walkthroughs/lsp/sample_service.rs` (detailed recipes in `docs/walkthroughs/lsp-actions.md`).
 
 #### Module 7: `zed-02-multibuffer` — Multibuffer Project Editing
 - **Type:** Guided Walkthroughs

@@ -231,3 +231,63 @@ under [ZK-024.1](BACKLOG.md#task-zk-024-1).
 
 See full specification: [Curriculum Module Map](curriculum-module-map.md).
 
+---
+
+## OQ-13 — Zed keymap contexts and Vim mode scoping · VERIFIED (2026-10-15)
+
+Audited 2026-10-15 against official Zed documentation (`https://zed.dev/docs/key-bindings.md`, `https://zed.dev/docs/vim.md`) under [ZK-026.2](BACKLOG.md#task-zk-026-2).
+
+**Key Findings:**
+1. **Context Hierarchy:** Zed organizes active UI contexts in a hierarchy tree (e.g., `Workspace` -> `Pane` -> `Editor`). Context expressions evaluate predicates at specific nodes:
+   - Properties like `vim_mode` and `vim_operator` reside on the `Editor` node, not on `Workspace`.
+   - Direct combinations like `"Editor && vim_mode == normal"` match the editor node.
+   - Cross-level matching requires the ancestor operator (`>`), e.g. `"Workspace > Editor && vim_mode == normal"`.
+   - Combining `"Workspace && vim_mode == normal"` directly will never match because the properties reside on different nodes.
+2. **Modal Contexts & Expressions:**
+   - `VimControl`: Convenience shorthand alias for `vim_mode == normal || vim_mode == visual || vim_mode == operator`.
+   - `vim_mode == normal`: Normal mode only.
+   - `vim_mode == visual`: Visual mode only.
+   - `vim_mode == insert`: Insert mode only.
+   - `vim_mode == replace`: Replace mode only.
+   - `vim_mode == waiting`: Waiting for an arbitrary character argument (e.g. after `f`, `t`, `r`).
+   - `vim_mode == operator`: Waiting for a motion or text-object target (e.g. after `d`, `c`, `y`).
+   - `vim_operator`: Current pending operator symbol (e.g. `vim_operator == d`, `vim_operator == a || vim_operator == i`).
+   - Standard boolean operators (`&&`, `||`, `!`) and grouping parentheses `(...)` are supported.
+3. **Precedence Rules:**
+   - Lower nodes in the tree take precedence over higher nodes (`Editor` beats `Workspace`).
+   - At the same node level, bindings defined later take precedence (user `keymap.json` loads after built-in defaults).
+   - Prefix conflicts (chords) wait on a 1-second timeout by default.
+4. **Key Context Inspection:**
+   - `dev: open key context view` in the command palette opens real-time inspection of active context tree nodes and attributes.
+5. **Observability Boundary & Curriculum Classification:**
+   - `keymap.json` edits and key context activations take place entirely in Zed's GPUI / client process and emit no LSP notifications (`didChange`, etc.).
+   - Consequently, per REQ-24, REQ-25, and REQ-29, keymap context configuration cannot be an automatically verified buffer drill. It is strictly classified as a guided walkthrough with explicit, self-reported configuration outcomes.
+
+---
+
+## OQ-14 — Zed normal-mode LSP actions and observation boundaries · VERIFIED (2026-10-15)
+
+Audited 2026-10-15 against Zed 1.19.2 (`df181c6f58d02677b385fa947d6bfde6d3530078`), official Zed documentation (`https://zed.dev/docs/vim.md#language-server`), and `crates/zedkata-lsp` under [ZK-027.1](BACKLOG.md#task-zk-027-1).
+
+**Audit Findings & Keybindings:**
+1. **Verified Normal-Mode LSP Shortcuts:**
+   - **Symbol Rename:** `c d` (mnemonic: *"change definition"*; also `space r`, `F2`). Triggers inline symbol rename input box.
+   - **Code Actions:** `g .` (also `space .`, `ctrl-x ctrl-l` in Insert mode). Opens context quick-fix popup menu.
+   - **Go to Definition:** `g d` (also `<ctrl-w> g d` for definition in adjacent split pane).
+   - **Go to Declaration:** `g D`.
+   - **Go to Type Definition:** `g y`.
+   - **Go to Implementation:** `g I`.
+   - **Find All References:** `g A`. Opens multibuffer referencing all occurrences.
+   - **Diagnostics Navigation:** `g ]` or `] d` (next diagnostic); `g [` or `[ d` (previous diagnostic).
+   - **Diagnostics Panel:** `:clist` (ex-command opening the workspace diagnostics panel).
+   - **Hover Documentation:** `g h` (also `K`, `space k`). Opens inline markdown signature/doc popover.
+   - **Outline / Symbols:** `g s` (file outline); `g S` (workspace symbol search).
+2. **Outcome Classification & Observability Boundaries (REQ-25, REQ-29):**
+   - **Non-mutating navigation actions** (`g d`, `g D`, `g y`, `g I`, `g A`, `g ]`, `g [`, `g h`, `g s`, `g S`, `:clist`) change cursor position or open UI popovers, but produce zero buffer deltas. They emit no LSP `textDocument/didChange` notifications and are completely unobservable by `zedkata-lsp` (REQ-10, OQ-04).
+   - **Mutating actions** (`c d` symbol rename, `g .` code actions) alter buffer text, but strictly require an underlying semantic language server (`rust-analyzer`, `pyright`, `gopls`, etc.) providing `renameProvider` or `codeActionProvider`.
+   - In student exercise buffers (`*.kata`), the only attached language server is `zedkata-lsp`. `zedkata-lsp` provides document sync observation only and does not implement semantic language providers; invoking `c d` or `g .` in `.kata` files yields "No rename provider available" or no actions.
+   - Real language files (`.rs`, `.py`) run against external toolchains that vary by student environment and are unobserved by `zedkata-lsp` (which binds exclusively to `Zedkata` files per `extension.toml`).
+3. **Curriculum Classification:**
+   - Per REQ-25 and REQ-29, all normal-mode LSP actions are formally classified as **Guided Walkthroughs** with complete reproducible fixtures (`lessons/fixtures/walkthroughs/lsp/sample_service.rs`), verified instructions (`docs/walkthroughs/lsp-actions.md`), and self-reported verification criteria, rather than false automated drill scores.
+
+
