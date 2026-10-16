@@ -9,7 +9,10 @@ pub mod scoring;
 pub mod session;
 pub mod verification;
 
-pub use catalog::{Catalog, LessonEntry};
+pub use catalog::{
+    default_data_dir, default_generated_dir, default_lessons_dir, resolve_lessons_dir, Catalog,
+    LessonEntry, MergeSummary,
+};
 pub use error::CoreError;
 pub use lesson::{Exercise, ForbidRules, Lesson, Walkthrough};
 pub use scoring::{

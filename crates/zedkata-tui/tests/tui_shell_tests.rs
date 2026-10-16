@@ -65,7 +65,7 @@ fn test_tui_render_catalog_and_task_panes() -> Result<()> {
 
     // Curriculum pane checks
     assert!(
-        rendered.contains("Curriculum (7)"),
+        rendered.contains("Curriculum (10)"),
         "Should display lesson count in curriculum title"
     );
     assert!(
@@ -95,6 +95,18 @@ fn test_tui_render_catalog_and_task_panes() -> Result<()> {
     assert!(
         rendered.contains("zed-02-project-panel"),
         "Should list zed-02-project-panel lesson"
+    );
+    assert!(
+        rendered.contains("zed-03-multibuffer"),
+        "Should list zed-03-multibuffer lesson"
+    );
+    assert!(
+        rendered.contains("zed-04-tasks-and-debugger"),
+        "Should list zed-04-tasks-and-debugger lesson"
+    );
+    assert!(
+        rendered.contains("zed-05-agent-panel"),
+        "Should list zed-05-agent-panel lesson"
     );
     assert!(rendered.contains("[L]"), "Should mark locked lessons");
 

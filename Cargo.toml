@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "crates/zedkata-agent",
     "crates/zedkata-core",
     "crates/zedkata-lsp",
     "crates/zedkata-tui",
@@ -15,6 +16,7 @@ authors = ["Zedkata Contributors"]
 
 [workspace.dependencies]
 zedkata-core = { path = "crates/zedkata-core" }
+agent-client-protocol = { version = "3.3", features = ["stdio"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 toml = "0.8"

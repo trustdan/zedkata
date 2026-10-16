@@ -267,6 +267,8 @@ fn render_curriculum_pane(frame: &mut Frame, area: Rect, app: &App) {
             Span::styled("[L]", Style::default().fg(Color::Red))
         } else if entry.lesson.draft {
             Span::styled("[D]", Style::default().fg(Color::Magenta))
+        } else if entry.lesson.is_generated() {
+            Span::styled("[G]", Style::default().fg(Color::LightYellow))
         } else {
             Span::styled("[ ]", Style::default().fg(Color::Cyan))
         };
@@ -296,6 +298,10 @@ fn render_curriculum_pane(frame: &mut Frame, area: Rect, app: &App) {
             Span::raw(" "),
             Span::styled(entry.lesson.id.clone(), title_style),
         ];
+
+        if entry.lesson.is_generated() {
+            spans.push(Span::styled(" [gen]", Style::default().fg(Color::Yellow)));
+        }
 
         if is_session_active {
             spans.push(Span::styled(" *", Style::default().fg(Color::Yellow)));
@@ -414,6 +420,8 @@ fn render_task_pane(frame: &mut Frame, area: Rect, app: &App) {
         ex_pills.push(Span::styled(tag, style));
     }
 
+    let is_generated = current_lesson.lesson.is_generated();
+
     let mut lines = vec![
         Line::from(ex_pills),
         Line::from(vec![
@@ -426,6 +434,15 @@ fn render_task_pane(frame: &mut Frame, area: Rect, app: &App) {
             Span::styled(current_ex.task.clone(), Style::default().fg(Color::White)),
         ]),
     ];
+
+    if is_generated {
+        lines.push(Line::from(vec![Span::styled(
+            "NOTE: Targeted generated practice drill (uncalibrated technique budget)",
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        )]));
+    }
 
     // Concepts
     if !current_lesson.lesson.concepts.is_empty() {
@@ -444,7 +461,11 @@ fn render_task_pane(frame: &mut Frame, area: Rect, app: &App) {
             .max_edits
             .map(|m| format!(" | Max: {} edit(s)", m))
             .unwrap_or_default();
-        format!("Par: {} edit(s){}", par, max_str)
+        if is_generated {
+            format!("Par: {} edit(s) (uncalibrated){}", par, max_str)
+        } else {
+            format!("Par: {} edit(s){}", par, max_str)
+        }
     } else {
         let max_str = current_ex
             .max_edits
@@ -905,10 +926,18 @@ fn render_feedback_pane(frame: &mut Frame, area: Rect, app: &App) {
             .rev()
             .take(3)
             .map(|h| {
+                let is_uncalibrated = h.lesson_id.starts_with("gen-");
                 if !h.passed {
                     format!("{}/{} (failed)", h.lesson_id, h.exercise_id)
                 } else if h.par_edits.is_some() {
-                    format!("{}/{} (score {})", h.lesson_id, h.exercise_id, h.score)
+                    if is_uncalibrated {
+                        format!(
+                            "{}/{} (score {}, uncalibrated)",
+                            h.lesson_id, h.exercise_id, h.score
+                        )
+                    } else {
+                        format!("{}/{} (score {})", h.lesson_id, h.exercise_id, h.score)
+                    }
                 } else {
                     format!("{}/{} (unscored)", h.lesson_id, h.exercise_id)
                 }

@@ -1,0 +1,38 @@
+[lesson]
+id = "zed-04-tasks-and-debugger"
+title = "Workspace tasks and DAP debugger"
+module = 9
+requires = ["zed-03-multibuffer"]
+concepts = ["task: spawn", "task: rerun", ".zed/tasks.json", "$ZED_FILE", "$ZED_STEM", "$ZED_WORKTREE_ROOT", "debugger: start", "F4", "F8", "F7", "F9", "space shift-g b", "space shift-g l", ".zed/debug.json"]
+draft = true
+
+prose = """
+Zed integrates native task orchestration and Debug Adapter Protocol (DAP) debugging
+directly into the development workspace.
+Configure reusable project commands, builds, and test runners in `.zed/tasks.json`,
+utilizing dynamic editor variables like `$ZED_FILE` and `$ZED_STEM`. Spawn tasks with
+`task: spawn`, customize on the fly with `Tab`, execute oneshots with `alt-enter`, and
+repeat recent commands with `task: rerun`.
+Launch pre-compiled native debugging sessions configured in `.zed/debug.json` with `F4`
+(or `space shift-g l`), toggle breakpoints with `space shift-g b`, and step through
+execution with `F7`/`F8`/`F9` (`space shift-g i`/`n`/`c`) while inspecting live stack
+variables in the debug panel.
+"""
+
+# ---------------------------------------------------------------------------
+# Not drillable — routes to zedkata-agent as an unscored guided walkthrough.
+# See docs/walkthroughs/tasks-and-debugger.md for full walkthrough recipes and verification.
+
+[[walkthrough]]
+id = "tasks-and-debugger-walkthrough"
+title = "Workspace tasks and DAP debugger in Zed"
+prompt = """
+Demonstrate Zed's native task automation and DAP debugging workflows using
+the sample project tree in `lessons/fixtures/walkthroughs/tasks_and_debugger/`.
+Guide the student through:
+1. Spawning workspace tasks with `task: spawn` and observing integrated terminal output.
+2. Executing context-sensitive tasks utilizing dynamic variables (`$ZED_STEM`, `$ZED_FILE`).
+3. Customizing commands with `Tab`, running ad-hoc oneshots with `alt-enter`, and repeating with `task: rerun`.
+4. Configuring DAP debug targets in `.zed/debug.json` with pre-launch compilation tasks.
+5. Setting gutter breakpoints (`space shift-g b`), launching via `F4` / `space shift-g l`, stepping with `F7`/`F8` (`space shift-g i`/`n`), and inspecting variables in the Debug panel.
+"""

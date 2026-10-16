@@ -20,6 +20,8 @@ pub struct SessionState {
     pub history: Vec<HistoryEntry>,
     #[serde(default)]
     pub weaknesses: HashMap<String, f64>,
+    #[serde(default)]
+    pub completed_walkthroughs: Vec<WalkthroughProgress>,
 }
 
 impl Default for SessionState {
@@ -39,6 +41,7 @@ impl Default for SessionState {
             attempt: None,
             history: Vec::new(),
             weaknesses: HashMap::new(),
+            completed_walkthroughs: Vec::new(),
         }
     }
 }
@@ -105,14 +108,24 @@ pub struct HistoryEntry {
     pub completed_at: DateTime<Utc>,
 }
 
+/// Record of explicit self-reported completion of an unscored guided walkthrough.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WalkthroughProgress {
+    pub walkthrough_id: String,
+    pub lesson_id: String,
+    pub completed_at: DateTime<Utc>,
+}
+
 /// Resolve the standard platform path for `session.json`.
 ///
 /// Precedence:
-/// 1. `ZEDKATA_SESSION_PATH` environment variable if set and non-empty.
+/// 1. `ZEDKATA_SESSION_PATH` or `ZEDKATA_SESSION` environment variable if set and non-empty.
 /// 2. Windows: `%LOCALAPPDATA%\zedkata\session.json` (fallback `%USERPROFILE%\AppData\Local\zedkata\session.json`).
 /// 3. Unix / macOS: `$XDG_STATE_HOME/zedkata/session.json` (fallback `~/.local/state/zedkata/session.json`).
 pub fn default_session_path() -> Result<PathBuf, CoreError> {
-    if let Ok(override_path) = std::env::var("ZEDKATA_SESSION_PATH") {
+    if let Ok(override_path) =
+        std::env::var("ZEDKATA_SESSION_PATH").or_else(|_| std::env::var("ZEDKATA_SESSION"))
+    {
         if !override_path.trim().is_empty() {
             return Ok(PathBuf::from(override_path));
         }
@@ -456,5 +469,45 @@ impl SessionState {
         self.current.buffer_path = None;
         self.current.opened_at = None;
         self.attempt = None;
+    }
+
+    /// Mark an unscored guided walkthrough as completed via self-report.
+    ///
+    /// Preserves explicit self-reported completion semantics (REQ-29) without entering
+    /// drill scoring or modifying active attempt state. Returns true if newly added, or
+    /// false if already completed (with timestamp refreshed).
+    pub fn mark_walkthrough_completed(&mut self, walkthrough_id: &str, lesson_id: &str) -> bool {
+        if let Some(existing) = self
+            .completed_walkthroughs
+            .iter_mut()
+            .find(|w| w.walkthrough_id == walkthrough_id)
+        {
+            existing.completed_at = Utc::now();
+            false
+        } else {
+            self.completed_walkthroughs.push(WalkthroughProgress {
+                walkthrough_id: walkthrough_id.to_string(),
+                lesson_id: lesson_id.to_string(),
+                completed_at: Utc::now(),
+            });
+            true
+        }
+    }
+
+    /// Check if an unscored guided walkthrough has been self-reported as completed.
+    pub fn is_walkthrough_completed(&self, walkthrough_id: &str) -> bool {
+        self.completed_walkthroughs
+            .iter()
+            .any(|w| w.walkthrough_id == walkthrough_id)
+    }
+
+    /// Reset self-reported completion of an unscored guided walkthrough.
+    ///
+    /// Returns true if an entry was removed.
+    pub fn reset_walkthrough(&mut self, walkthrough_id: &str) -> bool {
+        let initial_len = self.completed_walkthroughs.len();
+        self.completed_walkthroughs
+            .retain(|w| w.walkthrough_id != walkthrough_id);
+        self.completed_walkthroughs.len() < initial_len
     }
 }

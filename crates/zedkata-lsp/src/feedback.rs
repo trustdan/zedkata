@@ -218,13 +218,27 @@ impl FeedbackEngine {
                 );
                 session.save_to_file(&self.session_path)?;
 
-                let par_display = par.map(|p| format!(", par {}", p)).unwrap_or_default();
+                let is_uncalibrated = lesson_entry.lesson.is_generated();
+                let par_display = par
+                    .map(|p| {
+                        if is_uncalibrated {
+                            format!(", par {} (uncalibrated)", p)
+                        } else {
+                            format!(", par {}", p)
+                        }
+                    })
+                    .unwrap_or_default();
                 let message = format!(
-                    "Passed — {} edit{}{}, score {}",
+                    "Passed — {} edit{}{}, score {}{}",
                     edits,
                     if edits == 1 { "" } else { "s" },
                     par_display,
-                    score
+                    score,
+                    if is_uncalibrated {
+                        " (generated practice)"
+                    } else {
+                        ""
+                    }
                 );
 
                 let diag = Diagnostic {

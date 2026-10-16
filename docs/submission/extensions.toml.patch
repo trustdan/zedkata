@@ -1,0 +1,14 @@
+--- a/extensions.toml
++++ b/extensions.toml
+@@ -100,6 +100,12 @@
+ submodule = "extensions/yaml"
+ version = "0.1.0"
+ 
++[zedkata]
++submodule = "extensions/zedkata"
++path = "extension"
++version = "0.1.0"
++
+ [zig]
+ submodule = "extensions/zig"
+ version = "0.1.0"

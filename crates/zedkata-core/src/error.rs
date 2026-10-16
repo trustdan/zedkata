@@ -68,6 +68,9 @@ pub enum CoreError {
     #[error("Failed to resolve platform session path: {0}")]
     SessionPathError(String),
 
+    #[error("Failed to resolve platform data path: {0}")]
+    DataPathError(String),
+
     #[error("I/O error: {0}")]
     IoError(#[from] std::io::Error),
 

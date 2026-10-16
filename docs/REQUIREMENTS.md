@@ -103,10 +103,10 @@ remain distinct.
 | Failure finalization, attempt IDs and dirty buffers | ZK-006.2 | Verification, retry and resume |
 | Schema, cursor start, newline and path semantics | ZK-006.3 | Parser, replay and fixture launching |
 | Score/weakness formulas and unsupported forbid rules | ZK-006.4 | Scoring and progress computation |
-| Generated directory versus writable installed data | ZK-006.5 | Generated practice and packaging |
-| Native Rust 1.75 versus modern extension/ACP dependencies | ZK-007.1, ZK-029.1 | Toolchain support claims |
+| Generated directory versus writable installed data (resolved: ADR 0005) | ZK-006.5, ZK-029.2 | Resolved by ZK-006.5 and ZK-029.2; ADR 0005 |
+| Native Rust 1.75 versus modern extension/ACP dependencies (resolved: MSRV 1.85) | ZK-007.1, ZK-029.1 | Resolved by ZK-007.1 (native) and ZK-029.1 (ACP SDK); ADR 0004 |
 | Module numbering and missing draft prerequisites | ZK-024.1 | Full curriculum admission |
-| Provider choice and credentials | ZK-029.2 | Real model integration |
+| Provider choice and credentials (resolved: LM Studio + Big 3 + ChatGPT auth) | ZK-029.2 | Resolved by ZK-029.2; ADR 0005 |
 
 These are decision tasks, not architecture changes made by this matrix. Inlay hints
 are explicitly deferred under REQ-16. REQ-35 exclusions have no implementation tasks.

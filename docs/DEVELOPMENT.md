@@ -332,11 +332,157 @@ The `zedkata-tui` drill conductor requires an interactive terminal emulator supp
 - **Minimum Geometry:** The TUI requires a minimum of **60 columns by 15 rows**. When the terminal is resized below this threshold, a centered warning overlay (`Terminal size too small (WxH). Minimum size is 60x15.`) is displayed until adequate space is restored.
 - **Restoration:** `zedkata-tui` incorporates an RAII `TerminalGuard` and a custom `std::panic::set_hook`. On exit (`q`, `Esc`), interrupt (`Ctrl-C`), unhandled error (`--test-error`), or panic (`--test-panic`), the terminal is guaranteed to leave the alternate screen, disable raw mode, and restore cursor visibility, leaving the shell prompt completely clean.
 
+## ACP Agent Setup & Zed Integration (ZK-030.2)
+
+ZedKata provides an autonomous conversational tutor agent, `zedkata-agent`, communicating with Zed via the official **Agent Client Protocol (ACP)** over standard I/O (JSON-RPC 2.0).
+
+### 1. Build and Install `zedkata-agent`
+
+```powershell
+# Build and install zedkata-agent onto PATH
+cargo install --path crates/zedkata-agent --force
+
+# Verify the binary is reachable on PATH and displays version 0.1.0
+zedkata-agent --version
+```
+
+### 2. Register Custom Agent Server in Zed
+
+Open Zed settings (`Ctrl-,` or command `zed: open settings`) or add to project `.zed/settings.json`:
+
+```json
+{
+  "agent_servers": {
+    "zedkata": {
+      "type": "custom",
+      "command": "zedkata-agent",
+      "args": ["--acp"]
+    }
+  }
+}
+```
+
+*Note: If `zedkata-agent` is not in Zed's system PATH, provide the absolute path to the binary (e.g. `"C:\\Users\\<User>\\.cargo\\bin\\zedkata-agent.exe"` on Windows).*
+
+### 3. Connect via the Zed Agent Panel
+
+1. Open Zed (`zed .` from repository root).
+2. Toggle the Agent Panel with `Ctrl-?` (Windows/Linux) or `Cmd-?` (macOS), or open the Command Palette and run:
+   ```
+   agent: toggle focus
+   ```
+3. In the assistant panel header, click the model/server dropdown and select **zedkata**.
+4. Type a message or task prompt (e.g., "Explain why my last attempt failed").
+5. The agent initiates an ACP session (`initialize` -> `session/new` -> `session/prompt`), streaming chunk responses acknowledging the prompt.
+
+### 4. Troubleshooting & Error Recovery
+
+- **Program Not Found (os error 2):**
+  - *Symptom:* Zed surfaces an error notification: `Failed to spawn custom agent server 'zedkata': program not found (os error 2)`.
+  - *Cause:* The `command` name is not in Zed's PATH environment.
+  - *Recovery:* Run `cargo install --path crates/zedkata-agent --force` or configure the absolute path in `settings.json`.
+- **Missing `--acp` Flag:**
+  - *Symptom:* The agent spawns, prints CLI usage help, and terminates, causing an initialize handshake timeout in Zed.
+  - *Recovery:* Ensure `"args": ["--acp"]` is specified in `agent_servers`.
+- **Stdout Hygiene:**
+  - Standard output is strictly reserved for valid JSON-RPC frames. All diagnostic logging uses `tracing-subscriber` routed to `stderr`. Review agent stderr logs via `debug: open log` in Zed.
+- **Tested Versions:**
+  - Zed 1.19.2 (commit `df181c6f58d02677b385fa947d6bfde6d3530078`)
+  - `agent-client-protocol = "3.3.0"`
+  - Rust 1.97.1 / MSRV 1.85+
+
+## Generated Practice Drills (ZK-032.3)
+
+Targeted practice exercises generated from student weaknesses reside outside the repository in the user's platform data directory:
+- **Windows:** `%LOCALAPPDATA%\zedkata\lessons\generated\`
+- **Linux:** `$XDG_DATA_HOME/zedkata/lessons/generated/`
+- **macOS:** `~/Library/Application Support/zedkata/lessons/generated/`
+
+### Discovery and CLI Overrides:
+- Both `zedkata-tui` and `zedkata-lsp` support `--generated-dir <PATH>` to point to custom practice directories.
+- `ZEDKATA_GENERATED_DIR` environment variable can also override the discovery path.
+- The core catalog prioritizes shipped curriculum ahead of generated practice drills, sorting generated exercises deterministically at the end of the catalog.
+
+### Uncalibrated Technique Budgets:
+- Generated exercises carry estimated (uncalibrated) par budgets.
+- In the TUI, generated drills are marked with `[G]` and `[gen]`, and display a high-visibility warning banner in the Task pane:
+  `NOTE: Targeted generated practice drill (uncalibrated technique budget)`
+- Par budgets and progress entries are explicitly labeled as `(uncalibrated)`.
+- LSP diagnostics explicitly notify the student:
+  `Passed — X edit(s), par Y (uncalibrated), score 100 (generated practice)`
+
+## Release Packaging & Staging Layout (ZK-034.1)
+
+Native release binaries and external curriculum lesson files are assembled into a self-contained distribution layout in `dist/zedkata-v<version>/`:
+
+```powershell
+# Windows PowerShell
+.\scripts\package.ps1
+
+# Options:
+.\scripts\package.ps1 -OutputDir "custom\staging\path" -Clean
+.\scripts\package.ps1 -SkipBuild  # skips cargo build if release binaries already exist
+```
+
+```bash
+# POSIX / Bash
+./scripts/package.sh [--output-dir DIR] [--target TRIPLE] [--skip-build] [--clean]
+```
+
+### Staged Distribution Layout:
+- `bin/`: `zedkata-tui`, `zedkata-lsp`, and `zedkata-agent` native binaries.
+- `lessons/`: External TOML curriculum lessons and `fixtures/` tree (10 lessons total).
+- `extension/`: `extension.toml` manifest and extension documentation.
+- `README.md`: Quickstart instructions and operational guide.
+- `MANIFEST.json`: Release metadata, binary SHA-256 checksums, version, and catalog summary.
+
+### Core Contracts:
+- **No recompile for lesson changes:** Shipped lessons are external data files loaded at runtime by `Catalog`. Editing TOML files or fixtures requires zero binary re-compilation.
+- **Optional agent independence:** Local drill loops in `zedkata-tui` and `zedkata-lsp` function completely standalone without agent configuration or API keys.
+- **Automated verification:** `cargo test -p zedkata-tui --test staged_install_tests`
+
+### Installed-Path Discovery & Write Isolation (ZK-034.2):
+- **Paths with spaces & outside source checkout:** Binaries discover packaged external lessons via `<exe_dir>/../lessons` without relying on working directory or hardcoded repository paths.
+- **Strict write isolation:** `session.json`, `exercises/` working buffers, and `lessons/generated/` are written exclusively to agreed user writable paths (`%LOCALAPPDATA%\zedkata` or explicit `--session` / `--data-dir`).
+- **Read-only install directory compatibility:** The install tree operates cleanly when marked read-only, with zero file creations, mutations, or deletions inside the install directory.
+- **PowerShell check script:** `powershell -ExecutionPolicy Bypass -File scripts/check-installed-paths.ps1`
+- **Automated verification:** `cargo test -p zedkata-tui --test installed_path_tests`
+
+### Platform Native Builds & Release Packaging (ZK-035.1):
+- **Declared Targets:**
+  - `x86_64-pc-windows-msvc` (Windows x64) — **VERIFIED** on local host and CI.
+  - `x86_64-unknown-linux-gnu` (Linux x64) — Declared in CI matrix; **Pending hosted CI & smoke test (ZK-035.3)**.
+  - `aarch64-apple-darwin` (macOS Apple Silicon) — Declared in CI matrix; **Pending hosted CI & smoke test (ZK-035.3)**.
+  - `x86_64-apple-darwin` (macOS Intel) — Declared in CI matrix; **Pending hosted CI & smoke test (ZK-035.3)**.
+- **Automated CI Matrix (`.github/workflows/ci.yml`):**
+  - Locked formatting (`cargo fmt`) and clippy linting (`cargo clippy --workspace --locked --all-targets -- -D warnings`).
+  - Cross-platform test matrix with pre-staged distribution trees, full workspace tests, and catalog validation.
+  - Cross-platform packaging matrix producing distribution archives (`.zip` on Windows, `.tar.gz` on Unix) uploaded via `actions/upload-artifact@v4`.
+- **Packaging Scripts:**
+  - Windows: `powershell -ExecutionPolicy Bypass -File scripts/package.ps1 -Archive`
+  - Linux / macOS: `bash scripts/package.sh --archive`
+
+### Extension & Compatibility Pipeline (ZK-035.2):
+- **Dedicated WASM CI Job:** Compiles and tests `zedkata-extension` targeting `wasm32-wasip2` separately from native MSRV jobs in `.github/workflows/ci.yml`.
+- **Compatibility Matrix (`extension/README.md`):** Explicitly states tested native/extension/Zed combinations, marking Windows 11 as VERIFIED and macOS/Linux as pending platform smoke tests.
+- **Binary Lookup Contract:** Details exact probe sequence (`worktree.which`), PATH fallback, whitespace preservation in `Command`, and actionable guidance on missing `zedkata-lsp`.
+- **Precompiled Artifact Staging:** Packaging scripts automatically bundle `extension.wasm` into `dist/zedkata-v<version>/extension/`.
+
+### Platform Smoke-Test Matrix (ZK-035.3):
+- **Seven Core Operations Verified on Windows 11:** `install`, `start`, `open`, `edit`, `feedback`, `retry`, `quit` executed end-to-end with Zed 1.19.2 (`df181c6f58`), Windows Terminal 1.22, and `x86_64-pc-windows-msvc`.
+- **Strict Evidence Discipline:** Linux (`x86_64-unknown-linux-gnu`) and macOS (`aarch64-apple-darwin`, `x86_64-apple-darwin`) targets are built and packaged in CI, but remain explicitly classified as **UNVERIFIED / PENDING PHYSICAL HARDWARE TEST** in `docs/evidence/platforms.md` to prevent unverified support claims.
+
 ## Task handoff
 
-ZK-001 through ZK-022, **ZK-023.1** (Accept the starter-course user journey), and **ZK-023.2** (Check supported terminal hosting routes) are complete. Local MVP milestone **ZK-023** is fully accepted! Full evidence is recorded in `docs/evidence/local-mvp.md` and `docs/evidence/terminal-hosting-routes.md`.
-
-Next is **Phase 3 (Reference Curriculum & Full Release)** starting with **ZK-024.1** ([ZK-024.1](BACKLOG.md#task-zk-024-1) — Audit capabilities and settle module ordering).
+Phases 0, 1, 2, 3, and 4 are 100% complete! Phase 5 (Distribution and Validation) is in progress:
+- **ZK-034.1** (Assemble binaries and external lesson assets) is complete.
+- **ZK-034.2** (Verify installed-path discovery and writes) is complete. Epic **ZK-034** is 100% complete.
+- **ZK-035.1** (Add macOS and Linux native builds) is complete.
+- **ZK-035.2** (Add separate extension and compatibility checks) is complete.
+- **ZK-035.3** (Run platform smoke-test matrix) is complete. Epic **ZK-035** is 100% complete!
+- **ZK-036.1** (Write the complete install and troubleshooting guide) is complete.
+- **ZK-036.2** (Run a clean-environment first-pass check) is complete.
+- Next: **ZK-036.3** (Check update and uninstall behavior).
 
 
 

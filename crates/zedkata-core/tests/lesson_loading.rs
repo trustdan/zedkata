@@ -1313,6 +1313,238 @@ fn test_project_panel_lesson_schema_and_walkthrough() {
     assert_eq!(runnable.len(), 5);
 }
 
+#[test]
+fn test_multibuffer_lesson_schema_and_walkthrough() {
+    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let lessons_dir = manifest_dir
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("lessons");
+
+    let catalog = Catalog::load_from_dir(&lessons_dir).expect("failed to load lessons catalog");
+
+    // 1. Verify zed-03-multibuffer exists in catalog
+    let entry = catalog
+        .get("zed-03-multibuffer")
+        .expect("zed-03-multibuffer lesson must exist in catalog");
+    let lesson = &entry.lesson;
+
+    assert_eq!(lesson.id, "zed-03-multibuffer");
+    assert_eq!(lesson.title, "Multibuffer and cross-file editing");
+    assert_eq!(lesson.module, Some(8));
+    assert!(lesson.draft, "zed-03-multibuffer is retained as draft");
+    assert_eq!(lesson.requires, vec!["zed-01-lsp-actions"]);
+    assert!(lesson.concepts.contains(&"g /".to_string()));
+    assert!(lesson.concepts.contains(&"ctrl-shift-f".to_string()));
+    assert!(lesson.concepts.contains(&"alt-c".to_string()));
+    assert!(lesson.concepts.contains(&"alt-w".to_string()));
+    assert!(lesson.concepts.contains(&"alt-r".to_string()));
+    assert!(lesson.concepts.contains(&"shift-enter".to_string()));
+    assert!(lesson.concepts.contains(&"alt-enter".to_string()));
+    assert!(lesson.concepts.contains(&"ctrl-d".to_string()));
+    assert!(lesson.concepts.contains(&"ctrl-s".to_string()));
+    assert!(lesson.concepts.contains(&"g A".to_string()));
+
+    // 2. Verify walkthrough
+    assert_eq!(lesson.walkthroughs.len(), 1);
+    assert_eq!(lesson.walkthroughs[0].id, "multibuffer-walkthrough");
+    assert_eq!(
+        lesson.walkthroughs[0].title,
+        "Multibuffer search and simultaneous cross-file editing"
+    );
+
+    // 3. Verify sample fixture files exist on disk
+    let fixture_dir = lessons_dir
+        .join("fixtures")
+        .join("walkthroughs")
+        .join("multibuffer");
+    assert!(
+        fixture_dir.is_dir(),
+        "Multibuffer fixture directory must exist"
+    );
+    assert!(fixture_dir.join("Cargo.toml").is_file());
+    assert!(fixture_dir.join("README.md").is_file());
+    assert!(fixture_dir.join("src").join("main.rs").is_file());
+    assert!(fixture_dir.join("src").join("session.rs").is_file());
+    assert!(fixture_dir.join("src").join("handlers.rs").is_file());
+    assert!(fixture_dir.join("src").join("store.rs").is_file());
+    assert!(fixture_dir.join("tests").join("session_test.rs").is_file());
+
+    let session_src = std::fs::read_to_string(fixture_dir.join("src").join("session.rs")).unwrap();
+    assert!(session_src.contains("validate_token"));
+
+    // 4. Verify catalog-wide prerequisite and DAG acyclicity validation passes
+    assert!(catalog.validate_catalog().is_ok());
+
+    // 5. Verify runnable lessons remain the 5 admitted modules
+    let runnable = catalog.runnable_lessons();
+    assert_eq!(runnable.len(), 5);
+}
+
+#[test]
+fn test_tasks_and_debugger_lesson_schema_and_walkthrough() {
+    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let lessons_dir = manifest_dir
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("lessons");
+
+    let catalog = Catalog::load_from_dir(&lessons_dir).expect("failed to load lessons catalog");
+
+    // 1. Verify zed-04-tasks-and-debugger exists in catalog
+    let entry = catalog
+        .get("zed-04-tasks-and-debugger")
+        .expect("zed-04-tasks-and-debugger lesson must exist in catalog");
+    let lesson = &entry.lesson;
+
+    assert_eq!(lesson.id, "zed-04-tasks-and-debugger");
+    assert_eq!(lesson.title, "Workspace tasks and DAP debugger");
+    assert_eq!(lesson.module, Some(9));
+    assert!(
+        lesson.draft,
+        "zed-04-tasks-and-debugger is retained as draft"
+    );
+    assert_eq!(lesson.requires, vec!["zed-03-multibuffer"]);
+    assert!(lesson.concepts.contains(&"task: spawn".to_string()));
+    assert!(lesson.concepts.contains(&"task: rerun".to_string()));
+    assert!(lesson.concepts.contains(&".zed/tasks.json".to_string()));
+    assert!(lesson.concepts.contains(&"$ZED_FILE".to_string()));
+    assert!(lesson.concepts.contains(&"$ZED_STEM".to_string()));
+    assert!(lesson.concepts.contains(&"$ZED_WORKTREE_ROOT".to_string()));
+    assert!(lesson.concepts.contains(&"debugger: start".to_string()));
+    assert!(lesson.concepts.contains(&"F4".to_string()));
+    assert!(lesson.concepts.contains(&"F8".to_string()));
+    assert!(lesson.concepts.contains(&"F7".to_string()));
+    assert!(lesson.concepts.contains(&"F9".to_string()));
+    assert!(lesson.concepts.contains(&"space shift-g b".to_string()));
+    assert!(lesson.concepts.contains(&"space shift-g l".to_string()));
+    assert!(lesson.concepts.contains(&".zed/debug.json".to_string()));
+
+    // 2. Verify walkthrough
+    assert_eq!(lesson.walkthroughs.len(), 1);
+    assert_eq!(lesson.walkthroughs[0].id, "tasks-and-debugger-walkthrough");
+    assert_eq!(
+        lesson.walkthroughs[0].title,
+        "Workspace tasks and DAP debugger in Zed"
+    );
+
+    // 3. Verify sample fixture files exist on disk
+    let fixture_dir = lessons_dir
+        .join("fixtures")
+        .join("walkthroughs")
+        .join("tasks_and_debugger");
+    assert!(
+        fixture_dir.is_dir(),
+        "Tasks and debugger fixture directory must exist"
+    );
+    assert!(fixture_dir.join("Cargo.toml").is_file());
+    assert!(fixture_dir.join("README.md").is_file());
+    assert!(fixture_dir.join(".zed").join("tasks.json").is_file());
+    assert!(fixture_dir.join(".zed").join("debug.json").is_file());
+    assert!(fixture_dir.join("src").join("lib.rs").is_file());
+    assert!(fixture_dir.join("src").join("math.rs").is_file());
+    assert!(fixture_dir.join("src").join("main.rs").is_file());
+    assert!(fixture_dir
+        .join("tests")
+        .join("calculator_test.rs")
+        .is_file());
+
+    let tasks_json = std::fs::read_to_string(fixture_dir.join(".zed").join("tasks.json")).unwrap();
+    assert!(tasks_json.contains("cargo check"));
+    assert!(tasks_json.contains("$ZED_STEM"));
+
+    let debug_json = std::fs::read_to_string(fixture_dir.join(".zed").join("debug.json")).unwrap();
+    assert!(debug_json.contains("CodeLLDB"));
+
+    // 4. Verify catalog-wide prerequisite and DAG acyclicity validation passes
+    assert!(catalog.validate_catalog().is_ok());
+
+    // 5. Verify runnable lessons remain the 5 admitted modules
+    let runnable = catalog.runnable_lessons();
+    assert_eq!(runnable.len(), 5);
+}
+
+#[test]
+fn test_agent_panel_lesson_schema_and_walkthrough() {
+    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let lessons_dir = manifest_dir
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("lessons");
+
+    let catalog = Catalog::load_from_dir(&lessons_dir).expect("failed to load lessons catalog");
+
+    // 1. Verify zed-05-agent-panel exists in catalog
+    let entry = catalog
+        .get("zed-05-agent-panel")
+        .expect("zed-05-agent-panel lesson must exist in catalog");
+    let lesson = &entry.lesson;
+
+    assert_eq!(lesson.id, "zed-05-agent-panel");
+    assert_eq!(lesson.title, "Agent panel and Agent Client Protocol (ACP)");
+    assert_eq!(lesson.module, Some(10));
+    assert!(lesson.draft, "zed-05-agent-panel is retained as draft");
+    assert_eq!(lesson.requires, vec!["zed-04-tasks-and-debugger"]);
+    assert!(lesson.concepts.contains(&"ctrl-?".to_string()));
+    assert!(lesson.concepts.contains(&"agent: toggle focus".to_string()));
+    assert!(lesson.concepts.contains(&"agent: new thread".to_string()));
+    assert!(lesson.concepts.contains(&"agent_servers".to_string()));
+    assert!(lesson.concepts.contains(&".zed/settings.json".to_string()));
+    assert!(lesson.concepts.contains(&"@file".to_string()));
+    assert!(lesson.concepts.contains(&"@rules".to_string()));
+    assert!(lesson
+        .concepts
+        .contains(&"agent-client-protocol".to_string()));
+    assert!(lesson.concepts.contains(&"stdio".to_string()));
+
+    // 2. Verify walkthrough
+    assert_eq!(lesson.walkthroughs.len(), 1);
+    assert_eq!(lesson.walkthroughs[0].id, "agent-panel-walkthrough");
+    assert_eq!(
+        lesson.walkthroughs[0].title,
+        "Agent panel and Agent Client Protocol in Zed"
+    );
+
+    // 3. Verify sample fixture files exist on disk
+    let fixture_dir = lessons_dir
+        .join("fixtures")
+        .join("walkthroughs")
+        .join("agent_panel");
+    assert!(
+        fixture_dir.is_dir(),
+        "Agent panel fixture directory must exist"
+    );
+    assert!(fixture_dir.join("Cargo.toml").is_file());
+    assert!(fixture_dir.join("README.md").is_file());
+    assert!(fixture_dir.join(".zed").join("settings.json").is_file());
+    assert!(fixture_dir.join("src").join("main.rs").is_file());
+    assert!(fixture_dir.join("src").join("stats.rs").is_file());
+    assert!(fixture_dir.join("tests").join("stats_test.rs").is_file());
+    assert!(fixture_dir
+        .join("scripts")
+        .join("mock_acp_agent.py")
+        .is_file());
+
+    let settings_json =
+        std::fs::read_to_string(fixture_dir.join(".zed").join("settings.json")).unwrap();
+    assert!(settings_json.contains("agent_servers"));
+    assert!(settings_json.contains("zedkata"));
+    assert!(settings_json.contains("mock-agent"));
+
+    // 4. Verify catalog-wide prerequisite and DAG acyclicity validation passes
+    assert!(catalog.validate_catalog().is_ok());
+
+    // 5. Verify runnable lessons remain the 5 admitted modules
+    let runnable = catalog.runnable_lessons();
+    assert_eq!(runnable.len(), 5);
+}
+
 fn tempfile_dir() -> std::path::PathBuf {
     use std::time::{SystemTime, UNIX_EPOCH};
     let nanos = SystemTime::now()

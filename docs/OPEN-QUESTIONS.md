@@ -101,9 +101,23 @@ compiled to WebAssembly, and the repo is linked as a submodule in
 
 ## OQ-07 — Custom ACP agents are a supported install path · VERIFIED
 
-Checked 2026-09-13. Zed supports External Agents over ACP, configured under
-`agent_servers` in `settings.json` with `"type": "custom"` plus command, args, and env.
-There is also an ACP Registry, opened with `zed: acp registry`.
+Checked 2026-09-13 and audited 2026-10-15 against Zed 1.19.2 and official Zed documentation (`https://zed.dev/docs/assistant/agent-client-protocol`, `https://zed.dev/docs/assistant/external-agents`) under [ZK-029.1](BACKLOG.md#task-zk-029-1).
+
+Zed natively supports External Agents over ACP, configured under `agent_servers` in `settings.json` with `"type": "custom"`:
+```json
+{
+  "agent_servers": {
+    "zedkata": {
+      "type": "custom",
+      "command": "zedkata-agent",
+      "args": ["--acp"],
+      "env": {}
+    }
+  }
+}
+```
+
+Registered custom agents automatically appear in Zed's Agent Panel dropdown (`ctrl-?` on Linux/Windows, `cmd-?` on macOS). Communication is conducted via bidirectional JSON-RPC 2.0 frames over `stdin` and `stdout`. Crucially, stdout must strictly be reserved for protocol messages; any logging or diagnostics must write to `stderr` or a log file to avoid desynchronizing Zed's ACP parser. Verified in [ADR 0004](adr/0004-acp-sdk-and-custom-agent-integration.md) and [ACP compatibility evidence](evidence/acp-compatibility-and-settings.md).
 
 ---
 
@@ -136,9 +150,15 @@ terminals. See full report: [Supported terminal hosting routes evidence](evidenc
 
 ## OQ-09 — ACP Rust SDK maturity · VERIFIED
 
-Checked 2026-09-13. `agent-client-protocol` reached 1.0.0 in June 2026 alongside the
-TypeScript SDK. Official SDKs exist for Rust, TypeScript, Python, Kotlin, and Java.
-No Go SDK.
+Checked 2026-09-13 and audited 2026-10-15 against crates.io (`agent-client-protocol` v3+) and docs.rs under [ZK-029.1](BACKLOG.md#task-zk-029-1).
+
+The official Rust SDK is published as `agent-client-protocol` on crates.io by the Agent Client Protocol working group. Key findings:
+- Feature flag `stdio` provides asynchronous standard I/O framing adapters.
+- Integrates seamlessly with Tokio 1.36+ (which is already part of Zedkata's workspace dependency tree for `crates/zedkata-lsp`).
+- Compatible with Rust 1.85 (the workspace MSRV verified in ZK-007.1). The early 1.75 assumption is permanently superseded.
+- Provides standard traits (`Agent`, `Client`) and typed wire messages for initialization, agent requests, prompts, and session management.
+
+Verified in [ADR 0004](adr/0004-acp-sdk-and-custom-agent-integration.md) and [ACP compatibility evidence](evidence/acp-compatibility-and-settings.md).
 
 ---
 
@@ -309,5 +329,65 @@ Audited 2026-10-15 against Zed 1.19.2 (`df181c6f58d02677b385fa947d6bfde6d3530078
    - `zedkata-lsp` has no access to tree cursor coordinates or filesystem manipulation hooks (OQ-04, REQ-10).
 3. **Curriculum Classification:**
    - Per REQ-25 and REQ-29, project panel navigation and netrw workflows are formally classified as **Guided Walkthroughs** (`[[walkthrough]] id = "project-panel-walkthrough"`) with complete reproducible multi-file fixtures (`lessons/fixtures/walkthroughs/project_panel/`), verified recipes (`docs/walkthroughs/project-panel.md`), and self-reported verification criteria.
+
+---
+
+## OQ-16 — Zed Multibuffer search, cross-file editing, and observation boundaries · VERIFIED (2026-10-15)
+
+Audited 2026-10-15 against Zed 1.19.2 (`df181c6f58d02677b385fa947d6bfde6d3530078`), official Zed documentation (`https://zed.dev/docs`, `https://zed.dev/docs/vim`), and native keymaps `assets/keymaps/vim.json` and `assets/keymaps/default.json` under [ZK-027.3](BACKLOG.md#task-zk-027-3).
+
+**Audit Findings & Keybindings:**
+1. **Multibuffer & Project Search Workflows:**
+   - **Deploy Project Search:** `g /` in Vim normal mode (`pane::DeploySearch`) or `ctrl-shift-f` / `cmd-shift-f` opens project search input.
+   - **Search Controls:** `alt-c` (case sensitive), `alt-w` (whole word), `alt-r` (regex), `ctrl-alt-r` / `alt-enter` (replace field).
+   - **Excerpt Navigation:** `n` / `N` in normal mode navigates search matches across excerpt boundaries; `j` / `k` moves across excerpt lines.
+   - **Context Expansion:** `shift-enter` (`editor::ExpandExcerpts`) expands surrounding context lines around an excerpt.
+   - **Excerpt Breakout:** `alt-enter` (`editor::OpenExcerpts`) opens the active excerpt in a dedicated full editor tab.
+   - **Multi-Cursor Across Excerpts:** `ctrl-d` (`editor::SelectNextMatch`) adds secondary cursors across excerpt boundaries for simultaneous edits (`c w`).
+   - **Multi-File Save:** `ctrl-s` (`:w`) inside a multibuffer saves all modified files represented in its excerpts simultaneously.
+   - **Find All References:** `g A` (`editor::FindAllReferences`) opens references in an excerpt multibuffer.
+2. **Outcome Classification & Observability Boundaries (REQ-25, REQ-29):**
+   - **Aggregate GPUI Surface:** A multibuffer is a synthetic aggregate view across disparate files rather than a single file buffer. It has no single file URI or single `.kata` buffer state.
+   - **Disparate Disk Edits:** Edits in a multibuffer modify the underlying source files (`src/session.rs`, `src/handlers.rs`, etc.), emitting `didChange` events for those files rather than the active `.kata` observer document.
+   - **No Single-Buffer Deterministic Goal State:** Drills require an exact start/goal string comparison. Multibuffer workflows modify arbitrary files or perform cross-file navigation and refactoring.
+   - **Internal GPUI States:** Search bar inputs, regex toggles, excerpt folding, and multi-cursor selections are GPUI internals with no external inspection hooks (REQ-10, OQ-04).
+3. **Curriculum Classification:**
+   - Per REQ-25 and REQ-29, multibuffer project search and cross-file editing workflows are formally classified as **Guided Walkthroughs** (`[[walkthrough]] id = "multibuffer-walkthrough"` in `lessons/zed-03-multibuffer.toml` and `docs/walkthroughs/multibuffer.md`) with reproducible multi-file fixtures (`lessons/fixtures/walkthroughs/multibuffer/`) and self-reported verification criteria, rather than false automated drill scores.
+
+---
+
+## OQ-17 — Zed Tasks, DAP Debugger, and observation boundaries · VERIFIED (2026-10-15)
+
+Audited 2026-10-15 against Zed 1.19.2 (`df181c6f58d02677b385fa947d6bfde6d3530078`), official Zed documentation (`https://zed.dev/docs/tasks.md`, `https://zed.dev/docs/debugger.md`, `https://zed.dev/docs/languages/rust.md`), and native keymaps `assets/keymaps/vim.json` and `assets/keymaps/default.json` under [ZK-027.4](BACKLOG.md#task-zk-027-4).
+
+**Audit Findings & Keybindings:**
+1. **Tasks Semantics & Workflows:**
+   - **Configuration Files:** `.zed/tasks.json` (worktree-specific), `%APPDATA%\Zed\tasks.json` / `~/.config/zed/tasks.json` (global, via `zed: open tasks`), `.vscode/tasks.json` (VS Code fallback).
+   - **Task Templates:** JSON array with `label`, `command`, `args`, `env`, `cwd`, `use_new_terminal`, `allow_concurrent_runs`, `reveal` (`always`, `no_focus`, `never`), `hide` (`never`, `always`, `on_success`), `shell`, `show_summary`, `show_command`, `save` (`all`, `current`, `none`), `tags`, `hooks` (`create_worktree`).
+   - **Dynamic Variables:** `$ZED_FILE`, `$ZED_FILENAME`, `$ZED_DIRNAME`, `$ZED_RELATIVE_FILE`, `$ZED_RELATIVE_DIR`, `$ZED_STEM`, `$ZED_SYMBOL`, `$ZED_SELECTED_TEXT`, `$ZED_LANGUAGE`, `$ZED_WORKTREE_ROOT`, `$ZED_MAIN_GIT_WORKTREE`, `$ZED_CUSTOM_RUST_PACKAGE`, `$ZED_ROW`, `$ZED_COLUMN`, and `${VAR:default}` syntax.
+   - **Interactions:** `task: spawn` (`task::Spawn`), `task: rerun` (`task::Rerun`), `Tab` in task picker to edit command in prompt, `alt-enter` to execute as ad-hoc oneshot task.
+2. **DAP Debugger Semantics & Keybindings:**
+   - **Architecture:** Client-side DAP implementation inside Zed, connecting to native debug adapters (`CodeLLDB` for Rust/C/C++, `vscode-js-debug` for JS/TS, `debugpy` for Python, `delve` for Go).
+   - **Configuration Files:** `.zed/debug.json` (project-local), `%APPDATA%\Zed\debug.json` (global, via `zed: open debug tasks`), `.vscode/launch.json` (VS Code fallback).
+   - **Configuration Schema:** Array of objects with `adapter`, `label`, `request` (`launch` or `attach`), `program`, `build` (pre-launch command or referenced task label), `sourceLanguages`.
+   - **Keybindings:**
+     - Start: `F4` or `space shift-g l` (`debugger::Start`).
+     - Breakpoints: Gutter click or `space shift-g b` (`editor::ToggleBreakpoint`). Supports conditional, hit count, and logpoint configurations.
+     - Continue: `F9` or `space shift-g c` (`debugger::Continue`).
+     - Step Over: `F8` or `space shift-g n` (`debugger::StepOver`).
+     - Step Into: `F7` or `space shift-g i` (`debugger::StepInto`).
+     - Step Out: `shift-F8` or `space shift-g o` (`debugger::StepOut`).
+     - Pause: `space shift-g h` (`debugger::Pause`).
+     - Restart: `space shift-g r` (`debugger::Restart`).
+     - Stop: `debugger::Stop`.
+3. **Observability Boundaries & Outcome Classification (REQ-25, REQ-29):**
+   - **Terminal Execution:** Tasks execute external processes whose streams are managed by Zed's integrated terminal subsystem, emitting **zero LSP `textDocument/didChange` modifications** on `.kata` drill buffers.
+   - **DAP Channels:** Debugger communicates over DAP protocol channels; breakpoint triggers, stack frames, and variable trees reside in DAP messages and GPUI debug views outside the document sync pipeline.
+   - **No Single-Buffer Deterministic Goal State:** Tasks compile code or run test suites; debugging inspects memory/runtime state. There is no single `.kata` buffer transformation.
+   - **Internal GPUI States:** The task picker modal, oneshot input bar, gutter breakpoint markers, and debug variable inspectors are internal to Zed's GPUI event loop without external APIs (REQ-10, OQ-04).
+4. **Curriculum Classification:**
+   - Per REQ-25 and REQ-29, tasks and debugger workflows are formally classified as **Guided Walkthroughs** (`[[walkthrough]] id = "tasks-and-debugger-walkthrough"` in `lessons/zed-04-tasks-and-debugger.toml` and `docs/walkthroughs/tasks-and-debugger.md`) with reproducible multi-file fixtures (`lessons/fixtures/walkthroughs/tasks_and_debugger/`) and self-reported verification criteria, rather than false automated drill scores.
+
+
 
 

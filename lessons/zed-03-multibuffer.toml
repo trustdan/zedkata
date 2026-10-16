@@ -1,0 +1,35 @@
+[lesson]
+id = "zed-03-multibuffer"
+title = "Multibuffer and cross-file editing"
+module = 8
+requires = ["zed-01-lsp-actions"]
+concepts = ["g /", "ctrl-shift-f", "alt-c", "alt-w", "alt-r", "shift-enter", "alt-enter", "ctrl-d", "ctrl-s", "g A"]
+draft = true
+
+prose = """
+Zed's signature multibuffer stitches together live excerpts from across multiple files
+into a single, fully-editable surface.
+Deploy project search with `g /` (or `ctrl-shift-f`) to find matches across your codebase.
+Navigate excerpts with `n` and `N`, expand surrounding context lines with `shift-enter`,
+and apply simultaneous edits or multi-cursor refactorings (`ctrl-d`) across file boundaries.
+Save all modified files in the multibuffer at once with `ctrl-s`, or jump into a full file tab
+with `alt-enter`.
+"""
+
+# ---------------------------------------------------------------------------
+# Not drillable — routes to zedkata-agent as an unscored guided walkthrough.
+# See docs/walkthroughs/multibuffer.md for full walkthrough recipes and verification.
+
+[[walkthrough]]
+id = "multibuffer-walkthrough"
+title = "Multibuffer search and simultaneous cross-file editing"
+prompt = """
+Demonstrate Zed's native multibuffer project search and cross-file editing workflows using
+the sample project tree in `lessons/fixtures/walkthroughs/multibuffer/`.
+Guide the student through:
+1. Deploying project search with `g /` (or `ctrl-shift-f`) and generating an excerpt multibuffer.
+2. Navigating matches across file boundaries (`n`, `N`) and expanding excerpt context (`shift-enter`).
+3. Performing direct Vim edits across multiple excerpts without tab switching.
+4. Using multi-cursor editing (`ctrl-d` + `c w`) across excerpt boundaries.
+5. Opening an individual excerpt into a full editor tab (`alt-enter`) and saving all modified files with `ctrl-s`.
+"""

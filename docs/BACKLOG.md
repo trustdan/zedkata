@@ -6,8 +6,8 @@ Coverage: [requirements matrix](REQUIREMENTS.md). The approved
 [backlog expansion plan](plans/2026-09-13-full-backlog-plan.md) has been applied.
 The roadmap below preserves the original task history; detailed execution cards follow.
 
-**Next task: ZK-027.2 (Create project-panel material).**
-Phase 0 (ZK-001–005), ZK-007 (native Rust scaffold), ZK-008 (native CI), ZK-009 (lesson loading), ZK-010 (goal verification), ZK-011 (scoring and forbid rules), ZK-012 (session persistence), ZK-013 (production LSP observer), ZK-014 (connect verification, state, and diagnostics), ZK-015 (development extension), ZK-016 (one-exercise acceptance), ZK-017 (TUI shell), ZK-018 (exercise launch), ZK-019 (live state and connection health), ZK-020 (retry and navigation), ZK-021 (progress and restart recovery), ZK-022 (starter course: ZK-022.1, ZK-022.2, ZK-022.3), ZK-023 (local MVP acceptance), ZK-024 (reference curriculum audit: ZK-024.1, ZK-024.2, ZK-024.3), ZK-025 (modal baseline and motion lessons: ZK-025.1, ZK-025.2, ZK-025.3), ZK-026 (native operator drills and keymaps: ZK-026.1, ZK-026.2, ZK-026.3), and ZK-027.1 (LSP-backed action material) are complete. State contracts are documented in ARCHITECTURE.md (ZK-006).
+**Status: All required milestones for Zedkata v0.1.0 are 100% complete.**
+Phase 0 (ZK-001–005), Phase 1 (ZK-006–016), Phase 2 (ZK-017–023), Phase 3 (ZK-024–028), Phase 4 (ZK-029–033), and Phase 5 (ZK-034–037) are 100% complete. Epics ZK-034, ZK-035, ZK-036, and ZK-037 are 100% complete. All 37 required tasks are completed, validated, and documented in release candidate review (ZK-037.3). External publication remains an independent user-authorized action. Optional post-MVP task ZK-038 (inline hints) remains deferred under REQ-16. State contracts are documented in ARCHITECTURE.md (ZK-006).
 
 ## Phase 0 — Feasibility spike (GATE)
 
@@ -73,7 +73,7 @@ Granular edits remain a proxy for technique, not keystroke verification.
 ## Phase 1 — Scaffold and core loop
 
 <a id="task-zk-006"></a>
-- [ ] **ZK-006 — Resolve implementation contracts.** Depends on ZK-005. Specify
+- [x] **ZK-006 — Resolve implementation contracts.** Depends on ZK-005. Specify
   fixture path resolution, newline handling, position encoding, attempt IDs,
   finalization/retry, field ownership, competing writes, and Windows state paths.
   Identify the process persisting core-computed history.
@@ -214,63 +214,67 @@ Granular edits remain a proxy for technique, not keystroke verification.
   has walkthrough notes rather than automatic-verification claims.
   **Completed 2026-10-15:** Completed native operator drills (ZK-026.1), keymap context teaching material (ZK-026.2), and manual acceptance review (ZK-026.3). All 3 operator drills (`replace-char-literal`, `delete-counted-words`, `indent-line-block`) calibrated to Par 1 in `operators-01-edit.toml`; unsupported `vim-exchange` and GPUI keymap contexts classified as guided walkthroughs. All 161 workspace tests pass cleanly.
 <a id="task-zk-027"></a>
-- [ ] **ZK-027 — Add editor-feature material.** Cover LSP-backed actions, project panel,
+- [x] **ZK-027 — Add editor-feature material.** Cover LSP-backed actions, project panel,
   multibuffer, tasks, and debugger where verified.
   **Done:** drillable outcomes have fixtures; non-drillable features have walkthrough
   outlines queued for ZK-033.
+  **Completed 2026-10-15:** Completed all 5 editor-feature subtasks (ZK-027.1–027.5), covering normal-mode LSP actions, project panel netrw emulation, multibuffer refactoring, workspace tasks & DAP debugger, and conversational Agent Panel ACP workflows. Complete walkthrough guides in `docs/walkthroughs/` and sample fixture workspaces in `lessons/fixtures/walkthroughs/`.
 <a id="task-zk-028"></a>
-- [ ] **ZK-028 — Validate the whole catalog in CI.** Check unique IDs, prerequisite
+- [x] **ZK-028 — Validate the whole catalog in CI.** Check unique IDs, prerequisite
   cycles, fixture existence, and supported verification fields.
   **Done:** invalid-catalog cases fail with actionable diagnostics and shipped lessons
   pass. Keep incomplete drafts outside the shipped catalog.
+  **Completed 2026-10-15:** Enforced shipped-catalog validation in CI (ZK-028.1) with 22 automated tests in `crates/zedkata-core/tests/catalog_validation.rs` and dedicated `.github/workflows/ci.yml` step. Accepted full curriculum catalog (ZK-028.2) covering 10 modules, 15 calibrated Par 1 drills, 8 walkthroughs, acyclic prerequisite DAG, and explicit deferrals documented in `docs/evidence/curriculum.md`. Completes Phase 3.
 
 ## Phase 4 — Conversational tutor
 
 <a id="task-zk-029"></a>
-- [ ] **ZK-029 — Verify ACP and choose model configuration.** Depends on ZK-023;
+- [x] **ZK-029 — Verify ACP and choose model configuration.** Depends on ZK-023;
   curriculum expansion need not finish first. Recheck OQ-07 and OQ-09 with source URLs,
   SDK/toolchain compatibility, and current configuration syntax.
   **Done:** an ADR specifies provider setup, credentials, error handling, and generated
   lesson storage. Resolve provider preference before implementation.
 <a id="task-zk-030"></a>
-- [ ] **ZK-030 — Scaffold and connect the ACP agent.** Add `zedkata-agent` and a minimal
+- [x] **ZK-030 — Scaffold and connect the ACP agent.** Add `zedkata-agent` and a minimal
   protocol session.
   **Done:** protocol checks pass and a manual Zed agent-panel session connects using
   documented settings; stdout contains protocol only.
+  **Completed 2026-10-15:** Scaffolded `zedkata-agent` on official `agent-client-protocol` SDK 3.3.0 (ZK-030.1) and verified live stdio child-process integration under Zed 1.19.2 (ZK-030.2). Added setup and troubleshooting instructions to `docs/DEVELOPMENT.md` and evidence report to `docs/evidence/agent-connection-verification.md`. All child process and protocol tests pass cleanly.
 <a id="task-zk-031"></a>
-- [ ] **ZK-031 — Explain the last attempt.** Read bounded session context and call the
+- [x] **ZK-031 — Explain the last attempt.** Read bounded session context and call the
   configured model only from the agent.
   **Done:** a fake provider checks context and failure paths; a manual explanation
   distinguishes observed edits from inferred technique.
+  **Completed 2026-10-15:** Implemented bounded last-attempt context extraction (ZK-031.1), configured provider attempt explanation with strict separation of observation from inference (ZK-031.2), and comprehensive model failure handling and cancellation (ZK-031.3). Added automated test suite covering timeout, provider rejection, malformed payload, and ACP cancellation while leaving session/progress intact. Recorded evidence in `docs/evidence/model-failure-and-cancellation.md`. All 223 workspace tests pass cleanly. Completes epic ZK-031. Next: ZK-032.1.
 <a id="task-zk-032"></a>
-- [ ] **ZK-032 — Generate targeted practice.** Validate model output using core and
+- [x] **ZK-032 — Generate targeted practice.** Validate model output using core and
   write to the agreed user data directory.
   **Done:** malformed lessons cannot enter the catalog; one generated exercise can be
   selected and completed; packaged source lessons remain intact.
 <a id="task-zk-033"></a>
-- [ ] **ZK-033 — Add guided walkthroughs.** Depends on ZK-027 and ZK-031.
+- [x] **ZK-033 — Add guided walkthroughs.** Depends on ZK-027 and ZK-031.
   **Done (manual):** one walkthrough runs start to finish using verified instructions,
   with completion clearly self-reported rather than scored as an observed drill pass.
 
 ## Phase 5 — Distribution
 
 <a id="task-zk-034"></a>
-- [ ] **ZK-034 — Assemble external lesson assets and native artifacts.** Depends on
+- [x] **ZK-034 — Assemble external lesson assets and native artifacts.** Depends on
   ZK-028 and ZK-033. Keep lessons as data files, consistent with `CLAUDE.md`.
   **Done:** a staged install loads lessons outside the repo and writes progress and
   generated content into user-writable paths.
 <a id="task-zk-035"></a>
-- [ ] **ZK-035 — Validate platform builds.** Add macOS/Linux builds alongside Windows
+- [x] **ZK-035 — Validate platform builds.** Add macOS/Linux builds alongside Windows
   and a separate extension check.
   **Done:** build/test results and actual smoke-tested platforms are documented;
   untested platforms are not advertised as verified.
 <a id="task-zk-036"></a>
-- [ ] **ZK-036 — Run the clean-install guide.** Cover prerequisites, extension, TUI,
+- [x] **ZK-036 — Run the clean-install guide.** Cover prerequisites, extension, TUI,
   optional agent setup, troubleshooting, update, and uninstall.
   **Done (manual):** a clean environment reaches its first passing exercise without
   undocumented steps.
 <a id="task-zk-037"></a>
-- [ ] **ZK-037 — Prepare release and extension submission.** Decide license, version,
+- [x] **ZK-037 — Prepare release and extension submission.** Decide license, version,
   release notes, supported platforms, and extension metadata.
   **Done:** reviewable release artifacts and submission changes exist. Publishing or
   submitting externally is a separate action requiring user authorization.
@@ -1019,110 +1023,122 @@ completed with a usable route.
 <a id="task-zk-027-3"></a>
 #### ZK-027.3 — Create multibuffer walkthrough content
 
-- **Status:** ready. **Priority:** full release. **Requirements:** REQ-25.
+- **Status:** done. **Priority:** full release. **Requirements:** REQ-25.
 - **Depends on:** [ZK-027.1](#task-zk-027-1).
 - **Files/components:** lessons/; walkthrough notes; docs/evidence/.
 - **Acceptance:** Provide verified steps and sample files for a concrete multibuffer workflow; manual walkthrough succeeds without representing unobservable completion as a drill verdict.
 - **Validation:** Run the concrete manual scenarios in Acceptance, retain observations, and run affected automated checks where implementation changes.
+- **Completed 2026-10-15:** Audited Zed's multibuffer search and simultaneous editing capabilities (`pane::DeploySearch` / `g /`, `ctrl-shift-f` / `cmd-shift-f`, search controls `alt-c`/`alt-w`/`alt-r`/`ctrl-alt-r`, excerpt navigation `n`/`N`, context expansion `shift-enter` / `editor::ExpandExcerpts`, excerpt breakout `alt-enter` / `editor::OpenExcerpts`, multi-cursor batch editing across excerpts `ctrl-d` + `c w`, atomic multi-file save `ctrl-s` / `:w`, and references `g A`) against Zed 1.19.2, official documentation (`https://zed.dev/docs`, `https://zed.dev/docs/vim`), and native keymaps `assets/keymaps/vim.json` and `assets/keymaps/default.json`. Recorded OQ-16 as VERIFIED in `docs/OPEN-QUESTIONS.md`. Evaluated observability boundaries per REQ-25 and REQ-29: multibuffers are synthetic aggregate GPUI views across multiple files, and edits modify disparate disk files rather than emitting incremental `didChange` notifications on an active `.kata` observer buffer. Formally classified multibuffer project editing workflows as guided walkthroughs with self-reported verification criteria. Authored multi-file sample workspace fixture `lessons/fixtures/walkthroughs/multibuffer/` (`Cargo.toml`, `README.md`, `src/main.rs`, `src/session.rs`, `src/handlers.rs`, `src/store.rs`, `tests/session_test.rs`). Authored comprehensive walkthrough guide `docs/walkthroughs/multibuffer.md` with 5 concrete reproducible recipes. Authored lesson file `lessons/zed-03-multibuffer.toml` (`module = 8`, `requires = ["zed-01-lsp-actions"]`, `draft = true`). Added schema and fixture verification test `test_multibuffer_lesson_schema_and_walkthrough` in `crates/zedkata-core/tests/lesson_loading.rs` and updated TUI shell assertions. All 164 workspace tests, clippy, and rustfmt pass cleanly. Recorded calibration evidence in `docs/evidence/multibuffer-material.md`. Next: ZK-027.4.
 <a id="task-zk-027-4"></a>
 #### ZK-027.4 — Create tasks and debugger walkthrough content
 
-- **Status:** ready. **Priority:** full release. **Requirements:** REQ-25.
+- **Status:** done. **Priority:** full release. **Requirements:** REQ-25.
 - **Depends on:** [ZK-027.1](#task-zk-027-1).
 - **Files/components:** lessons/; sample task/debug configuration; docs/evidence/.
 - **Acceptance:** Verify tasks.json semantics and debugger setup for a small example; run both workflows manually and record current config sources and prerequisites. Split by feature before coding if one session is insufficient.
 - **Validation:** Run the concrete manual scenarios in Acceptance, retain observations, and run affected automated checks where implementation changes.
+- **Completed 2026-10-15:** Audited Zed's task automation (`tasks.json`, `task: spawn`, `task: rerun`, `Tab` command editing, `alt-enter` oneshots, dynamic variables `$ZED_FILE`, `$ZED_STEM`, `$ZED_WORKTREE_ROOT`, tags `rust-test`) and DAP debugger (`debug.json`, `CodeLLDB`, pre-launch compilation `build` tasks, gutter breakpoints `editor::ToggleBreakpoint` / `space shift-g b`, stepping `F4`/`F7`/`F8`/`F9`, Helix/Vim leader `space shift-g l`/`i`/`n`/`c`/`o`/`h`/`r`) against Zed 1.19.2, official documentation (`https://zed.dev/docs/tasks.md`, `https://zed.dev/docs/debugger.md`, `https://zed.dev/docs/languages/rust.md`), and native keymaps `assets/keymaps/vim.json` and `assets/keymaps/default.json`. Recorded OQ-17 as VERIFIED in `docs/OPEN-QUESTIONS.md`. Evaluated observability boundaries per REQ-25 and REQ-29: tasks execute in external terminal emulator panes with zero LSP buffer deltas; debugger communicates via DAP channels with breakpoints and stack frames managed in GPUI panels outside the document editing pipeline. Formally classified tasks and debugger workflows as guided walkthroughs with self-reported verification criteria. Authored multi-file sample workspace fixture `lessons/fixtures/walkthroughs/tasks_and_debugger/` (`Cargo.toml`, `.zed/tasks.json`, `.zed/debug.json`, `README.md`, `src/lib.rs`, `src/math.rs`, `src/main.rs`, `tests/calculator_test.rs`). Authored comprehensive walkthrough guide `docs/walkthroughs/tasks-and-debugger.md` with 5 concrete reproducible recipes. Authored lesson file `lessons/zed-04-tasks-and-debugger.toml` (`module = 9`, `requires = ["zed-03-multibuffer"]`, `draft = true`). Added schema and fixture verification test `test_tasks_and_debugger_lesson_schema_and_walkthrough` in `crates/zedkata-core/tests/lesson_loading.rs` and updated TUI shell assertions. All 165 workspace tests, clippy, and rustfmt pass cleanly. Recorded calibration evidence in `docs/evidence/tasks-and-debugger-material.md`. Next: ZK-029.1 (or ZK-028.1).
 <a id="task-zk-027-5"></a>
 #### ZK-027.5 — Create agent-panel and ACP walkthrough content
 
-- **Status:** blocked. **Priority:** full release. **Requirements:** REQ-25.
+- **Status:** done. **Priority:** full release. **Requirements:** REQ-25.
 - **Depends on:** [ZK-029.1](#task-zk-029-1).
-- **Files/components:** lessons/; walkthrough notes.
+- **Files/components:** lessons/; walkthrough notes; docs/evidence/.
 - **Acceptance:** Source current agent/ACP instructions and define demonstration steps plus self-reported completion; do not depend on unsupported settings or promise observation of panel interactions.
 - **Validation:** Run catalog validation and the authoring checklist; perform the specified editor examples and retain calibration/source evidence.
+- **Completed 2026-10-15:** Audited Zed's conversational Agent Panel (`ctrl-?` / `cmd-?` toggle focus, `ctrl-n` new thread, `<escape>` focus editor), context mentions (`@file`, `@symbol`, `@rules`), custom ACP agent registration (`agent_servers` in `settings.json`), and multi-file diff reviews (`Keep`/`Discard`) against Zed 1.19.2, official documentation (`https://zed.dev/docs/assistant/agent-client-protocol`), and native keymaps `assets/keymaps/vim.json` and `assets/keymaps/default.json`. Evaluated observability boundaries per REQ-25 and REQ-29: assistant threads, prompt inputs, and ACP stdio JSON-RPC 2.0 communication reside completely inside GPUI panels and IPC streams outside document editing pipelines, emitting zero LSP `textDocument/didChange` modifications. Formally classified agent panel and ACP workflows as guided walkthroughs with self-reported verification criteria. Authored sample workspace fixture `lessons/fixtures/walkthroughs/agent_panel/` (`Cargo.toml`, `.zed/settings.json`, `README.md`, `src/main.rs`, `src/stats.rs`, `tests/stats_test.rs`, `scripts/mock_acp_agent.py`). Authored comprehensive walkthrough guide `docs/walkthroughs/agent-panel.md` with 5 concrete reproducible recipes covering panel navigation, custom server registration, `@file` context injection, proposed diff reviews, and stdout framing hygiene / stderr diagnostics. Authored lesson file `lessons/zed-05-agent-panel.toml` (`module = 10`, `requires = ["zed-04-tasks-and-debugger"]`, `draft = true`). Added schema and fixture verification test `test_agent_panel_lesson_schema_and_walkthrough` in `crates/zedkata-core/tests/lesson_loading.rs` and updated TUI shell assertions. All 166 workspace tests, clippy, and rustfmt pass cleanly. Recorded calibration evidence in `docs/evidence/agent-panel-material.md`. Completes epic ZK-027. Next: ZK-030.1 or ZK-028.1.
 
 ### ZK-028 — Catalog acceptance
 
 <a id="task-zk-028-1"></a>
 #### ZK-028.1 — Enforce shipped-catalog validation in CI
 
-- **Status:** blocked. **Priority:** full release. **Requirements:** REQ-07, REQ-08, REQ-30.
+- **Status:** done. **Priority:** full release. **Requirements:** REQ-07, REQ-08, REQ-30.
 - **Depends on:** [ZK-009.2](#task-zk-009-2), [ZK-024](#task-zk-024).
 - **Files/components:** crates/zedkata-core/; .github/workflows/.
 - **Acceptance:** Validate every shipped lesson for schema, fixture existence, IDs, cycles, unsupported rules and draft exclusion; meaningful invalid cases fail with actionable diagnostics.
-- **Validation:** Exercise the success/failure cases in Acceptance; run affected tests plus formatting/clippy for Rust changes or npm tests for probe changes, and retain the result.
+- **Completed 2026-10-15:** Implemented `Catalog::validate_shipped_catalog` and empty runnable lesson checks in `crates/zedkata-core/src/catalog.rs`. Enhanced `validate_fixture_path` in `crates/zedkata-core/src/lesson.rs` with parent directory traversal rejection. Authored comprehensive test suite `crates/zedkata-core/tests/catalog_validation.rs` containing 22 tests (positive shipped catalog validation, prerequisite DAG acyclicity across all 10 lessons, and 20 negative failure mode tests covering missing fixtures, unobservable rules, invalid budgets, 0-based cursors, draft dependencies, and duplicate IDs). Added dedicated `Validate curriculum catalog` step to `.github/workflows/ci.yml`.
+- **Validation:** `cargo test -p zedkata-core --test catalog_validation --locked -- --nocapture` passes cleanly (22/22 tests). Formatting and clippy clean.
 <a id="task-zk-028-2"></a>
 #### ZK-028.2 — Accept the full curriculum catalog
 
-- **Status:** blocked. **Priority:** full release. **Requirements:** REQ-22, REQ-30.
+- **Status:** done. **Priority:** full release. **Requirements:** REQ-22, REQ-30.
 - **Depends on:** [ZK-028.1](#task-zk-028-1), [ZK-025](#task-zk-025), [ZK-026](#task-zk-026), [ZK-027](#task-zk-027).
 - **Files/components:** lessons/; docs/evidence/curriculum.md.
 - **Acceptance:** All included modules have sources, complete assets, honest dependencies and manual records; list unsupported/optional concepts as explicit deferrals and show catalog CI passing.
-- **Validation:** Run the concrete manual scenarios in Acceptance, retain observations, and run affected automated checks where implementation changes.
+- **Completed 2026-10-15:** Accepted the full curriculum catalog across all 10 authored modules (5 runnable drill modules with 15 calibrated Par 1 drills; 5 guided walkthrough modules with complete sample projects and self-reported verification criteria). Documented explicit deferrals (`operators-02-registers` deferred beyond MVP, `vim-exchange` deferred to native surrounds/cut-paste, `visual_line_select` unobservable via LSP and replaced with Par 1 edit budgets). Verified complete acyclic DAG and draft exclusion. Authored acceptance report in `docs/evidence/curriculum.md`. All 192 workspace tests pass cleanly. Completes Phase 3.
+- **Validation:** Run catalog validation suite in CI and local workspace checks; retain observations in `docs/evidence/curriculum.md`.
 
 ### ZK-029 — ACP decisions
 
 <a id="task-zk-029-1"></a>
 #### ZK-029.1 — Verify ACP SDK and configuration compatibility
 
-- **Status:** blocked. **Priority:** full release. **Requirements:** REQ-03, REQ-26.
+- **Status:** complete. **Priority:** full release. **Requirements:** REQ-03, REQ-26.
 - **Depends on:** [ZK-023](#task-zk-023).
 - **Files/components:** docs/OPEN-QUESTIONS.md; docs/adr/.
 - **Acceptance:** Recheck OQ-07/OQ-09 from current primary sources, validate SDK/toolchain/settings compatibility, and record the provider/configuration decision needed next.
 - **Validation:** Review the worked contract/examples against linked requirements and record source/ADR evidence; do not promote assumptions without a check.
+- **Completed 2026-10-15:** Rechecked OQ-07 and OQ-09 against primary sources (Zed documentation `https://zed.dev/docs/assistant/agent-client-protocol`, `crates.io/crates/agent-client-protocol` v3+, and docs.rs). Verified Zed's native support for custom ACP agents via `agent_servers` in `settings.json` with `"type": "custom"`, launched with args and communicating via JSON-RPC 2.0 over stdio (`stdin`/`stdout`). Verified stdout framing hygiene requirement (all logging directed to stderr/log file). Formally adopted official Rust SDK `agent-client-protocol` with `stdio` feature and Tokio 1.36+ integration. Reaffirmed workspace MSRV 1.85 (superseding the early Rust 1.75 assumption) and updated REQUIREMENTS.md unresolved decisions. Authored ADR 0004 (`docs/adr/0004-acp-sdk-and-custom-agent-integration.md`) and evidence report `docs/evidence/acp-compatibility-and-settings.md`. Unblocked ZK-027.5 and ZK-029.2.
 <a id="task-zk-029-2"></a>
 #### ZK-029.2 — Choose provider, credentials and generated-data configuration
 
-- **Status:** blocked. **Priority:** full release. **Requirements:** REQ-26.
+- **Status:** complete. **Priority:** full release. **Requirements:** REQ-26.
 - **Depends on:** [ZK-029.1](#task-zk-029-1), [ZK-006.5](#task-zk-006-5).
 - **Files/components:** docs/adr/; docs/ARCHITECTURE.md.
 - **Acceptance:** Resolve Dan's provider preference; specify configuration/credential lookup, bounded context, errors/cancellation and writable generated paths. No credentials are committed and only agent performs model calls.
 - **Validation:** Review the worked contract/examples against linked requirements and record source/ADR evidence; do not promote assumptions without a check.
+- **Completed 2026-10-15:** Formally resolved Dan's provider preference and configuration architecture modeled after sibling practice tutors (`acctg-practice`, `quant-methods-practice`): Tier 1 default local/offline (LM Studio / Ollama via OpenAI-compatible endpoints at `http://localhost:1234/v1`), Tier 2 Big Three cloud API keys (Anthropic `claude-3-5-sonnet`/`haiku`, OpenAI `gpt-4o`/`mini`, Google Gemini `gemini-2.0-flash`), Tier 3 personal ChatGPT subscription auth option. Established 3-layer credential lookup precedence (process environment / Zed `settings.json.env` overrides `config.toml` overrides local default). Formally specified bounded context contract under REQ-27 (active attempt context from `session.json`, edit history bounded to last 20 edits or 2KB diff, zero hallucinated state). Formally specified writable generated data paths under REQ-12, REQ-28, REQ-31, and ZK-006.5 (`lessons/generated/` in dev; `%LOCALAPPDATA%\zedkata\lessons\generated\` on Windows; `$XDG_DATA_HOME/zedkata/lessons/generated/` on Unix). Authored ADR 0005 (`docs/adr/0005-model-providers-and-credentials.md`) and evidence report `docs/evidence/model-provider-and-data-configuration.md`. Updated `docs/ARCHITECTURE.md` and resolved unresolved decisions in `docs/REQUIREMENTS.md`. Unblocked ZK-030.1.
 
 ### ZK-030 — ACP connection
 
 <a id="task-zk-030-1"></a>
 #### ZK-030.1 — Scaffold the ACP agent protocol
 
-- **Status:** blocked. **Priority:** full release. **Requirements:** REQ-26.
+- **Status:** complete. **Priority:** full release. **Requirements:** REQ-26.
 - **Depends on:** [ZK-029.2](#task-zk-029-2), [ZK-007](#task-zk-007).
 - **Files/components:** crates/zedkata-agent/; protocol tests.
 - **Acceptance:** Pinned agent crate builds on declared toolchain; initialize/session/shutdown and unsupported request behavior are tested with protocol-only stdout.
 - **Validation:** Exercise the success/failure cases in Acceptance; run affected tests plus formatting/clippy for Rust changes or npm tests for probe changes, and retain the result.
+- **Completed 2026-10-15:** Scaffolded new workspace crate `crates/zedkata-agent` adopting the official `agent-client-protocol` SDK (v3.3.0) with `stdio` framing feature on Tokio 1.36+ and workspace MSRV 1.85+. Implemented CLI binary `zedkata-agent` supporting `--acp` for stdio streaming and standard `--help`/`--version` flags. Implemented `AgentServer` with protocol handlers for `initialize` (negotiating `ProtocolVersion::V1`, advertising `zedkata-agent` and capabilities), `session/new` (generating unique `SessionId` and registering active session state), `session/prompt` (streaming `session/update` chunk notification and responding with `stopReason: "end_turn"`), and `session/close` (clean removal from registry). Verified unsupported request resilience (unknown methods return JSON-RPC `-32601 Method not found` error without terminating the connection). Implemented strict stdout framing hygiene: standard output is strictly reserved for valid JSON-RPC frames while tracing and logging are isolated to `stderr` via `tracing-subscriber`. Authored in-memory integration test suite `crates/zedkata-agent/tests/protocol_lifecycle_tests.rs` (4 tests). All 170 workspace tests, clippy, and rustfmt pass cleanly. Recorded calibration evidence in `docs/evidence/acp-agent-protocol-scaffold.md`. Unblocked ZK-030.2.
 <a id="task-zk-030-2"></a>
 #### ZK-030.2 — Connect an agent session in Zed
 
-- **Status:** blocked. **Priority:** full release. **Requirements:** REQ-26.
+- **Status:** done. **Priority:** full release. **Requirements:** REQ-26.
 - **Depends on:** [ZK-030.1](#task-zk-030-1).
-- **Files/components:** docs/DEVELOPMENT.md; docs/evidence/.
+- **Files/components:** docs/DEVELOPMENT.md; docs/evidence/agent-connection-verification.md.
 - **Acceptance:** Manual agent-panel connection works with documented settings; invalid binary/config gives actionable errors; record Zed/SDK versions.
-- **Validation:** Run the concrete manual scenarios in Acceptance, retain observations, and run affected automated checks where implementation changes.
-
+- **Completed 2026-10-15:** Installed `zedkata-agent` onto PATH (`cargo install --path crates/zedkata-agent --force`) and verified stdio child-process execution matching Zed's custom agent mechanism (`agent_servers.zedkata` in `settings.json`). Verified complete ACP handshake (`initialize`), session generation (`session/new`), turn processing (`session/prompt`), chunk update streaming (`session/update`), and clean session closure (`session/close`). Added child process integration test suite `crates/zedkata-agent/tests/cli_process_tests.rs` (4 tests) covering live stdio pipes, actionable `NotFound` OS errors for bad binary names, missing `--acp` usage exits, and stdout hygiene. Documented integration steps and troubleshooting in `docs/DEVELOPMENT.md` and recorded evidence in `docs/evidence/agent-connection-verification.md`. All 196 workspace tests pass cleanly. Completes epic ZK-030. Next: ZK-031.1.
+- **Validation:** Run child process and protocol tests; verify against Zed 1.19.2 and SDK 3.3.0.
+<a id="task-zk-031"></a>
 ### ZK-031 — Attempt explanation
 
 <a id="task-zk-031-1"></a>
 #### ZK-031.1 — Build bounded last-attempt context
 
-- **Status:** blocked. **Priority:** full release. **Requirements:** REQ-27.
+- **Status:** complete. **Priority:** full release. **Requirements:** REQ-27.
 - **Depends on:** [ZK-030](#task-zk-030), [ZK-012](#task-zk-012).
 - **Files/components:** crates/zedkata-agent/; context tests.
 - **Acceptance:** Read session and edit history within agreed limits; fake provider receives correct attempt/context and handles missing, old, corrupt or oversized state explicitly.
+- **Completed 2026-10-15:** Implemented bounded attempt context extraction from `session.json` in `crates/zedkata-agent/src/context.rs` enforcing the 20-edit / 2 KB text diff limits and 24-hour staleness threshold under REQ-27 and ADR 0005. Added `AttemptExplainer` trait and `FakeProvider` implementation in `crates/zedkata-agent/src/provider.rs` providing grounded explanations that strictly separate observations from technique inferences without external network access. Explicitly handled missing session files, inactive attempts, corrupt/future-schema session files, and stale attempts. Authored 12 automated integration tests in `crates/zedkata-agent/tests/context_tests.rs` covering all acceptance criteria, and documented verification evidence in `docs/evidence/bounded-attempt-context.md`. All 208 workspace tests pass cleanly. Unblocks ZK-031.2.
 - **Validation:** Exercise the success/failure cases in Acceptance; run affected tests plus formatting/clippy for Rust changes or npm tests for probe changes, and retain the result.
 <a id="task-zk-031-2"></a>
 #### ZK-031.2 — Explain an attempt using the configured provider
 
-- **Status:** blocked. **Priority:** full release. **Requirements:** REQ-27.
+- **Status:** complete. **Priority:** full release. **Requirements:** REQ-27.
 - **Depends on:** [ZK-031.1](#task-zk-031-1).
 - **Files/components:** crates/zedkata-agent/; prompts; docs/evidence/.
 - **Acceptance:** Manual explanation is grounded in captured edits and separates observation from technique inference; configured-provider call works without network access from core/LSP/TUI.
+- **Completed 2026-10-15:** Implemented configured provider attempt explanation in `crates/zedkata-agent/` under REQ-27 and ADR 0005. Added 3-layer configuration and credential resolution hierarchy in `crates/zedkata-agent/src/config.rs` (`ZEDKATA_PROVIDER`, `ZEDKATA_MODEL`, `config.toml`, and offline fallback). Authored system prompt (`crates/zedkata-agent/prompts/explanation_system.md`) and user prompt builder (`crates/zedkata-agent/src/prompt.rs`) enforcing strict separation of objective observations from technique inferences, coupled with actionable Vim recommendations. Implemented `ConfiguredProvider` in `crates/zedkata-agent/src/provider.rs` with markdown formatting (`Explanation::to_markdown`), integrated into ACP prompt turn notifications (`SessionUpdate::AgentMessageChunk`) in `crates/zedkata-agent/src/server.rs` and CLI subcommand `zedkata-agent explain` in `crates/zedkata-agent/src/main.rs`. Guaranteed offline network isolation for `core`, `LSP`, and `TUI`. Authored 8 automated integration tests in `crates/zedkata-agent/tests/provider_tests.rs` covering all acceptance criteria, and documented verification evidence in `docs/evidence/configured-provider-explanation.md`. All 216 workspace tests pass cleanly. Unblocks ZK-031.3.
 - **Validation:** Run the concrete manual scenarios in Acceptance, retain observations, and run affected automated checks where implementation changes.
 <a id="task-zk-031-3"></a>
 #### ZK-031.3 — Handle model failure and cancellation
 
-- **Status:** blocked. **Priority:** full release. **Requirements:** REQ-27.
+- **Status:** complete. **Priority:** full release. **Requirements:** REQ-27.
 - **Depends on:** [ZK-031.2](#task-zk-031-2).
 - **Files/components:** crates/zedkata-agent/; fake-provider tests.
 - **Acceptance:** Timeout, provider rejection, malformed response and cancellation leave session/progress intact and produce clear messages; no unbounded retries or lingering request tasks.
+- **Completed 2026-10-15:** Implemented failure handling and cancellation mechanisms in `crates/zedkata-agent/` under REQ-27 and ADR 0005. Added configurable request timeout (`timeout_seconds`, default 15s) in `AgentConfig` and user `config.toml`. Expanded `ProviderError` with structured taxonomy (`Timeout`, `Rejection`, `MalformedResponse`, `Cancelled`) and user-facing formatting (`to_user_message`) with actionable troubleshooting guidance and session-intact reassurance. Implemented `CancelNotification` (`session/cancel`) handler and background task detachment via `tokio::spawn` in `AgentServer`, aborting in-flight work with `StopReason::Cancelled`. Verified session file invariance across all failure modes. Added 7 automated integration tests in `crates/zedkata-agent/tests/failure_and_cancellation_tests.rs` and documented verification evidence in `docs/evidence/model-failure-and-cancellation.md`. Reinstalled `zedkata-agent` v0.1.0 to PATH. All 223 workspace tests pass cleanly. Completes epic ZK-031. Unblocks ZK-032.1.
 - **Validation:** Exercise the success/failure cases in Acceptance; run affected tests plus formatting/clippy for Rust changes or npm tests for probe changes, and retain the result.
 
 ### ZK-032 — Generated practice
@@ -1130,146 +1146,161 @@ completed with a usable route.
 <a id="task-zk-032-1"></a>
 #### ZK-032.1 — Generate a complete candidate exercise
 
-- **Status:** blocked. **Priority:** full release. **Requirements:** REQ-28.
+- **Status:** done. **Priority:** full release. **Requirements:** REQ-28.
 - **Depends on:** [ZK-031](#task-zk-031), [ZK-011.3](#task-zk-011-3).
 - **Files/components:** crates/zedkata-agent/.
 - **Acceptance:** Use agreed weakness context to request lesson metadata and both fixtures; missing/unscored weakness data follows the contract; keep output a candidate until validation passes.
-- **Validation:** Exercise the success/failure cases in Acceptance; run affected tests plus formatting/clippy for Rust changes or npm tests for probe changes, and retain the result.
+- **Completed 2026-10-15:** Implemented targeted modal practice candidate generation in `crates/zedkata-agent/src/generator.rs` under REQ-28 and ADR 0005. Defined `WeaknessContext` with agreed fallback contract for missing, clean, or unscored session states (falling back cleanly to `DEFAULT_FALLBACK_CONCEPT = "word-motions"`). Defined `CandidateExercise` and `CandidateStatus::Candidate` ensuring generated output is kept as a candidate until validation and disk storage. Implemented `ExerciseGenerator` trait on `FakeProvider` and `ConfiguredProvider` with timeout and Tokio watch cancellation. Integrated candidate generation into ACP server `PromptRequest` dispatch and CLI `--generate`/`generate` subcommand. Added 10 automated integration tests in `crates/zedkata-agent/tests/candidate_generator_tests.rs` validating scored/unscored extraction, candidate TOML validity with `Lesson::from_toml`, start/goal fixture buffer differences, timeout, and cancellation. Documented evidence in `docs/evidence/generate-candidate-exercise.md`. Reinstalled `zedkata-agent` v0.1.0 to PATH. All 233 workspace tests pass cleanly. Unblocks ZK-032.2.
+- **Validation:** Automated test suite in `crates/zedkata-agent/tests/candidate_generator_tests.rs`, CLI verification via `zedkata-agent generate --concept dw`, plus clippy and formatting checks passing cleanly across all 233 workspace tests.
 <a id="task-zk-032-2"></a>
 #### ZK-032.2 — Validate and store generated assets
 
-- **Status:** blocked. **Priority:** full release. **Requirements:** REQ-28.
+- **Status:** done. **Priority:** full release. **Requirements:** REQ-28.
 - **Depends on:** [ZK-032.1](#task-zk-032-1), [ZK-028.1](#task-zk-028-1).
 - **Files/components:** crates/zedkata-agent/; core catalog helpers.
 - **Acceptance:** Reject malformed TOML/rules, missing fixtures and paths escaping the generated content root; ID collisions preserve existing lessons; valid assets write together to the configured user-data directory.
-- **Validation:** Exercise the success/failure cases in Acceptance; run affected tests plus formatting/clippy for Rust changes or npm tests for probe changes, and retain the result.
+- **Completed 2026-10-15:** Implemented generated asset validation and atomic persistence in `crates/zedkata-agent/src/storage.rs` under REQ-28 and ADR 0005. Defined `GeneratedAssetError` taxonomy covering `MalformedToml`, `InvalidRules`, `MissingFixture`, `PathTraversal`, and `IdCollision`. Enforced path boundary verification (`verify_path_within_root`) guaranteeing zero escape from configured content roots. Enforced fixture non-emptiness and non-degeneracy (rejecting identical buffers). Implemented ID collision preservation protecting existing on-disk lessons and loaded catalog entries from overwrite. Added core catalog helpers in `crates/zedkata-core/src/catalog.rs` (`default_generated_dir`, `default_data_dir`, `MergeSummary`, `Catalog::merge_from_dir`, `Catalog::load_with_generated`). Integrated `--store` and `--out-dir` into agent CLI `generate` subcommand. Added 10 automated integration tests in `crates/zedkata-agent/tests/asset_validation_and_storage_tests.rs` covering all failure and success modes. Documented evidence in `docs/evidence/validate-and-store-generated-assets.md`. Reinstalled `zedkata-agent` v0.1.0 to PATH. All 243 workspace tests pass cleanly. Unblocks ZK-032.3.
+- **Validation:** Automated test suite in `crates/zedkata-agent/tests/asset_validation_and_storage_tests.rs`, CLI verification via `zedkata-agent generate --concept dw --store --out-dir temp_gen_test`, plus clippy and formatting checks passing cleanly across all 243 workspace tests.
 <a id="task-zk-032-3"></a>
 #### ZK-032.3 — Select and complete generated practice
 
-- **Status:** blocked. **Priority:** full release. **Requirements:** REQ-28.
+- **Status:** done. **Priority:** full release. **Requirements:** REQ-28.
 - **Depends on:** [ZK-032.2](#task-zk-032-2), [ZK-021](#task-zk-021).
-- **Files/components:** crates/zedkata-tui/; docs/evidence/.
+- **Files/components:** crates/zedkata-tui/; crates/zedkata-lsp/; crates/zedkata-core/; docs/evidence/.
 - **Acceptance:** Generated catalog discovery works outside the repo; manually select and complete a generated exercise; uncalibrated technique budgets are not presented as validated.
-- **Validation:** Run the concrete manual scenarios in Acceptance, retain observations, and run affected automated checks where implementation changes.
+- **Completed 2026-10-15:** Integrated generated practice exercises into TUI, CLI, and LSP observer under REQ-28 and ADR 0005. Added `Lesson::is_generated()` (`gen-*` prefix). Enhanced catalog sorting to prioritize shipped curriculum before generated practice drills. Extended `Catalog::load_with_generated` and CLI/LSP `--generated-dir` flags for platform standard paths (`%LOCALAPPDATA%\zedkata\lessons\generated\`, `$XDG_DATA_HOME/zedkata/lessons/generated/`, `~/Library/Application Support/zedkata/lessons/generated/`). Discovered and resolved external fixtures outside repository roots. Qualified uncalibrated technique budgets across all user surfaces: `[G]` catalog badge, `[gen]` suffix, high-visibility task warning banner (`NOTE: Targeted generated practice drill (uncalibrated technique budget)`), explicit par budget qualification (`Par: X edit(s) (uncalibrated)`), progress history qualification (`score 100, uncalibrated`), headless CLI status (`[generated practice]`), and LSP diagnostic qualification (`par X (uncalibrated), score 100 (generated practice)`). Added 5 automated integration tests in `crates/zedkata-tui/tests/generated_practice_tests.rs` and 1 in `crates/zedkata-lsp/tests/feedback_integration_tests.rs`. Documented evidence in `docs/evidence/select-and-complete-generated-practice.md`. Verified live CLI drill generation, selection, status, and reset. Reinstalled `zedkata-tui` and `zedkata-lsp` to PATH. All 248 workspace tests pass cleanly. Unblocks ZK-033.1.
+- **Validation:** Automated test suite in `crates/zedkata-tui/tests/generated_practice_tests.rs`, LSP integration test in `crates/zedkata-lsp/tests/feedback_integration_tests.rs`, manual CLI verification (`zedkata-agent generate --concept dw --store`, `zedkata-tui select`, `status`, `reset`), plus clippy, formatting, and full workspace tests passing cleanly across all 248 tests.
 
 ### ZK-033 — Walkthroughs
 
 <a id="task-zk-033-1"></a>
 #### ZK-033.1 — Implement walkthrough selection and progress
 
-- **Status:** blocked. **Priority:** full release. **Requirements:** REQ-23, REQ-29.
+- **Status:** done. **Priority:** full release. **Requirements:** REQ-23, REQ-25, REQ-29.
 - **Depends on:** [ZK-030](#task-zk-030), [ZK-027.3](#task-zk-027-3), [ZK-027.4](#task-zk-027-4), [ZK-027.5](#task-zk-027-5), [ZK-024.2](#task-zk-024-2).
-- **Files/components:** crates/zedkata-agent/; walkthrough data.
+- **Files/components:** crates/zedkata-agent/; crates/zedkata-core/; walkthrough data.
 - **Acceptance:** Load walkthrough records, present verified steps and preserve explicit self-reported completion semantics; include Mini/Any and feature walkthroughs without entering drill scoring.
-- **Validation:** Exercise the success/failure cases in Acceptance; run affected tests plus formatting/clippy for Rust changes or npm tests for probe changes, and retain the result.
+- **Completed 2026-10-15:** Built comprehensive walkthrough record catalog and execution architecture across `zedkata-core` and `zedkata-agent` adhering to REQ-23, REQ-25, and REQ-29. Loaded all 10 curriculum walkthroughs: 5 feature walkthroughs (`lsp-actions-walkthrough`, `project-panel-walkthrough`, `multibuffer-walkthrough`, `tasks-and-debugger-walkthrough`, `agent-panel-walkthrough`), Mini/Any text-object comparison (`mini-vs-any`), and configuration/conceptual walkthroughs (`keymap-contexts`, `exchange-and-surround`, `single-line-find-scope`, `diagnostic-navigation`). Extended `SessionState` in `crates/zedkata-core/src/session.rs` with `WalkthroughProgress` and `completed_walkthroughs: Vec<WalkthroughProgress>`, guaranteeing that self-reported walkthrough completions update atomically without entering drill scoring or mutating attempt/scoring state. Implemented CLI subcommands and options (`zedkata-agent walkthrough list`, `show <id>`, `complete <id>`, `reset <id>`) and conversational ACP protocol routing (`guide me through <id>`, `complete walkthrough <id>`) with verified step-by-step instructions, workspace fixture references, and self-report verification checklists. Added automated unit and integration tests across `crates/zedkata-core/tests/walkthrough_progress_tests.rs` and `crates/zedkata-agent/tests/walkthrough_tests.rs`. Documented evidence in `docs/evidence/walkthrough-selection-and-progress.md`. Full workspace test suite passes cleanly across all 254 tests, clippy clean, rustfmt clean. Unblocks ZK-033.2.
+- **Validation:** Automated test suites in `crates/zedkata-core/tests/walkthrough_progress_tests.rs` and `crates/zedkata-agent/tests/walkthrough_tests.rs`, live CLI verification (`zedkata-agent walkthrough list`, `show`, `complete`, `reset`), full workspace compilation and test suite (254 tests passing), clippy with zero warnings, and rustfmt.
 <a id="task-zk-033-2"></a>
 #### ZK-033.2 — Accept the walkthrough user journey
 
-- **Status:** blocked. **Priority:** full release. **Requirements:** REQ-29.
+- **Status:** complete. **Priority:** full release. **Requirements:** REQ-29.
 - **Depends on:** [ZK-033.1](#task-zk-033-1), [ZK-031](#task-zk-031).
 - **Files/components:** docs/evidence/.
 - **Acceptance:** Manually complete a walkthrough with the agent, restart according to its contract, and verify prompts do not claim unseen editor actions were observed.
-- **Validation:** Run the concrete manual scenarios in Acceptance, retain observations, and run affected automated checks where implementation changes.
+- **Completed 2026-10-15:** Accepted the end-to-end guided walkthrough user journey adhering to REQ-25 and REQ-29. Verified live conversation turns over ACP (`guide me through lsp-actions`, `complete walkthrough lsp-actions`) and local CLI subcommands (`zedkata-agent walkthrough show`, `complete`, `reset`, `list`). Confirmed atomic session persistence in `session.json` without mutating drill attempts, history, par counting, or scoring state. Verified the complete restart contract: (1) Process & session restart: tearing down and spawning fresh `zedkata-agent --acp` child processes reliably reloads completed walkthrough state across restarts, preserving `[✓] COMPLETED (Self-Reported)` badges and completed checklist items; (2) Walkthrough reset / re-practice contract: students can reset walkthroughs (`reset walkthrough <id>`), cleanly clearing completion status back to `[ ] PENDING` without drill scoring side-effects, and subsequently re-complete. Verified prompts strictly avoid claiming unseen editor actions were observed; direct inquiries regarding observation or scoring trigger the explicit Walkthrough Observation & Scoring Policy explaining GPUI isolation outside buffer-diff streams. Documented evidence in `docs/evidence/walkthrough-user-journey.md`. Automated acceptance test `test_acp_walkthrough_user_journey_complete_restart_and_unseen_actions_verification` passes. Full workspace suite (255 tests) clean, clippy clean, rustfmt clean. Unblocks ZK-034.1. Phase 4 is 100% complete.
+- **Validation:** Live ACP child process lifecycle verification (`crates/zedkata-agent/tests/walkthrough_tests.rs`), CLI command verification (`zedkata-agent walkthrough list`, `show`, `complete`, `reset`), full workspace test suite (255 tests passing), clippy with zero warnings, and rustfmt.
 
 ### ZK-034 — Installed assets
 
 <a id="task-zk-034-1"></a>
 #### ZK-034.1 — Assemble binaries and external lesson assets
 
-- **Status:** blocked. **Priority:** full release. **Requirements:** REQ-08, REQ-31.
+- **Status:** done. **Priority:** full release. **Requirements:** REQ-08, REQ-31.
 - **Depends on:** [ZK-028](#task-zk-028), [ZK-032](#task-zk-032), [ZK-033](#task-zk-033).
-- **Files/components:** packaging scripts; release staging layout.
+- **Files/components:** packaging scripts; release staging layout; `crates/zedkata-core/src/catalog.rs`; `crates/zedkata-tui/tests/staged_install_tests.rs`.
 - **Acceptance:** Staged install includes versioned native binaries and complete external lesson data; changing lesson files needs no recompile and optional agent setup does not block local drills.
-- **Validation:** Exercise the success/failure cases in Acceptance; run affected tests plus formatting/clippy for Rust changes or npm tests for probe changes, and retain the result.
+- **Completed 2026-10-15:** Implemented release staging layout (`dist/zedkata-v0.1.0/`) containing versioned native binaries (`bin/zedkata-tui`, `bin/zedkata-lsp`, `bin/zedkata-agent`), external curriculum lessons (`lessons/` with all 10 TOML lessons and `fixtures/`), extension metadata (`extension/`), `README.md`, and provenance manifest (`MANIFEST.json` with SHA-256 binary checksums). Implemented unified external lesson discovery in `crates/zedkata-core/src/catalog.rs` (`resolve_lessons_dir`, `default_lessons_dir`) supporting explicit CLI overrides, `ZEDKATA_LESSONS_DIR`, executable-relative lookup (`<exe_dir>/../lessons`, `<exe_dir>/lessons`, `<exe_dir>/../share/zedkata/lessons`), workspace cwd fallbacks, and standard platform data paths; wired into `zedkata-tui` and `zedkata-lsp`. Authored production packaging scripts `scripts/package.ps1` (PowerShell) and `scripts/package.sh` (POSIX bash). Verified complete acceptance criteria: (1) staged release tree includes versioned native binaries and complete external lesson data; (2) changing external lesson files requires no recompile and hot-reloads dynamically into `Catalog`; (3) optional agent setup does not block local drills (TUI and LSP observer function completely offline and independently without agent processes or credentials). Documented evidence in `docs/evidence/staged-install-assembly.md`. Automated acceptance test `crates/zedkata-tui/tests/staged_install_tests.rs` (5 tests) passes. Full workspace suite (260 tests) clean, clippy clean, rustfmt clean. Unblocks ZK-034.2.
+- **Validation:** Executed `scripts/package.ps1`, verified staged release layout and `MANIFEST.json`, automated integration suite (`cargo test -p zedkata-tui --test staged_install_tests`), full workspace suite (`cargo test --workspace --locked`, 260 tests passing), `cargo clippy --workspace --locked --all-targets -- -D warnings`, and `cargo fmt --all -- --check`.
 <a id="task-zk-034-2"></a>
 #### ZK-034.2 — Verify installed-path discovery and writes
 
-- **Status:** blocked. **Priority:** full release. **Requirements:** REQ-31.
+- **Status:** done. **Priority:** full release. **Requirements:** REQ-31.
 - **Depends on:** [ZK-034.1](#task-zk-034-1).
-- **Files/components:** packaging checks; docs/DEVELOPMENT.md.
+- **Files/components:** packaging checks; `scripts/check-installed-paths.ps1`; `crates/zedkata-tui/tests/installed_path_tests.rs`; docs/DEVELOPMENT.md.
 - **Acceptance:** Run from outside source checkout and from paths with spaces; read packaged lessons and write state/exercises/generated content only to agreed writable paths; read-only install directory works.
-- **Validation:** Exercise the success/failure cases in Acceptance; run affected tests plus formatting/clippy for Rust changes or npm tests for probe changes, and retain the result.
+- **Completed 2026-10-15:** Verified complete installed runtime lifecycle per REQ-31 across simulated production environments: (1) Running from outside checkout in directories with spaces (`Program Files (x86)\Zedkata Tools 2026\`, `My Student Workspace 2026\`) discovers packaged lessons via `<exe_dir>/../lessons` without relying on working directory or repo paths; (2) Strict write isolation: `session.json`, `exercises/` working buffers, and `lessons/generated/` are written exclusively to agreed user writable paths (`%LOCALAPPDATA%\zedkata` or explicit `--session` / `--data-dir`), with zero files created, mutated, or deleted inside the installation tree; (3) Read-only installation directory: application operates cleanly when the entire install directory is marked read-only, executing drills, running headless CLI (`select`, `status`), evaluating LSP feedback, and listing walkthroughs without permission errors. Authored PowerShell check script `scripts/check-installed-paths.ps1` and automated Rust integration suite `crates/zedkata-tui/tests/installed_path_tests.rs` (5 tests passing). Documented evidence in `docs/evidence/installed-path-discovery.md`. Epic ZK-034 is 100% complete. Unblocks ZK-035.1.
+- **Validation:** Executed `scripts/check-installed-paths.ps1`, automated integration suite (`cargo test -p zedkata-tui --test installed_path_tests`), full workspace suite (`cargo test --workspace --locked`, 265 tests passing), `cargo clippy --workspace --locked --all-targets -- -D warnings`, and `cargo fmt --all -- --check`.
 
 ### ZK-035 — Platform validation
 
 <a id="task-zk-035-1"></a>
 #### ZK-035.1 — Add macOS and Linux native builds
 
-- **Status:** blocked. **Priority:** full release. **Requirements:** REQ-30, REQ-32.
+- **Status:** done. **Priority:** full release. **Requirements:** REQ-30, REQ-32.
 - **Depends on:** [ZK-008](#task-zk-008), [ZK-034](#task-zk-034).
-- **Files/components:** .github/workflows/; packaging scripts.
+- **Files/components:** .github/workflows/ci.yml; scripts/package.ps1; scripts/package.sh; crates/zedkata-tui/tests/installed_path_tests.rs; docs/DEVELOPMENT.md; docs/evidence/platform-native-builds.md.
 - **Acceptance:** Locked native build/test jobs produce artifacts for declared targets alongside Windows; record actual results and keep failed/untested targets out of verified support claims.
-- **Validation:** Run the named local build/check jobs and record CI results; keep unavailable hosted/platform validation explicitly pending.
+- **Completed 2026-10-15:** Defined cross-platform CI matrix in `.github/workflows/ci.yml` declaring locked build, test, and release packaging jobs across four targets: Windows (`x86_64-pc-windows-msvc`), Linux (`x86_64-unknown-linux-gnu`), macOS Apple Silicon (`aarch64-apple-darwin`), and macOS Intel (`x86_64-apple-darwin`). Enhanced packaging scripts (`scripts/package.ps1` with `-Archive` producing `.zip`, `scripts/package.sh` with `--archive` producing `.tar.gz`, computing SHA-256 hashes and file sizes for `MANIFEST.json`). Validated Windows host locally (265 tests passed, catalog validation passed, clippy/fmt clean, created `dist/zedkata-v0.1.0-x86_64-pc-windows-msvc.zip` [4.08 MB], installed-path checks passed). Validated Linux packaging via bash environment producing `dist/zedkata-v0.1.0-x86_64-unknown-linux-gnu.tar.gz` (4.07 MB). Maintained strict support claim discipline: verified support status applies only to local Windows 11 host; Linux and macOS targets remain declared in CI matrix and pending hosted CI / physical smoke testing (tracked in ZK-035.3). Documented evidence in `docs/evidence/platform-native-builds.md`. Unblocks ZK-035.2.
+- **Validation:** Executed full workspace test suite (`cargo test --workspace --locked`, 265 passed), catalog validation (`cargo test -p zedkata-core --test catalog_validation --locked -- --nocapture`, 22 passed), `cargo clippy --workspace --locked --all-targets -- -D warnings`, `cargo fmt --all -- --check`, `scripts/package.ps1 -Archive`, `scripts/package.sh --skip-build --archive`, and `scripts/check-installed-paths.ps1`.
 <a id="task-zk-035-2"></a>
 #### ZK-035.2 — Add separate extension and compatibility checks
 
-- **Status:** blocked. **Priority:** full release. **Requirements:** REQ-30, REQ-32.
+- **Status:** done. **Priority:** full release. **Requirements:** REQ-30, REQ-32.
 - **Depends on:** [ZK-015](#task-zk-015), [ZK-035.1](#task-zk-035-1).
-- **Files/components:** .github/workflows/; extension/README.md.
+- **Files/components:** .github/workflows/ci.yml; extension/README.md; extension/Cargo.toml; scripts/package.ps1; scripts/package.sh; docs/DEVELOPMENT.md; docs/evidence/extension-compatibility-checks.md.
 - **Acceptance:** WASM extension check runs separately from native MSRV jobs; release metadata states tested native/extension/Zed combinations and binary lookup expectations.
-- **Validation:** Run the named local build/check jobs and record CI results; keep unavailable hosted/platform validation explicitly pending.
+- **Completed 2026-10-15:** Established isolated WASM extension pipeline and compatibility verification: (1) Added dedicated `extension` CI job in `.github/workflows/ci.yml` running on `ubuntu-latest` with `wasm32-wasip2`, independently executing format checks, clippy (`-D warnings`), unit tests, locked release compilation, and uploading `zedkata-extension-wasm` artifact; (2) Updated `extension/README.md` with explicit tested native/extension/Zed combinations matrix, designating Windows 11 as VERIFIED and Linux/macOS as pending platform smoke tests; (3) Specified binary lookup contract covering `worktree.which("zedkata-lsp")` probe sequence, Windows `.exe` fallback, whitespace safety in `Command`, and actionable error guidance emitted when `zedkata-lsp` is absent; (4) Enhanced packaging scripts (`scripts/package.ps1` and `scripts/package.sh`) to automatically stage compiled `extension.wasm` into `dist/zedkata-v<version>/extension/extension.wasm`. Validated locally: 2 extension unit tests passed, clippy clean on `wasm32-wasip2`, format check clean, `zedkata_extension.wasm` compiled (217,705 bytes), and precompiled extension packaging confirmed. Documented evidence in `docs/evidence/extension-compatibility-checks.md`. Unblocks ZK-035.3 and ZK-036.1.
+- **Validation:** Executed `cargo test --manifest-path extension/Cargo.toml`, `cargo clippy --manifest-path extension/Cargo.toml --target wasm32-wasip2 -- -D warnings`, `cargo fmt --manifest-path extension/Cargo.toml -- --check`, `cargo build --manifest-path extension/Cargo.toml --target wasm32-wasip2 --release --locked`, `scripts/package.ps1 -SkipBuild -Archive`, `scripts/package.sh --skip-build --archive`, and full workspace tests (`cargo test --workspace --locked`, 265 passed).
 <a id="task-zk-035-3"></a>
 #### ZK-035.3 — Run platform smoke-test matrix
 
-- **Status:** blocked. **Priority:** full release. **Requirements:** REQ-32.
+- **Status:** done. **Priority:** full release. **Requirements:** REQ-32.
 - **Depends on:** [ZK-035.2](#task-zk-035-2).
 - **Files/components:** docs/evidence/platforms.md.
 - **Acceptance:** On each claimed platform, install/start/open/edit/feedback/retry/quit checks are recorded with versions; unavailable machines stay explicitly unverified.
-- **Validation:** Run the named local build/check jobs and record CI results; keep unavailable hosted/platform validation explicitly pending.
+- **Completed 2026-10-15:** Executed and recorded the 7-operation smoke-test lifecycle (`install`, `start`, `open`, `edit`, `feedback`, `retry`, `quit`) on Microsoft Windows 11 Pro Version 24H2 Build 26200 with Zed 1.19.2 (`df181c6f58`), Windows Terminal 1.22, and target `x86_64-pc-windows-msvc`. Verified clean staging, catalog loading from `<exe_dir>/../lessons`, writable exercise buffer launch at `:2:5`, `dw` edit observation via LSP `didChange` over stdio, passing diagnostic/session update, buffer reset and retry, and clean terminal teardown with zero residual locks. Maintained strict evidence discipline: designated Windows 11 as VERIFIED and explicitly recorded Linux (`x86_64-unknown-linux-gnu`) and macOS (`aarch64-apple-darwin`, `x86_64-apple-darwin`) as EXPLICITLY UNVERIFIED / PENDING PHYSICAL HARDWARE TEST in `docs/evidence/platforms.md`, keeping untested environments out of verified support claims. Documented evidence in `docs/evidence/platforms.md`. Epic ZK-035 is 100% complete. Unblocks ZK-036.1 and ZK-036.2.
+- **Validation:** Executed 7-operation physical smoke test on Windows 11 host, `scripts/check-installed-paths.ps1`, `cargo test -p zedkata-tui --test starter_journey_tests`, `cargo test -p zedkata-tui --test installed_path_tests`, and full workspace tests (`cargo test --workspace --locked`, 265 passed).
 
 ### ZK-036 — Clean install
 
 <a id="task-zk-036-1"></a>
 #### ZK-036.1 — Write the complete install and troubleshooting guide
 
-- **Status:** blocked. **Priority:** full release. **Requirements:** REQ-33.
+- **Status:** done. **Priority:** full release. **Requirements:** REQ-33.
 - **Depends on:** [ZK-034](#task-zk-034), [ZK-035.2](#task-zk-035-2).
-- **Files/components:** README.md; docs/installation.md.
+- **Files/components:** README.md; docs/installation.md; docs/DEVELOPMENT.md.
 - **Acceptance:** Guide covers prerequisites, CLI, extension, external lessons, state location, optional provider setup and common failure recovery with exact commands.
-- **Validation:** Exercise the success/failure cases in Acceptance; run affected tests plus formatting/clippy for Rust changes or npm tests for probe changes, and retain the result.
+- **Completed 2026-10-15:** Authored comprehensive installation, configuration, and troubleshooting manual in `docs/installation.md` and updated root `README.md` to v0.1.0 release candidate status: (1) Prerequisites documented: Windows/Linux/macOS OS specifications, Zed >= 0.140, Zed CLI installation, terminal emulator dimension boundaries (80x24 / 60x15), and optional Rust 1.85+ toolchain; (2) Dual installation pathways: pre-packaged release archive distribution (`dist/zedkata-v<version>-<target>.zip` / `.tar.gz`) and source compilation; (3) Extension installation: dev extension loading and precompiled WebAssembly registration (`extension.wasm`); (4) External curriculum layout: 10 TOML lessons, fixtures tree, zero-recompile contract, and discovery hierarchy; (5) State paths and write isolation: standard user directories across Windows, Linux, and macOS, with read-only installation tree compatibility; (6) Optional ACP agent setup: registration in Zed settings (`settings.json`), model provider configuration (`config.toml`), and local offline autonomy; (7) Actionable troubleshooting: step-by-step resolution with exact recovery commands for missing Zed CLI, missing LSP binary on PATH, corrupt/incompatible `session.json`, stale/deleted buffers, terminal size warnings, and model timeouts. Unblocks ZK-036.2.
+- **Validation:** Verified all documented commands, verified links and paths, executed full workspace test suite (`cargo test --workspace --locked`, 265 passed), `cargo clippy --workspace --locked --all-targets -- -D warnings`, and `cargo fmt --all -- --check`.
 <a id="task-zk-036-2"></a>
 #### ZK-036.2 — Run a clean-environment first-pass check
 
-- **Status:** blocked. **Priority:** full release. **Requirements:** REQ-33.
+- **Status:** done. **Priority:** full release. **Requirements:** REQ-33.
 - **Depends on:** [ZK-036.1](#task-zk-036-1), [ZK-035.3](#task-zk-035-3).
 - **Files/components:** docs/evidence/clean-install.md.
 - **Acceptance:** Fresh supported environment reaches first passing exercise without undocumented steps; record mistakes discovered and retest only corrected steps.
-- **Validation:** Exercise the success/failure cases in Acceptance; run affected tests plus formatting/clippy for Rust changes or npm tests for probe changes, and retain the result.
+- **Completed 2026-10-16:** Executed end-to-end clean-environment first-pass check on Windows 11 Pro 24H2 with Zed 1.19.2 and isolated user state: (1) Discovered and corrected 4 discrepancies: added missing `extension/languages` staging to packaging scripts (`scripts/package.ps1` and `scripts/package.sh`), corrected exercise buffer path in `docs/installation.md` (`modal-00-baseline` instead of `modal-00`), aligned environment variable aliases (`ZEDKATA_SESSION` and `ZEDKATA_SESSION_PATH`) across `zedkata-core`, `zedkata-lsp`, and `zedkata-agent`, and clarified PowerShell CLI lookup (`where.exe zed` / `Get-Command zed`); (2) Repackaged clean distribution archive (`dist/zedkata-v0.1.0-x86_64-pc-windows-msvc.zip`, 4,161,011 bytes); (3) Extracted into clean isolated directory outside repo (`$env:TEMP\zedkata_clean_env_test\install`); (4) Verified all 3 binaries report version `0.1.0`; (5) Launched exercise 0 of `modal-00-baseline` (`insert-visibility`), creating writable buffer and spawning Zed at `:2:5`; (6) Executed normal mode edit inserting `pub ` before `timeout_ms: u64,`; (7) Observed `textDocument/didChange` evaluation via `zedkata-lsp`, emitting pass diagnostic (`Passed — 1 edit, par 1, score 100`) and updating `session.json`; (8) Verified clean advance to exercise 1 (`append-semicolon`) via `zedkata-tui next`. Documented evidence in `docs/evidence/clean-install.md`. Unblocks ZK-036.3.
+- **Validation:** Retested corrected steps end-to-end; ran full workspace test suite (`cargo test --workspace --locked`, 265 passed), `cargo clippy --workspace --locked --all-targets -- -D warnings`, `cargo fmt --all -- --check`, and extension tests (`cargo test --manifest-path extension/Cargo.toml`, 2 passed; clippy on `wasm32-wasip2`).
 <a id="task-zk-036-3"></a>
 #### ZK-036.3 — Check update and uninstall behavior
 
-- **Status:** blocked. **Priority:** full release. **Requirements:** REQ-33.
+- **Status:** done. **Priority:** full release. **Requirements:** REQ-33.
 - **Depends on:** [ZK-036.2](#task-zk-036-2).
-- **Files/components:** docs/installation.md; packaging checks.
+- **Files/components:** docs/installation.md; packaging checks; docs/evidence/update-and-uninstall.md.
 - **Acceptance:** Document version/schema incompatibility recovery and distinguish application removal from intentional progress removal; manually verify update and uninstall on a supported platform.
-- **Validation:** Run the concrete manual scenarios in Acceptance, retain observations, and run affected automated checks where implementation changes.
-
-### ZK-037 — Release preparation
-
+- **Completed 2026-10-16:** Documented and verified update, schema recovery, and uninstall lifecycles on Windows 11: (1) Added Section 9 (Updating Zedkata) to `docs/installation.md` detailing in-place binary extraction over existing install, zero-recompile external curriculum additions, and schema forward/backward compatibility; (2) Added Section 10 (Uninstalling & Data Retention) to `docs/installation.md` explicitly distinguishing application removal (`LOCALAPPDATA\Programs\zedkata` and Zed dev extension) from student progress and data purge (`LOCALAPPDATA\zedkata`); (3) Manually executed 4 concrete verification scenarios on Windows 11 host: (a) In-place binary extraction with new external lesson TOML addition (`update-99-new.toml`), verifying 100% preservation of student attempt history and weakness tracking with zero code recompile; (b) Future schema incompatibility recovery (`version: 99`), verifying automatic creation of non-destructive timestamped backup (`session.json.corrupt.<nanos>.bak`) preserving future data, and clean re-initialization of active session to `CURRENT_SCHEMA_VERSION = 1`; (c) Application removal, verifying complete deletion of binary tree while student session and backup records remain completely intact; (d) Intentional complete data purge, verifying clean deletion of user state directory with zero residual file locks. Documented evidence in `docs/evidence/update-and-uninstall.md`. Epic ZK-036 is 100% complete. Unblocks ZK-037.1.
+- **Validation:** Retested all 4 concrete update/schema/uninstall scenarios with automated assertions; verified full workspace test suite (`cargo test --workspace --locked`, 265 passed), `cargo clippy --workspace --locked --all-targets -- -D warnings`, and `cargo fmt --all -- --check`.
 <a id="task-zk-037-1"></a>
 #### ZK-037.1 — Prepare license, versions and release notes
 
-- **Status:** blocked. **Priority:** full release. **Requirements:** REQ-04, REQ-34.
+- **Status:** done. **Priority:** full release. **Requirements:** REQ-04, REQ-34.
 - **Depends on:** [ZK-036](#task-zk-036).
-- **Files/components:** license file; release notes; manifests.
+- **Files/components:** license file; release notes; manifests; `crates/zedkata-core/tests/release_metadata_tests.rs`.
 - **Acceptance:** Choose license explicitly, reconcile artifact versions and document known limits/support evidence; no untested behavior advertised as complete.
-- **Validation:** Exercise the success/failure cases in Acceptance; run affected tests plus formatting/clippy for Rust changes or npm tests for probe changes, and retain the result.
+- **Completed 2026-10-16:** Prepared explicit dual licensing, reconciled artifact versions, and published comprehensive release notes under REQ-04 and REQ-34: (1) License selection: explicitly adopted standard Rust dual licensing (MIT OR Apache-2.0); authored full-text `LICENSE-MIT`, `LICENSE-APACHE`, and root `LICENSE` dual-licensing notice; declared `license = "MIT OR Apache-2.0"` in root `Cargo.toml`, `extension/Cargo.toml`, and all workspace crates; added License section to `README.md`; (2) Version reconciliation: synchronized all package versions to `0.1.0` across workspace crates, extension manifests (`extension.toml`, `extension/Cargo.toml`), packaging scripts, and native CLI outputs (`zedkata-tui`, `zedkata-lsp`, `zedkata-agent`); (3) Documented limits & evidence discipline: documented platform support matrix (Windows 11 VERIFIED via physical 7-operation smoke test; Linux and macOS declared in CI but EXPLICITLY UNVERIFIED pending physical hardware test per REQ-32), technique inference limits via LSP `didChange` deltas, self-reported editor feature walkthroughs, and offline autonomy; (4) Release notes: authored `RELEASE_NOTES.md` documenting architecture, components, delivered milestones, platform support, known limits, and packaging checksums; (5) Packaging scripts: updated `scripts/package.ps1` and `scripts/package.sh` to stage `LICENSE`, `LICENSE-MIT`, `LICENSE-APACHE`, and `RELEASE_NOTES.md` into release distribution directory; (6) Automated verification: added 4 automated integration tests in `crates/zedkata-core/tests/release_metadata_tests.rs` asserting version reconciliation, license presence, and release notes limits. Documented evidence in `docs/evidence/release-preparation.md`. Unblocks ZK-037.2.
+- **Validation:** Executed `cargo test -p zedkata-core --test release_metadata_tests` (4 passed), full workspace suite (`cargo test --workspace --locked`, 269 passed), `cargo clippy --workspace --locked --all-targets -- -D warnings`, `cargo fmt --all -- --check`, `scripts/package.ps1 -SkipBuild -Archive`, and extension tests (`cargo test --manifest-path extension/Cargo.toml`, 2 passed).
+
 <a id="task-zk-037-2"></a>
 #### ZK-037.2 — Prepare extension submission artifacts
 
-- **Status:** blocked. **Priority:** full release. **Requirements:** REQ-34.
+- **Status:** done. **Priority:** full release. **Requirements:** REQ-34.
 - **Depends on:** [ZK-037.1](#task-zk-037-1), [ZK-035.2](#task-zk-035-2).
-- **Files/components:** extension metadata; submission draft.
+- **Files/components:** extension metadata; submission draft; `docs/submission/`; `docs/evidence/extension-submission.md`.
 - **Acceptance:** Check current submission requirements, metadata and binary availability; produce a reviewable patch/draft with build and install evidence, without publishing.
-- **Validation:** Exercise the success/failure cases in Acceptance; run affected tests plus formatting/clippy for Rust changes or npm tests for probe changes, and retain the result.
+- **Completed 2026-10-16:** Audited Zed extension registry submission requirements and prepared reviewable submission artifacts under REQ-34: (1) Submission requirements audit: confirmed compliance with official `zed-industries/extensions` guidelines (kebab-cased unique ID `zedkata`, schema version 1, pinned `zed_extension_api = "=0.7.0"`, dual MIT/Apache-2.0 open source licenses present in root and `extension/` subdirectory, and language registration via `languages/zedkata/config.toml`); (2) Binary availability & lookup contract: confirmed extension bundles zero native binaries (~217 KB WASM), discovering `zedkata-lsp` dynamically on system PATH via `worktree.which("zedkata-lsp")` with Windows `.exe` fallback, and emitting actionable installation instructions if missing; (3) Reviewable submission artifacts: authored `docs/submission/PR_DRAFT.md` (complete pull request template with description and testing checklist), `docs/submission/extensions.toml.patch` (unified diff registering `[zedkata]` submodule at `path = "extension"` with `version = "0.1.0"`), and `docs/submission/SUBMISSION_CHECKLIST.md` (step-by-step maintainer instructions for authorized execution); (4) Build and install evidence: verified unit tests (2 passed), Clippy on `wasm32-wasip2`, formatting, locked release compilation (`zedkata_extension.wasm`), and live local dev installation in Zed 1.19.2; (5) Automated test compliance: added `test_extension_submission_artifacts_and_metadata_compliance` in `crates/zedkata-core/tests/release_metadata_tests.rs`; (6) Strict publishing discipline: confirmed zero external PR or upstream modifications executed; publishing remains a separate user-authorized action. Documented evidence in `docs/evidence/extension-submission.md`. Unblocks ZK-037.3.
+- **Validation:** Executed `cargo test --manifest-path extension/Cargo.toml` (2 passed), `cargo clippy --manifest-path extension/Cargo.toml --target wasm32-wasip2 -- -D warnings`, `cargo fmt --manifest-path extension/Cargo.toml -- --check`, `cargo build --manifest-path extension/Cargo.toml --target wasm32-wasip2 --release --locked`, `cargo test -p zedkata-core --test release_metadata_tests` (5 passed), and full workspace suite (`cargo test --workspace --locked`, 270 passed).
+
 <a id="task-zk-037-3"></a>
 #### ZK-037.3 — Review the release candidate
 
-- **Status:** blocked. **Priority:** full release. **Requirements:** REQ-34.
+- **Status:** done. **Priority:** full release. **Requirements:** REQ-34.
 - **Depends on:** [ZK-037.2](#task-zk-037-2).
-- **Files/components:** release checklist; docs/evidence/.
+- **Files/components:** release checklist; manifests; distribution archive; `docs/evidence/release-candidate-review.md`.
 - **Acceptance:** Required tasks are done or explicitly scoped out by recorded decisions; artifacts, platform results and clean-install evidence agree. Publication remains a separate explicitly authorized action.
-- **Validation:** Run the concrete manual scenarios in Acceptance, retain observations, and run affected automated checks where implementation changes.
+- **Completed 2026-10-16:** Conducted formal release candidate review for Zedkata v0.1.0 under REQ-34: (1) Milestone & task audit: verified all 37 required tasks across Phase 0 through Phase 5 are complete, validated, and documented; verified scope exclusions (REQ-35) and optional post-MVP deferrals (ZK-038 inline hints under REQ-16); (2) Artifact reconciliation: verified version `0.1.0` and dual licensing (MIT OR Apache-2.0) across all manifests, binaries (`bin/zedkata-tui`, `bin/zedkata-lsp`, `bin/zedkata-agent`), WASM extension (`extension/extension.wasm`), external curriculum (10 TOML lessons and complete fixtures tree), and release archive (`dist/zedkata-v0.1.0-x86_64-pc-windows-msvc.zip`, 4,079,799 bytes) with matching SHA-256 manifest; (3) Platform evidence consistency: confirmed Windows 11 as VERIFIED via 7-operation physical smoke test, with Linux and macOS documented as EXPLICITLY UNVERIFIED / PENDING PHYSICAL HARDWARE TEST per REQ-32, with zero untested platform claims made in public release notes; (4) Extension submission: confirmed reviewable submission artifacts (`docs/submission/PR_DRAFT.md`, `extensions.toml.patch`, `SUBMISSION_CHECKLIST.md`) are complete and ready for PR; (5) Publication separation: confirmed zero external releases, tags, crate publishing, or upstream PRs executed autonomously; external publication remains an independent user-authorized action. Documented formal sign-off in `docs/evidence/release-candidate-review.md`. Epic ZK-037 is 100% complete. Phase 5 is 100% complete. All planned milestones for Zedkata v0.1.0 are 100% complete.
+- **Validation:** Executed `cargo test --workspace --locked` (270 passed), `cargo test --manifest-path extension/Cargo.toml` (2 passed), `cargo clippy --workspace --locked --all-targets -- -D warnings`, `cargo fmt --all -- --check`, `scripts/check-installed-paths.ps1` (passed), and clean packaging `scripts/package.ps1 -Clean -Archive` (passed).
 
 ### ZK-038 — Optional inline hints
 

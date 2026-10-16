@@ -1,0 +1,38 @@
+[lesson]
+id = "zed-05-agent-panel"
+title = "Agent panel and Agent Client Protocol (ACP)"
+module = 10
+requires = ["zed-04-tasks-and-debugger"]
+concepts = ["ctrl-?", "agent: toggle focus", "agent: new thread", "agent_servers", ".zed/settings.json", "@file", "@rules", "agent-client-protocol", "stdio"]
+draft = true
+
+prose = """
+Zed features an integrated conversational agent panel and native support for the
+open Agent Client Protocol (ACP), enabling bidirectional collaboration with local
+and cloud AI coding agents.
+Toggle the assistant panel with `ctrl-?` (or `cmd-?`), attach files with `@file`
+mentions, query functions via `@symbol`, and incorporate project guidelines with
+`@rules`.
+Zed allows registering external ACP agents running over standard I/O via the
+`agent_servers` dictionary in `settings.json`. External agents stream thoughts,
+execute tools, and propose multi-file code diffs that can be reviewed and accepted
+directly within the editor.
+"""
+
+# ---------------------------------------------------------------------------
+# Not drillable — routes to zedkata-agent as an unscored guided walkthrough.
+# See docs/walkthroughs/agent-panel.md for full walkthrough recipes and verification.
+
+[[walkthrough]]
+id = "agent-panel-walkthrough"
+title = "Agent panel and Agent Client Protocol in Zed"
+prompt = """
+Demonstrate Zed's conversational agent panel and custom ACP agent integration
+using the sample workspace in `lessons/fixtures/walkthroughs/agent_panel/`.
+Guide the student through:
+1. Toggling the Agent Panel (`ctrl-?` or `agent: toggle focus`) and navigating between editor and assistant.
+2. Configuring external ACP agents in `.zed/settings.json` under `agent_servers`.
+3. Attaching file context with `@file` mentions to prompt targeted code refactoring.
+4. Reviewing multi-file diff previews and deciding whether to accept (`Keep`) or reject changes.
+5. Verifying stdout framing hygiene and diagnosing agent connection logs on stderr.
+"""

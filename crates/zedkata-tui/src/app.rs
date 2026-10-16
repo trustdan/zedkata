@@ -72,6 +72,7 @@ pub struct App {
     pub catalog: Option<Catalog>,
     pub catalog_error: Option<String>,
     pub session: SessionState,
+    pub generated_dir: Option<PathBuf>,
     pub selected_lesson_idx: usize,
     pub selected_exercise_idx: usize,
     pub show_hint: bool,
@@ -95,6 +96,7 @@ impl App {
             catalog: None,
             catalog_error: None,
             session: SessionState::default(),
+            generated_dir: None,
             selected_lesson_idx: 0,
             selected_exercise_idx: 0,
             show_hint: false,
@@ -112,10 +114,21 @@ impl App {
     /// If session.json exists but is corrupt or has an incompatible version, it is safely
     /// preserved to `session.json.corrupt.<nanos>.bak` to avoid destroying recoverable student data.
     pub fn load(session_path: PathBuf, lessons_dir: PathBuf) -> Self {
-        let (catalog, catalog_error) = match Catalog::load_from_dir(&lessons_dir) {
-            Ok(cat) => (Some(cat), None),
-            Err(err) => (None, Some(err.to_string())),
-        };
+        Self::load_with_generated(session_path, lessons_dir, None)
+    }
+
+    /// Load application state with optional generated lessons directory:
+    /// reads session from disk and loads curriculum and generated lessons into the catalog.
+    pub fn load_with_generated(
+        session_path: PathBuf,
+        lessons_dir: PathBuf,
+        generated_dir: Option<PathBuf>,
+    ) -> Self {
+        let (catalog, catalog_error) =
+            match Catalog::load_with_generated(&lessons_dir, generated_dir.as_deref()) {
+                Ok((cat, _summary)) => (Some(cat), None),
+                Err(err) => (None, Some(err.to_string())),
+            };
 
         let (session, session_warning, initial_mtime, corrupt_backup_path) =
             if session_path.exists() {
@@ -156,6 +169,7 @@ impl App {
             catalog,
             catalog_error,
             session,
+            generated_dir,
             selected_lesson_idx: 0,
             selected_exercise_idx: 0,
             show_hint: false,
@@ -603,7 +617,9 @@ impl App {
 
     /// Refresh session and catalog from disk.
     pub fn refresh_state(&mut self) -> Result<()> {
-        if let Ok(cat) = Catalog::load_from_dir(&self.lessons_dir) {
+        if let Ok((cat, _)) =
+            Catalog::load_with_generated(&self.lessons_dir, self.generated_dir.as_deref())
+        {
             self.catalog = Some(cat);
             self.catalog_error = None;
         }

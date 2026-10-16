@@ -7,7 +7,7 @@ use crossterm::{
 use ratatui::{backend::CrosstermBackend, Terminal};
 use std::{
     io::{stdout, Stdout},
-    path::Path,
+    path::{Path, PathBuf},
     sync::Once,
     time::Duration,
 };
@@ -77,10 +77,11 @@ pub fn init_terminal() -> Result<Terminal<CrosstermBackend<Stdout>>> {
     Ok(terminal)
 }
 
-/// Runs the interactive TUI application event loop.
-pub fn run_tui_app(
+/// Runs the interactive TUI application event loop with optional generated lessons directory.
+pub fn run_tui_app_with_generated(
     session_path: &Path,
     lessons_dir: &Path,
+    generated_dir: Option<&Path>,
     test_error: bool,
     test_panic: bool,
 ) -> Result<()> {
@@ -97,7 +98,11 @@ pub fn run_tui_app(
         anyhow::bail!("Triggered test error for terminal restoration verification");
     }
 
-    let mut app = App::load(session_path.to_path_buf(), lessons_dir.to_path_buf());
+    let mut app = App::load_with_generated(
+        session_path.to_path_buf(),
+        lessons_dir.to_path_buf(),
+        generated_dir.map(PathBuf::from),
+    );
 
     // Initialize with current terminal size
     let size = terminal.size()?;
@@ -115,4 +120,14 @@ pub fn run_tui_app(
 
     guard.restore()?;
     Ok(())
+}
+
+/// Runs the interactive TUI application event loop.
+pub fn run_tui_app(
+    session_path: &Path,
+    lessons_dir: &Path,
+    test_error: bool,
+    test_panic: bool,
+) -> Result<()> {
+    run_tui_app_with_generated(session_path, lessons_dir, None, test_error, test_panic)
 }

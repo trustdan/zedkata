@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use std::path::{Path, PathBuf};
 use zedkata_core::{
-    catalog::Catalog,
+    catalog::{default_generated_dir, Catalog},
     default_session_path,
     session::{SessionState, Verdict},
 };
@@ -16,12 +16,16 @@ use zedkata_tui::terminal;
 )]
 struct Cli {
     /// Path to a specific session.json file (defaults to standard platform state path)
-    #[arg(short, long)]
+    #[arg(short, long, global = true)]
     session: Option<PathBuf>,
 
     /// Path to curriculum lessons directory (defaults to 'lessons')
-    #[arg(long)]
+    #[arg(long, global = true)]
     lessons_dir: Option<PathBuf>,
+
+    /// Path to generated lessons directory (defaults to platform standard or lessons/generated)
+    #[arg(long, global = true)]
+    generated_dir: Option<PathBuf>,
 
     /// Test flag: trigger error after terminal setup to verify cooked-mode restoration
     #[arg(long, hide = true)]
@@ -76,20 +80,28 @@ fn resolve_session_path(cli_path: Option<PathBuf>) -> Result<PathBuf> {
 }
 
 fn resolve_lessons_dir(cli_path: Option<PathBuf>) -> PathBuf {
+    zedkata_core::resolve_lessons_dir(cli_path.as_deref())
+        .unwrap_or_else(|_| PathBuf::from("lessons"))
+}
+
+fn resolve_generated_dir(cli_path: Option<PathBuf>) -> Option<PathBuf> {
     if let Some(path) = cli_path {
-        path
-    } else if Path::new("lessons").is_dir() {
-        PathBuf::from("lessons")
-    } else if Path::new("../../lessons").is_dir() {
-        PathBuf::from("../../lessons")
+        Some(path)
+    } else if let Ok(val) = std::env::var("ZEDKATA_GENERATED_DIR") {
+        if !val.trim().is_empty() {
+            Some(PathBuf::from(val))
+        } else {
+            default_generated_dir().ok()
+        }
     } else {
-        PathBuf::from("lessons")
+        default_generated_dir().ok()
     }
 }
 
 fn handle_select(
     session_path: &Path,
     lessons_dir: &Path,
+    generated_dir: Option<&Path>,
     lesson_id: &str,
     exercise_index: usize,
 ) -> Result<()> {
@@ -113,10 +125,18 @@ fn handle_select(
     println!("  Index:    {}", exercise_index);
     println!("  Session:  {:?}", session_path);
 
-    if let Ok(catalog) = Catalog::load_from_dir(lessons_dir) {
+    if let Ok((catalog, _)) = Catalog::load_with_generated(lessons_dir, generated_dir) {
         if let Some(entry) = catalog.get(lesson_id) {
             if let Some(ex) = entry.lesson.exercises.get(exercise_index) {
                 println!("  Task:     {}", ex.task);
+                if entry.lesson.is_generated() {
+                    let par_str = ex
+                        .par_edits
+                        .map(|p| format!("Par: {} edit(s) (uncalibrated)", p))
+                        .unwrap_or_else(|| "Goal-only (unscored)".to_string());
+                    println!("  Budget:   {}", par_str);
+                    println!("  Notice:   Targeted generated practice drill (uncalibrated technique budget)");
+                }
                 if let Ok(fixture_path) = catalog.resolve_fixture(lesson_id, &ex.id, true) {
                     println!("  Fixture:  {:?}", fixture_path);
                     println!();
@@ -157,12 +177,18 @@ fn handle_status(session_path: &Path) -> Result<()> {
     println!("  Session File:   {:?}", session_path);
     println!("  Schema Version: {}", session.version);
     println!("  Student Start:  {}", session.student.started_at);
+    let is_generated = session.current.lesson_id.starts_with("gen-");
     println!(
-        "  Current Lesson: {}",
+        "  Current Lesson: {}{}",
         if session.current.lesson_id.is_empty() {
             "(none)"
         } else {
             &session.current.lesson_id
+        },
+        if is_generated {
+            " [generated practice]"
+        } else {
+            ""
         }
     );
     println!("  Exercise Index: {}", session.current.exercise_index);
@@ -182,8 +208,11 @@ fn handle_status(session_path: &Path) -> Result<()> {
             Some(Verdict::Passed { edits, par, score }) => {
                 if let Some(par_val) = par {
                     println!(
-                        "  Verdict:        PASSED (edits: {}, par: {}, score: {})",
-                        edits, par_val, score
+                        "  Verdict:        PASSED (edits: {}, par: {}{}, score: {})",
+                        edits,
+                        par_val,
+                        if is_generated { " (uncalibrated)" } else { "" },
+                        score
                     );
                 } else {
                     println!(
@@ -210,10 +239,15 @@ fn handle_status(session_path: &Path) -> Result<()> {
     println!();
     println!("History Count:    {} attempt(s)", session.history.len());
     for (i, h) in session.history.iter().enumerate() {
+        let is_uncalibrated = h.lesson_id.starts_with("gen-");
         let score_str = if !h.passed {
             "score: 0".to_string()
         } else if h.par_edits.is_some() {
-            format!("score: {}", h.score)
+            if is_uncalibrated {
+                format!("score: {} (uncalibrated)", h.score)
+            } else {
+                format!("score: {}", h.score)
+            }
         } else {
             "unscored".to_string()
         };
@@ -243,8 +277,12 @@ fn handle_status(session_path: &Path) -> Result<()> {
     Ok(())
 }
 
-fn handle_reset(session_path: &Path, lessons_dir: &Path) -> Result<()> {
-    if let Ok(catalog) = Catalog::load_from_dir(lessons_dir) {
+fn handle_reset(
+    session_path: &Path,
+    lessons_dir: &Path,
+    generated_dir: Option<&Path>,
+) -> Result<()> {
+    if let Ok((catalog, _)) = Catalog::load_with_generated(lessons_dir, generated_dir) {
         if let Ok(result) =
             zedkata_tui::launcher::reset_exercise_attempt(session_path, &catalog, None)
         {
@@ -281,9 +319,16 @@ fn handle_reset(session_path: &Path, lessons_dir: &Path) -> Result<()> {
     Ok(())
 }
 
-fn handle_next(session_path: &Path, lessons_dir: &Path) -> Result<()> {
-    let mut app =
-        zedkata_tui::app::App::load(session_path.to_path_buf(), lessons_dir.to_path_buf());
+fn handle_next(
+    session_path: &Path,
+    lessons_dir: &Path,
+    generated_dir: Option<&Path>,
+) -> Result<()> {
+    let mut app = zedkata_tui::app::App::load_with_generated(
+        session_path.to_path_buf(),
+        lessons_dir.to_path_buf(),
+        generated_dir.map(PathBuf::from),
+    );
     if app.advance_and_activate()? {
         let lesson_id = app
             .current_lesson()
@@ -318,10 +363,11 @@ fn handle_next(session_path: &Path, lessons_dir: &Path) -> Result<()> {
 fn handle_launch(
     session_path: &Path,
     lessons_dir: &Path,
+    generated_dir: Option<&Path>,
     lesson_id: Option<String>,
     exercise_index: usize,
 ) -> Result<()> {
-    let catalog = Catalog::load_from_dir(lessons_dir)
+    let (catalog, _) = Catalog::load_with_generated(lessons_dir, generated_dir)
         .with_context(|| format!("Failed to load catalog from {:?}", lessons_dir))?;
 
     let (session, corrupt_backup) = SessionState::load_or_recover(session_path)
@@ -376,31 +422,50 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
     let session_path = resolve_session_path(cli.session)?;
     let lessons_dir = resolve_lessons_dir(cli.lessons_dir);
+    let generated_dir = resolve_generated_dir(cli.generated_dir);
 
     match cli.command {
         Some(Commands::Select {
             lesson_id,
             exercise_index,
         }) => {
-            handle_select(&session_path, &lessons_dir, &lesson_id, exercise_index)?;
+            handle_select(
+                &session_path,
+                &lessons_dir,
+                generated_dir.as_deref(),
+                &lesson_id,
+                exercise_index,
+            )?;
         }
         Some(Commands::Launch {
             lesson_id,
             exercise_index,
         }) => {
-            handle_launch(&session_path, &lessons_dir, lesson_id, exercise_index)?;
+            handle_launch(
+                &session_path,
+                &lessons_dir,
+                generated_dir.as_deref(),
+                lesson_id,
+                exercise_index,
+            )?;
         }
         Some(Commands::Status) => {
             handle_status(&session_path)?;
         }
         Some(Commands::Reset) => {
-            handle_reset(&session_path, &lessons_dir)?;
+            handle_reset(&session_path, &lessons_dir, generated_dir.as_deref())?;
         }
         Some(Commands::Next) => {
-            handle_next(&session_path, &lessons_dir)?;
+            handle_next(&session_path, &lessons_dir, generated_dir.as_deref())?;
         }
         None => {
-            terminal::run_tui_app(&session_path, &lessons_dir, cli.test_error, cli.test_panic)?;
+            terminal::run_tui_app_with_generated(
+                &session_path,
+                &lessons_dir,
+                generated_dir.as_deref(),
+                cli.test_error,
+                cli.test_panic,
+            )?;
         }
     }
 
@@ -422,17 +487,17 @@ mod tests {
         let session_file = temp_dir.join("session.json");
         let lessons_dir = resolve_lessons_dir(None);
 
-        handle_select(&session_file, &lessons_dir, "motions-01-word", 0)?;
+        handle_select(&session_file, &lessons_dir, None, "motions-01-word", 0)?;
 
         let session = SessionState::load_from_file(&session_file)?;
         assert_eq!(session.current.lesson_id, "motions-01-word");
         assert_eq!(session.current.exercise_index, 0);
 
-        handle_reset(&session_file, &lessons_dir)?;
+        handle_reset(&session_file, &lessons_dir, None)?;
         let session_after_reset = SessionState::load_from_file(&session_file)?;
         assert!(session_after_reset.attempt.is_some());
 
-        handle_next(&session_file, &lessons_dir)?;
+        handle_next(&session_file, &lessons_dir, None)?;
         let session_after_next = SessionState::load_from_file(&session_file)?;
         assert_eq!(session_after_next.current.exercise_index, 1);
 

@@ -2919,3 +2919,140 @@ async fn test_operators_lesson_exercise_1_forbid_backspace_run() {
         let _ = std::fs::remove_dir(parent);
     }
 }
+
+#[tokio::test]
+async fn test_generated_practice_drill_pass_emits_uncalibrated_diagnostic_and_finalizes_session() {
+    let session_path = create_temp_session_path("generated_drill_pass");
+    let temp_gen_dir = session_path.parent().unwrap().join("generated");
+    let fixtures_dir = temp_gen_dir.join("fixtures").join("gen-dw-lsp");
+    std::fs::create_dir_all(&fixtures_dir).unwrap();
+
+    let gen_toml = r#"[lesson]
+id = "gen-dw-lsp"
+title = "Generated DW Drill"
+concepts = ["dw"]
+draft = false
+prose = "Practice targeted dw deletion."
+
+[[exercise]]
+id = "dw-drill"
+task = "Delete unused word."
+start = "fixtures/gen-dw-lsp/start.kata"
+goal = "fixtures/gen-dw-lsp/goal.kata"
+par_edits = 1
+max_edits = 2
+cursor = [1, 7]
+"#;
+    std::fs::write(temp_gen_dir.join("gen-dw-lsp.toml"), gen_toml).unwrap();
+    std::fs::write(fixtures_dir.join("start.kata"), "const unused value = 1;\n").unwrap();
+    std::fs::write(fixtures_dir.join("goal.kata"), "const value = 1;\n").unwrap();
+
+    let mut session = SessionState::default();
+    session.current.lesson_id = "gen-dw-lsp".to_string();
+    session.current.exercise_index = 0;
+    session.save_to_file(&session_path).unwrap();
+
+    let (catalog, summary) =
+        Catalog::load_with_generated(&lessons_dir(), Some(&temp_gen_dir)).unwrap();
+    assert_eq!(summary.map(|s| s.added.len()), Some(1));
+    assert!(catalog.get("gen-dw-lsp").is_some());
+
+    let start_fixture_path = catalog
+        .resolve_fixture("gen-dw-lsp", "dw-drill", true)
+        .unwrap();
+    let start_fixture_text = std::fs::read_to_string(&start_fixture_path).unwrap();
+    let start_uri = path_to_uri(&start_fixture_path);
+
+    let feedback = FeedbackEngine::new(session_path.clone(), catalog);
+    let server = LspServer::with_feedback(feedback);
+
+    let (client_io, server_io) = tokio::io::duplex(8192);
+    let (client_read, mut client_write) = tokio::io::split(client_io);
+    let (server_read, server_write) = tokio::io::split(server_io);
+
+    tokio::spawn(async move { run_server_with_engine(server_read, server_write, server).await });
+
+    let mut reader = MessageReader::new(client_read);
+
+    // Initialize
+    let init_req = Request::new(RequestId::Int(1), "initialize", None);
+    write_message(&mut client_write, &serde_json::to_vec(&init_req).unwrap())
+        .await
+        .unwrap();
+    let _init_resp = reader.read_message().await.unwrap().unwrap();
+
+    // didOpen
+    let open_params = DidOpenTextDocumentParams {
+        text_document: TextDocumentItem {
+            uri: start_uri.clone(),
+            language_id: "zedkata".to_string(),
+            version: 1,
+            text: start_fixture_text,
+        },
+    };
+    let open_notif = Notification::new(
+        "textDocument/didOpen",
+        Some(serde_json::to_value(open_params).unwrap()),
+    );
+    write_message(&mut client_write, &serde_json::to_vec(&open_notif).unwrap())
+        .await
+        .unwrap();
+    let _open_diag = reader.read_message().await.unwrap().unwrap();
+
+    // didChange with passing dw deletion
+    let change_params = DidChangeTextDocumentParams {
+        text_document: VersionedTextDocumentIdentifier {
+            uri: start_uri.clone(),
+            version: 2,
+        },
+        content_changes: vec![TextDocumentContentChangeEvent {
+            range: Some(Range::new(Position::new(0, 6), Position::new(0, 13))),
+            range_length: Some(7),
+            text: String::new(),
+        }],
+    };
+    let change_notif = Notification::new(
+        "textDocument/didChange",
+        Some(serde_json::to_value(change_params).unwrap()),
+    );
+    write_message(
+        &mut client_write,
+        &serde_json::to_vec(&change_notif).unwrap(),
+    )
+    .await
+    .unwrap();
+
+    let diag_msg = reader.read_message().await.unwrap().unwrap();
+    let json_diag: serde_json::Value = serde_json::from_slice(&diag_msg).unwrap();
+    let diag = &json_diag["params"]["diagnostics"][0];
+    assert_eq!(diag["severity"], 3); // Information
+    let msg = diag["message"].as_str().unwrap();
+    assert!(
+        msg.contains("par 1 (uncalibrated)"),
+        "Diagnostic message must indicate uncalibrated budget: {}",
+        msg
+    );
+    assert!(
+        msg.contains("(generated practice)"),
+        "Diagnostic message must indicate generated practice: {}",
+        msg
+    );
+
+    // Verify session recorded pass
+    let updated_session = SessionState::load_from_file(&session_path).unwrap();
+    let att = updated_session.attempt.unwrap();
+    match att.verdict {
+        Some(Verdict::Passed { edits, par, score }) => {
+            assert_eq!(edits, 1);
+            assert_eq!(par, Some(1));
+            assert_eq!(score, 100);
+        }
+        _ => panic!("Expected Passed verdict, got {:?}", att.verdict),
+    }
+
+    assert_eq!(updated_session.history.len(), 1);
+    assert!(updated_session.history[0].passed);
+    assert_eq!(updated_session.history[0].score, 100);
+
+    let _ = std::fs::remove_dir_all(session_path.parent().unwrap());
+}

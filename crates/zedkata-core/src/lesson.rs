@@ -306,6 +306,11 @@ impl Lesson {
 
         Self::from_toml(&content, Some(path))
     }
+
+    /// Returns true if this lesson is a targeted generated practice lesson (ID starts with "gen-").
+    pub fn is_generated(&self) -> bool {
+        self.id.starts_with("gen-")
+    }
 }
 
 fn validate_id(id: &str, field: &str, path: Option<&Path>) -> Result<(), CoreError> {
@@ -354,6 +359,19 @@ fn validate_fixture_path(
             field: field.to_string(),
             message: format!(
                 "Fixture path '{}' must be relative, not absolute",
+                fixture_path
+            ),
+        });
+    }
+
+    if p.components()
+        .any(|c| matches!(c, std::path::Component::ParentDir))
+    {
+        return Err(CoreError::LessonValidationError {
+            path: path.map(PathBuf::from),
+            field: field.to_string(),
+            message: format!(
+                "Fixture path '{}' cannot contain parent directory traversal ('..')",
                 fixture_path
             ),
         });

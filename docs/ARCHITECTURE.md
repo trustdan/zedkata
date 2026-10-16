@@ -72,8 +72,20 @@ Handles what drills cannot:
 - Guided walkthroughs of Zed features that have no pass/fail state: the agent panel,
   multibuffer editing, tasks, the debugger, ACP itself.
 
-It reads `session.json` for context. It writes lesson-generation output to
-`lessons/generated/`.
+#### Provider & Credential Architecture (ADR 0005)
+- **Local / Zero-Cost (Default):** LM Studio or Ollama via OpenAI-compatible endpoints (`http://localhost:1234/v1` or `http://localhost:11434/v1`).
+- **Big Three Cloud API Keys:** Anthropic (`ANTHROPIC_API_KEY`), OpenAI (`OPENAI_API_KEY`), and Google Gemini (`GEMINI_API_KEY`).
+- **Personal Auth:** ChatGPT subscription / session token auth option.
+- **Precedence:** Process environment / Zed `settings.json.env` overrides `config.toml` (`%APPDATA%\zedkata\config.toml` on Windows, `$XDG_CONFIG_HOME/zedkata/config.toml` on Unix).
+
+#### Bounded Context Contract (REQ-27)
+- Reads `session.json` for active attempt context: lesson ID, task prompt, par budget, forbid rules, and failure verdict.
+- Edit history sent to model is strictly bounded to the last 20 edit operations or 2KB diff to eliminate token runaway and prevent hallucinated state.
+
+#### Generated Lessons Storage (REQ-28, REQ-31, ZK-006.5)
+- Development checkout: `lessons/generated/`
+- Production installed: `%LOCALAPPDATA%\zedkata\lessons\generated\` (Windows) or `$XDG_DATA_HOME/zedkata/lessons/generated/` (Unix).
+- Generated lessons are merged into catalog navigation under unique timestamped IDs without modifying shipped lesson files.
 
 ### `zedkata-ext`
 

@@ -12,7 +12,7 @@ env:
 jobs:
   fmt:
     name: Code Formatting
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -23,7 +23,7 @@ jobs:
 
   clippy:
     name: Clippy Linter
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -33,19 +33,112 @@ jobs:
         run: cargo clippy --workspace --locked --all-targets -- -D warnings
 
   test:
-    name: Tests (Windows)
-    runs-on: windows-latest
+    name: Tests (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: macos-latest
+            target: aarch64-apple-darwin
+          - os: macos-13
+            target: x86_64-apple-darwin
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - name: Build release binaries for staging tests
+        run: cargo build --workspace --locked --release --target ${{ matrix.target }}
+      - name: Stage package (Windows)
+        if: runner.os == 'Windows'
+        run: pwsh scripts/package.ps1 -OutputDir dist/zedkata-v0.1.0 -Target ${{ matrix.target }} -SkipBuild
+      - name: Stage package (Unix)
+        if: runner.os != 'Windows'
+        run: bash scripts/package.sh --output-dir dist/zedkata-v0.1.0 --target ${{ matrix.target }} --skip-build
       - name: Run workspace tests
         run: cargo test --workspace --locked
+      - name: Validate curriculum catalog
+        run: cargo test -p zedkata-core --test catalog_validation --locked -- --nocapture
+
+  package-artifacts:
+    name: Package Artifacts (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            archive: zedkata-v0.1.0-x86_64-pc-windows-msvc.zip
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            archive: zedkata-v0.1.0-x86_64-unknown-linux-gnu.tar.gz
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            archive: zedkata-v0.1.0-aarch64-apple-darwin.tar.gz
+          - os: macos-13
+            target: x86_64-apple-darwin
+            archive: zedkata-v0.1.0-x86_64-apple-darwin.tar.gz
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - name: Build locked release binaries
+        run: cargo build --workspace --locked --release --target ${{ matrix.target }}
+      - name: Package & Archive (Windows)
+        if: runner.os == 'Windows'
+        run: pwsh scripts/package.ps1 -OutputDir dist/zedkata-v0.1.0 -Target ${{ matrix.target }} -SkipBuild -Archive
+      - name: Package & Archive (Unix)
+        if: runner.os != 'Windows'
+        run: bash scripts/package.sh --output-dir dist/zedkata-v0.1.0 --target ${{ matrix.target }} --skip-build --archive
+      - name: Upload Distribution Archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: zedkata-${{ matrix.target }}-archive
+          path: dist/${{ matrix.archive }}
+          if-no-files-found: error
+      - name: Upload Staged Tree Directory
+        uses: actions/upload-artifact@v4
+        with:
+          name: zedkata-${{ matrix.target }}-staged
+          path: dist/zedkata-v0.1.0
+          if-no-files-found: error
 
   msrv:
     name: Minimum Supported Rust Version (1.85)
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.85.0
       - name: Check workspace on MSRV
         run: cargo check --workspace --locked
+
+  extension:
+    name: WASM Extension Check & Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-wasip2
+      - name: Check extension formatting
+        run: cargo fmt --manifest-path extension/Cargo.toml -- --check
+      - name: Run extension clippy
+        run: cargo clippy --manifest-path extension/Cargo.toml --target wasm32-wasip2 -- -D warnings
+      - name: Run extension unit tests
+        run: cargo test --manifest-path extension/Cargo.toml
+      - name: Build locked release WASM extension
+        run: cargo build --manifest-path extension/Cargo.toml --target wasm32-wasip2 --release --locked
+      - name: Upload compiled WASM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: zedkata-extension-wasm
+          path: extension/target/wasm32-wasip2/release/zedkata_extension.wasm
+          if-no-files-found: error
+

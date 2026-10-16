@@ -3,7 +3,9 @@
 An interactive, drill-based course for Zed's vim mode and editor features — run from a
 TUI inside Zed's own terminal, with exercises performed in real Zed buffers.
 
-**Status: pre-alpha. Nothing works yet. Phase 0 is an unresolved feasibility spike.**
+**Status: v0.1.0. All core curriculum, TUI conductor, LSP observer, ACP agent, and platform builds are implemented and validated.**
+
+See [Installation & Troubleshooting Guide](docs/installation.md) for full setup instructions.
 
 ---
 
@@ -31,10 +33,7 @@ did something. `ci"` and mouse-select-then-retype produce identical buffers. Wit
 keystroke access, technique has to be **inferred from LSP `textDocument/didChange`
 deltas** — one word-sized deletion looks different on the wire from five backspaces.
 
-Whether that inference is possible at all depends on a single empirical fact nobody has
-written down: does Zed send granular per-edit `didChange` notifications, or does it
-coalesce them? **Phase 0 exists to answer that question before any real code is
-written.** See [the backlog](docs/BACKLOG.md).
+Empirical verification in Phase 0 confirmed that Zed sends granular per-edit `didChange` notifications, making technique inference reliable. See [the backlog](docs/BACKLOG.md).
 
 ## Architecture
 
@@ -60,15 +59,15 @@ written.** See [the backlog](docs/BACKLOG.md).
 
 Four processes, one shared state file. They do not talk to each other directly.
 
-## Planned crates
+## Implemented Crates & Components
 
-| Crate           | Role                                                          |
-|-----------------|---------------------------------------------------------------|
-| `zedkata-core`  | Lesson format, verification rules, session state, scoring      |
-| `zedkata-lsp`   | Language server; observes `didChange`, emits inline feedback   |
-| `zedkata-tui`   | ratatui front end; curriculum navigation and progress          |
-| `zedkata-agent` | ACP agent for the Zed agent panel                              |
-| `zedkata-ext`   | Zed extension (Rust → WASM) that registers the LSP             |
+| Component | Path | Role |
+|---|---|---|
+| `zedkata-core` | `crates/zedkata-core` | Lesson format, verification rules, session state, scoring |
+| `zedkata-lsp` | `crates/zedkata-lsp` | Language server; observes `didChange`, emits inline feedback |
+| `zedkata-tui` | `crates/zedkata-tui` | ratatui front end; curriculum navigation and progress |
+| `zedkata-agent` | `crates/zedkata-agent` | ACP agent for the Zed agent panel; explanations & generated drills |
+| `extension` | `extension/` | Zed extension (Rust → WASM) that registers the LSP and `.kata` language |
 
 ## Why Rust
 
@@ -78,17 +77,39 @@ extensions must be Rust compiled to WebAssembly. See [ADR 0002](docs/adr/0002-ru
 ## Repository map
 
 | Location | Contents |
-|----------|----------|
+|---|---|
+| [docs/installation.md](docs/installation.md) | Complete installation and troubleshooting guide |
 | [CLAUDE.md](CLAUDE.md) | Working rules for AI agents |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Proposed components, state contract, and lesson format |
-| [docs/BACKLOG.md](docs/BACKLOG.md) | Phased roadmap, starting with the feasibility gate |
-| [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) | Source-to-task coverage and unresolved decisions |
+| [docs/BACKLOG.md](docs/BACKLOG.md) | Phased roadmap and task progress |
+| [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) | Source-to-task coverage and requirement verification |
 | [docs/OPEN-QUESTIONS.md](docs/OPEN-QUESTIONS.md) | Assumptions and recorded evidence |
 | [docs/adr/](docs/adr/) | Numbered architecture decisions |
 | [docs/plans/](docs/plans/) | Plans for repository changes |
-| [.claude/agents/](.claude/agents/) | Specialist agent definitions |
-| [lessons/](lessons/) | Reference lesson data and content status |
+| [docs/evidence/](docs/evidence/) | Verifications and calibration evidence |
+| [lessons/](lessons/) | External TOML curriculum lessons and fixtures |
+| [extension/](extension/) | Production Zed extension manifest and source |
+| [scripts/](scripts/) | Release packaging and verification scripts |
 
 ## Getting started
 
-Nothing to run yet. Start with [Phase 0 in the backlog](docs/BACKLOG.md#phase-0--feasibility-spike-gate).
+1. **Install Zedkata and the Extension:**
+   Follow the detailed [Installation & Troubleshooting Guide](docs/installation.md) to set up the binaries and install the Zed extension.
+
+2. **Launch the TUI Conductor:**
+   ```bash
+   zedkata-tui
+   ```
+
+3. **Practice in Real Zed Buffers:**
+   Select any unlocked drill (e.g. `modal-00-baseline`). Zedkata opens the working buffer in Zed at the exact line and column. Edit the buffer, observe instant LSP feedback diagnostics, and advance through the curriculum.
+
+## License
+
+Zedkata is dual-licensed under either:
+
+- **MIT License** ([LICENSE-MIT](LICENSE-MIT) or [opensource.org/licenses/MIT](https://opensource.org/licenses/MIT))
+- **Apache License, Version 2.0** ([LICENSE-APACHE](LICENSE-APACHE) or [apache.org/licenses/LICENSE-2.0](https://www.apache.org/licenses/LICENSE-2.0))
+
+at your option.
+

@@ -1,0 +1,20 @@
+{
+  "agent_servers": {
+    "zedkata": {
+      "type": "custom",
+      "command": "zedkata-agent",
+      "args": ["--acp"],
+      "env": {
+        "RUST_LOG": "info"
+      }
+    },
+    "mock-agent": {
+      "type": "custom",
+      "command": "python",
+      "args": ["scripts/mock_acp_agent.py"],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      }
+    }
+  }
+}

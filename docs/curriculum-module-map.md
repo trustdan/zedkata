@@ -48,8 +48,9 @@ The audit of Zed's native Vim implementation (`crates/vim/src/object.rs` and `as
 | **Keymap Contexts** | Context hierarchy (`Workspace` > `Pane` > `Editor`), `VimControl`, `vim_mode`, `vim_operator` | **Native** in GPUI, but **unobservable via LSP** | Configured in `keymap.json` | Walkthrough (`keymap-contexts`) |
 | **Normal LSP Actions** | `gd`, `gh`, `c d` (rename), `g .` (code action), `g ]`/`g [` (diagnostic), `g A` (references) | **Native** (`editor::*`) | `c d`, `g .`, `g ]`, `g [`, `gd`, `gh`, `g A`, `:clist` | Walkthrough (`lsp-actions-walkthrough`) per REQ-25 / OQ-14 |
 | **Project Panel & Netrw** | Project panel focus (`ctrl-shift-e`/`<escape>`), tree navigation (`j`/`k`, `h`/`l`, `-`), splits (`v`, `o`), file ops (`%`, `d`, `R`, `D`, `ctrl-z`) | **Native** (`project_panel::*`) | `ctrl-shift-e`, `j`, `k`, `h`, `l`, `-`, `enter`, `v`, `o`, `p`, `%`, `d`, `R`, `D` | Walkthrough (`project-panel-walkthrough`) per REQ-25 / OQ-15 |
-| **Multibuffer** | Project-wide multi-file search and concurrent edit buffers | **Native** | `pane::DeploySearch` (`g /`) | Walkthrough |
-| **Workspace & Agent** | Tasks (`tasks.json`), debugger, agent panel & ACP | **Native** | Standard Zed workspace | Walkthrough |
+| **Multibuffer** | Project-wide multi-file search and concurrent edit buffers | **Native** | `pane::DeploySearch` (`g /`), `ctrl-shift-f`, `shift-enter`, `alt-enter`, `ctrl-d`, `ctrl-s` | Walkthrough (`multibuffer-walkthrough`) per REQ-25 / OQ-16 |
+| **Tasks & Debugger** | Tasks (`tasks.json`), DAP debugger (`debug.json`, CodeLLDB) | **Native** | `task::Spawn`, `task::Rerun`, `debugger::*`, `F4`, `F7`, `F8`, `F9`, `space shift-g *` | Walkthrough (`tasks-and-debugger-walkthrough`) per REQ-25 / OQ-17 |
+| **Workspace & Agent** | Agent panel & ACP | **Native** | Standard Zed workspace | Walkthrough |
 
 ---
 
@@ -65,7 +66,8 @@ graph TD
     M4 --> M6["zed-01-lsp-actions<br/>(LSP normal-mode intelligence)"]
     M4 --> M7["zed-02-project-panel<br/>(Project panel & netrw navigation)"]
     M6 --> M8["zed-03-multibuffer<br/>(Multibuffer cross-file workflows)"]
-    M8 --> M9["zed-04-workflow<br/>(Tasks, debugger & agent panel)"]
+    M8 --> M9["zed-04-tasks-and-debugger<br/>(Workspace tasks & DAP debugger)"]
+    M9 --> M10["zed-05-agent-panel<br/>(Agent panel & ACP workflows)"]
 ```
 
 ### Module Breakdown
@@ -140,14 +142,29 @@ graph TD
   - `project-panel-walkthrough`: Netrw-style keyboard navigation and multi-pane workflow using `lessons/fixtures/walkthroughs/project_panel/` (detailed recipes in `docs/walkthroughs/project-panel.md`).
 
 #### Module 8: `zed-03-multibuffer` — Multibuffer Project Editing
-- **Type:** Guided Walkthroughs
+- **Type:** Guided Walkthrough (Unscored per REQ-25, REQ-29, OQ-16)
 - **Prerequisites:** `["zed-01-lsp-actions"]`
-- **Concepts:** Project search (`pane::DeploySearch` / `g /`), multi-file excerpts, concurrent multi-file edits.
+- **Concepts:** Project search (`pane::DeploySearch` / `g /`), multi-file excerpt navigation (`n`/`N`), context expansion (`shift-enter`), excerpt breakout (`alt-enter`), multi-cursor editing across excerpts (`ctrl-d` + `c w`), atomic multi-file save (`ctrl-s`).
+- **Status:** **Authored & Sourced (ZK-027.3)**
+- **Walkthroughs:**
+  - `multibuffer-walkthrough`: Multibuffer project search, excerpt navigation, and simultaneous cross-file editing using `lessons/fixtures/walkthroughs/multibuffer/` (detailed recipes in `docs/walkthroughs/multibuffer.md`).
 
-#### Module 9: `zed-04-workflow` — Workspace Tasks, Debugger & Agent
-- **Type:** Guided Walkthroughs
+#### Module 9: `zed-04-tasks-and-debugger` — Workspace Tasks & DAP Debugger
+- **Type:** Guided Walkthrough (Unscored per REQ-25, REQ-29, OQ-17)
 - **Prerequisites:** `["zed-03-multibuffer"]`
-- **Concepts:** Tasks (`tasks.json`), debugger setup, agent panel and ACP.
+- **Concepts:** `task: spawn`, `task: rerun`, `.zed/tasks.json`, `$ZED_FILE`, `$ZED_STEM`, `$ZED_WORKTREE_ROOT`, `debugger: start`, `F4`, `F8`, `F7`, `F9`, `space shift-g b`, `space shift-g l`, `.zed/debug.json`
+- **Status:** **Authored & Sourced (ZK-027.4)**
+- **Walkthroughs:**
+  - `tasks-and-debugger-walkthrough`: Workspace task automation, oneshots, and DAP debugging using `lessons/fixtures/walkthroughs/tasks_and_debugger/` (detailed recipes in `docs/walkthroughs/tasks-and-debugger.md`).
+
+#### Module 10: `zed-05-agent-panel` — Agent Panel & Agent Client Protocol (ACP)
+- **Type:** Guided Walkthrough (Unscored per REQ-25, REQ-26, REQ-29, OQ-07, OQ-09)
+- **Prerequisites:** `["zed-04-tasks-and-debugger"]`
+- **Concepts:** `ctrl-?`, `agent: toggle focus`, `agent: new thread`, `agent_servers`, `.zed/settings.json`, `@file`, `@rules`, `agent-client-protocol`, `stdio`
+- **Status:** **Authored & Sourced (ZK-027.5)**
+- **Walkthroughs:**
+  - `agent-panel-walkthrough`: Conversational assistant workflows, custom ACP agent registration, `@file` context injection, and proposed diff reviews using `lessons/fixtures/walkthroughs/agent_panel/` (detailed recipes in `docs/walkthroughs/agent-panel.md`).
+
 
 ---
 
