@@ -10,6 +10,7 @@ use zedkata_core::verification::{verify_attempt, AttemptOutcome};
 pub struct FeedbackEngine {
     session_path: PathBuf,
     catalog: Catalog,
+    generated_dir: Option<PathBuf>,
     active_attempt_id: Option<String>,
     active_uri: Option<String>,
 }
@@ -19,6 +20,21 @@ impl FeedbackEngine {
         Self {
             session_path,
             catalog,
+            generated_dir: None,
+            active_attempt_id: None,
+            active_uri: None,
+        }
+    }
+
+    pub fn with_generated_dir(
+        session_path: PathBuf,
+        catalog: Catalog,
+        generated_dir: Option<PathBuf>,
+    ) -> Self {
+        Self {
+            session_path,
+            catalog,
+            generated_dir,
             active_attempt_id: None,
             active_uri: None,
         }
@@ -38,6 +54,19 @@ impl FeedbackEngine {
 
     pub fn active_uri(&self) -> Option<&str> {
         self.active_uri.as_deref()
+    }
+
+    /// Reloads generated lessons into `self.catalog` if `lesson_id` is not currently present.
+    fn ensure_lesson_loaded(&mut self, lesson_id: &str) {
+        if self.catalog.get(lesson_id).is_some() {
+            return;
+        }
+        let base_dir = self.catalog.base_dir().to_path_buf();
+        if let Ok((reloaded, _)) =
+            Catalog::load_with_generated(&base_dir, self.generated_dir.as_deref())
+        {
+            self.catalog = reloaded;
+        }
     }
 
     /// Check if an opened document URI corresponds to the active exercise buffer in session state.
@@ -64,6 +93,18 @@ impl FeedbackEngine {
             return Ok(false);
         };
 
+        let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        if file_name.ends_with(".goal.kata") {
+            return Ok(false);
+        }
+
+        // Also explicitly exclude the resolved goal fixture path
+        if let Ok(goal_fixture) = self.catalog.resolve_fixture(lesson_id, &exercise.id, false) {
+            if paths_match(&path, &goal_fixture) {
+                return Ok(false);
+            }
+        }
+
         // 1. If buffer_path is explicitly set in session.current, match against it
         if let Some(ref bp) = session.current.buffer_path {
             if paths_match(&path, Path::new(bp)) {
@@ -78,11 +119,15 @@ impl FeedbackEngine {
             }
         }
 
-        // 3. Or match if file stem matches exercise ID or lesson/exercise naming convention
-        if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
-            if file_name.starts_with(&exercise.id) || file_name.contains(&exercise.id) {
-                return Ok(true);
-            }
+        // 3. Or match exact exercise buffer naming conventions
+        let expected_kata = format!("{}.kata", exercise.id);
+        let expected_start_kata = format!("{}.start.kata", exercise.id);
+        let expected_prefixed_kata = format!("{}-{}.kata", lesson_id, exercise.id);
+        if file_name == expected_kata
+            || file_name == expected_start_kata
+            || file_name == expected_prefixed_kata
+        {
+            return Ok(true);
         }
 
         Ok(false)
@@ -97,6 +142,12 @@ impl FeedbackEngine {
         uri: &str,
         _text: &str,
     ) -> Result<Option<Notification>, LspError> {
+        if let Ok(session) = SessionState::load_or_init(&self.session_path) {
+            if !session.current.lesson_id.is_empty() {
+                self.ensure_lesson_loaded(&session.current.lesson_id);
+            }
+        }
+
         if !self.is_active_exercise(uri)? {
             return Ok(None);
         }
@@ -170,12 +221,8 @@ impl FeedbackEngine {
             return Ok(None);
         }
 
-        // Synchronize rolling edits
-        let attempt = session.attempt.as_mut().unwrap();
-        attempt.edits = edits.to_vec();
-        attempt.edit_count = zedkata_core::scoring::count_edit_units(&attempt.edits);
-
         let lesson_id = session.current.lesson_id.clone();
+        self.ensure_lesson_loaded(&lesson_id);
         let Some(lesson_entry) = self.catalog.get(&lesson_id) else {
             return Ok(None);
         };
@@ -195,13 +242,15 @@ impl FeedbackEngine {
             .map_err(|e| LspError::Protocol(format!("Cannot resolve goal fixture: {}", e)))?;
         let goal_text = std::fs::read_to_string(&goal_path).map_err(LspError::Io)?;
 
-        // Verify attempt against goal
-        let outcome = verify_attempt(
-            current_text,
-            &goal_text,
-            session.attempt.as_ref().unwrap(),
-            exercise,
-        );
+        // Synchronize rolling edits and verify attempt against goal
+        let outcome = {
+            let Some(ref mut attempt) = session.attempt else {
+                return Ok(None);
+            };
+            attempt.edits = edits.to_vec();
+            attempt.edit_count = zedkata_core::scoring::count_edit_units(&attempt.edits);
+            verify_attempt(current_text, &goal_text, attempt, exercise)
+        };
 
         match outcome {
             AttemptOutcome::Unfinished => {
@@ -356,36 +405,26 @@ pub fn paths_match(a: &Path, b: &Path) -> bool {
     }
 }
 
-/// Decode percent-encoded characters (e.g. %20 -> ' ').
+/// Decode percent-encoded characters (e.g. %20 -> ' ', %C3%A9 -> 'é') as UTF-8.
 fn urlencoding_decode(s: &str) -> String {
-    let mut result = String::with_capacity(s.len());
-    let mut chars = s.chars().peekable();
+    let mut bytes = Vec::with_capacity(s.len());
+    let mut chars = s.chars();
     while let Some(c) = chars.next() {
         if c == '%' {
-            let h1 = chars.next();
-            let h2 = chars.next();
-            if let (Some(h1), Some(h2)) = (h1, h2) {
-                let hex_str = format!("{}{}", h1, h2);
-                if let Ok(byte) = u8::from_str_radix(&hex_str, 16) {
-                    result.push(byte as char);
-                    continue;
-                } else {
-                    result.push('%');
-                    result.push(h1);
-                    result.push(h2);
+            let mut clone = chars.clone();
+            if let (Some(h1), Some(h2)) = (clone.next(), clone.next()) {
+                if let (Some(d1), Some(d2)) = (h1.to_digit(16), h2.to_digit(16)) {
+                    let _ = chars.next();
+                    let _ = chars.next();
+                    bytes.push(((d1 << 4) | d2) as u8);
                     continue;
                 }
-            } else {
-                result.push('%');
-                if let Some(h1) = h1 {
-                    result.push(h1);
-                }
-                continue;
             }
         }
-        result.push(c);
+        let mut buf = [0u8; 4];
+        bytes.extend_from_slice(c.encode_utf8(&mut buf).as_bytes());
     }
-    result
+    String::from_utf8_lossy(&bytes).into_owned()
 }
 
 #[cfg(test)]
@@ -402,6 +441,19 @@ mod tests {
         let reconstructed = path_to_uri(&path);
         assert!(reconstructed.starts_with("file:///"));
         assert!(reconstructed.contains("workspace/test dir/file.kata"));
+    }
+
+    #[test]
+    fn test_uri_to_path_decodes_multibyte_utf8_percent_sequences() {
+        // %C3%A9 = 'é' (2-byte UTF-8), %F0%9F%8C%8D = '🌍' (4-byte UTF-8)
+        let uri = "file:///C:/workspace/caf%C3%A9%20%F0%9F%8C%8D/drill.kata";
+        let path = uri_to_path(uri).unwrap();
+        let path_str = path.to_string_lossy();
+        assert!(
+            path_str.contains("café 🌍"),
+            "Expected UTF-8 decoded path containing 'café 🌍', got: {}",
+            path_str
+        );
     }
 
     #[test]

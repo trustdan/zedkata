@@ -1986,7 +1986,6 @@ dependencies = [
  "ratatui",
  "serde_json",
  "thiserror 1.0.69",
- "tokio",
  "zedkata-agent",
  "zedkata-core",
  "zedkata-lsp",

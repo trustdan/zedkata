@@ -353,3 +353,513 @@ fn test_cli_explain_command_with_session_file() {
 
     let _ = fs::remove_dir_all(&dir);
 }
+
+#[derive(Debug, Clone)]
+struct CapturedHttpRequest {
+    request_line: String,
+    headers: String,
+    body: String,
+}
+
+fn spawn_single_shot_http_server(
+    status_line: &'static str,
+    response_body: String,
+    delay: Option<std::time::Duration>,
+) -> (
+    String,
+    std::sync::mpsc::Receiver<CapturedHttpRequest>,
+    std::thread::JoinHandle<()>,
+) {
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind loopback listener");
+    let addr = listener.local_addr().unwrap();
+    let base_url = format!("http://127.0.0.1:{}", addr.port());
+    let (tx, rx) = std::sync::mpsc::channel();
+
+    let handle = std::thread::spawn(move || {
+        if let Ok((mut stream, _)) = listener.accept() {
+            let _ = stream.set_read_timeout(Some(std::time::Duration::from_secs(5)));
+            let mut buf = Vec::new();
+            let mut chunk = [0u8; 4096];
+            let mut header_end = None;
+            let mut content_len = 0usize;
+
+            loop {
+                match stream.read(&mut chunk) {
+                    Ok(0) => break,
+                    Ok(n) => {
+                        buf.extend_from_slice(&chunk[..n]);
+                        if header_end.is_none() {
+                            if let Some(pos) = buf.windows(4).position(|w| w == b"\r\n\r\n") {
+                                header_end = Some(pos);
+                                let hdr_str = String::from_utf8_lossy(&buf[..pos]);
+                                for line in hdr_str.lines() {
+                                    if let Some((k, v)) = line.split_once(':') {
+                                        if k.trim().eq_ignore_ascii_case("content-length") {
+                                            content_len = v.trim().parse::<usize>().unwrap_or(0);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        if let Some(h_end) = header_end {
+                            if buf.len() >= h_end + 4 + content_len {
+                                break;
+                            }
+                        }
+                    }
+                    Err(_) => break,
+                }
+            }
+
+            let raw_req = String::from_utf8_lossy(&buf).to_string();
+            let (hdrs, body) = raw_req
+                .split_once("\r\n\r\n")
+                .map(|(h, b)| (h.to_string(), b.to_string()))
+                .unwrap_or((raw_req.clone(), String::new()));
+            let req_line = hdrs.lines().next().unwrap_or("").to_string();
+            let _ = tx.send(CapturedHttpRequest {
+                request_line: req_line,
+                headers: hdrs,
+                body,
+            });
+
+            if let Some(d) = delay {
+                std::thread::sleep(d);
+            }
+
+            let http_resp = format!(
+                "HTTP/1.1 {}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                status_line,
+                response_body.len(),
+                response_body
+            );
+            let _ = stream.write_all(http_resp.as_bytes());
+            let _ = stream.flush();
+        }
+    });
+
+    (base_url, rx, handle)
+}
+
+#[test]
+fn test_chatgpt_auth_explicitly_rejected_as_out_of_scope() {
+    let err = "chatgpt-auth".parse::<ProviderKind>().unwrap_err();
+    assert!(
+        err.contains("out of scope"),
+        "Expected out-of-scope rejection for chatgpt-auth, got: {}",
+        err
+    );
+    assert!(err.contains("lm-studio"));
+    assert!(err.contains("offline"));
+}
+
+#[test]
+fn test_loopback_http_openai_compatible_explain_and_generate() {
+    use zedkata_agent::{ExerciseGenerator, WeaknessContext};
+
+    let ctx = sample_attempt_context(false);
+    let weakness_ctx = WeaknessContext {
+        target_concept: "dw".to_string(),
+        severity: Some(0.8),
+        all_weaknesses: vec![("dw".to_string(), 0.8)],
+        is_unscored_or_clean: false,
+        recent_failures: vec!["Over par".to_string()],
+        session_path: None,
+    };
+
+    for (kind, api_key) in [
+        (ProviderKind::LmStudio, None),
+        (ProviderKind::Ollama, None),
+        (ProviderKind::OpenAI, Some("sk-openai-loopback".to_string())),
+    ] {
+        // 1. Test explain_attempt
+        let md_explanation = "### 1. Observations\n- Executed 4 backspace edits against par 1.\n\n### 2. Technique Inference\n- Relied on Insert-mode backspaces instead of dw.\n\n### 3. Recommendation\nPress `dw` in Normal mode.";
+        let openai_explain_resp = serde_json::json!({
+            "choices": [{
+                "message": {
+                    "role": "assistant",
+                    "content": md_explanation
+                }
+            }]
+        })
+        .to_string();
+
+        let (base_url, rx, handle) =
+            spawn_single_shot_http_server("200 OK", openai_explain_resp, None);
+        let config = AgentConfig {
+            provider: kind,
+            model: "test-openai-model".to_string(),
+            base_url: Some(format!("{}/v1", base_url)),
+            api_key: api_key.clone(),
+            timeout_seconds: 5,
+            ..Default::default()
+        };
+        let provider = ConfiguredProvider::new(config);
+        let explanation = provider
+            .explain_attempt(&ctx)
+            .expect("OpenAI-compatible explain_attempt should succeed");
+        let captured = rx.recv().expect("Should capture HTTP request");
+        let _ = handle.join();
+
+        assert_eq!(captured.request_line, "POST /v1/chat/completions HTTP/1.1");
+        if let Some(ref k) = api_key {
+            assert!(captured
+                .headers
+                .contains(&format!("Authorization: Bearer {}", k)));
+        }
+        let sent_json: serde_json::Value = serde_json::from_str(&captured.body).unwrap();
+        assert_eq!(sent_json["model"], "test-openai-model");
+        assert!(sent_json["messages"][0]["content"]
+            .as_str()
+            .unwrap()
+            .contains("Zedkata Pedagogical Coach"));
+        assert!(sent_json["messages"][1]["content"]
+            .as_str()
+            .unwrap()
+            .contains("Delete word 'foo' using dw"));
+        assert_eq!(
+            explanation.observations,
+            vec!["Executed 4 backspace edits against par 1."]
+        );
+        assert_eq!(
+            explanation.inferences,
+            vec!["Relied on Insert-mode backspaces instead of dw."]
+        );
+        assert_eq!(explanation.recommendation, "Press `dw` in Normal mode.");
+
+        // 2. Test generate_candidate
+        let candidate_json = serde_json::json!({
+            "title": "Loopback Practice: dw",
+            "prose": "Use dw to delete words cleanly.",
+            "exercise_id": "loopback-dw",
+            "task": "Delete 'unused' on line 1.",
+            "start_content": "let unused = 1;\n",
+            "goal_content": "let = 1;\n",
+            "par_edits": 1,
+            "max_edits": 2,
+            "cursor": [1, 5],
+            "hint": "Use dw.",
+            "forbid_backspace_run": 3
+        })
+        .to_string();
+        let openai_gen_resp = serde_json::json!({
+            "choices": [{
+                "message": {
+                    "role": "assistant",
+                    "content": candidate_json
+                }
+            }]
+        })
+        .to_string();
+
+        let (base_url_gen, rx_gen, handle_gen) =
+            spawn_single_shot_http_server("200 OK", openai_gen_resp, None);
+        let config_gen = AgentConfig {
+            provider: kind,
+            model: "test-openai-model".to_string(),
+            base_url: Some(base_url_gen),
+            api_key: api_key.clone(),
+            timeout_seconds: 5,
+            ..Default::default()
+        };
+        let provider_gen = ConfiguredProvider::new(config_gen);
+        let candidate = provider_gen
+            .generate_candidate(&weakness_ctx)
+            .expect("OpenAI-compatible generate_candidate should succeed");
+        let captured_gen = rx_gen.recv().expect("Should capture generate request");
+        let _ = handle_gen.join();
+
+        assert_eq!(
+            captured_gen.request_line,
+            "POST /v1/chat/completions HTTP/1.1"
+        );
+        assert_eq!(candidate.title, "Loopback Practice: dw");
+        assert_eq!(candidate.exercise_id, "loopback-dw");
+        assert_eq!(candidate.par_edits, Some(1));
+    }
+}
+
+#[test]
+fn test_loopback_http_anthropic_explain_and_generate() {
+    use zedkata_agent::{ExerciseGenerator, WeaknessContext};
+
+    let ctx = sample_attempt_context(false);
+    let weakness_ctx = WeaknessContext {
+        target_concept: "ci".to_string(),
+        severity: Some(0.75),
+        all_weaknesses: vec![("ci".to_string(), 0.75)],
+        is_unscored_or_clean: false,
+        recent_failures: Vec::new(),
+        session_path: None,
+    };
+
+    // 1. Anthropic explain_attempt
+    let explain_json_str = serde_json::json!({
+        "observations": ["Anthropic observed 4 edits."],
+        "inferences": ["Anthropic inferred character-by-character deletion."],
+        "recommendation": "Use dw in Normal mode."
+    })
+    .to_string();
+    let anthropic_resp = serde_json::json!({
+        "content": [{
+            "type": "text",
+            "text": explain_json_str
+        }]
+    })
+    .to_string();
+
+    let (base_url, rx, handle) = spawn_single_shot_http_server("200 OK", anthropic_resp, None);
+    let config = AgentConfig {
+        provider: ProviderKind::Anthropic,
+        model: "claude-3-5-sonnet-latest".to_string(),
+        base_url: Some(format!("{}/v1", base_url)),
+        api_key: Some("sk-ant-loopback-key".to_string()),
+        timeout_seconds: 5,
+        ..Default::default()
+    };
+    let provider = ConfiguredProvider::new(config);
+    let explanation = provider
+        .explain_attempt(&ctx)
+        .expect("Anthropic explain_attempt should succeed");
+    let captured = rx.recv().unwrap();
+    let _ = handle.join();
+
+    assert_eq!(captured.request_line, "POST /v1/messages HTTP/1.1");
+    assert!(captured.headers.contains("x-api-key: sk-ant-loopback-key"));
+    assert!(captured.headers.contains("anthropic-version: 2023-06-01"));
+    let sent_json: serde_json::Value = serde_json::from_str(&captured.body).unwrap();
+    assert_eq!(sent_json["model"], "claude-3-5-sonnet-latest");
+    assert!(sent_json["system"]
+        .as_str()
+        .unwrap()
+        .contains("Zedkata Pedagogical Coach"));
+    assert_eq!(
+        explanation.observations,
+        vec!["Anthropic observed 4 edits."]
+    );
+
+    // 2. Anthropic generate_candidate
+    let candidate_json = serde_json::json!({
+        "title": "Anthropic Practice: ci",
+        "prose": "Use ci\" to change inside quotes.",
+        "exercise_id": "anthropic-ci-drill",
+        "task": "Replace string contents.",
+        "start_content": "let msg = \"old\";\n",
+        "goal_content": "let msg = \"new\";\n",
+        "par_edits": 1,
+        "max_edits": 2,
+        "cursor": [1, 12],
+        "hint": "Use ci\".",
+        "forbid_backspace_run": 3
+    })
+    .to_string();
+    let anthropic_gen_resp = serde_json::json!({
+        "content": [{
+            "type": "text",
+            "text": candidate_json
+        }]
+    })
+    .to_string();
+
+    let (base_url_gen, rx_gen, handle_gen) =
+        spawn_single_shot_http_server("200 OK", anthropic_gen_resp, None);
+    let config_gen = AgentConfig {
+        provider: ProviderKind::Anthropic,
+        model: "claude-3-5-sonnet-latest".to_string(),
+        base_url: Some(base_url_gen),
+        api_key: Some("sk-ant-loopback-key".to_string()),
+        timeout_seconds: 5,
+        ..Default::default()
+    };
+    let provider_gen = ConfiguredProvider::new(config_gen);
+    let candidate = provider_gen
+        .generate_candidate(&weakness_ctx)
+        .expect("Anthropic generate_candidate should succeed");
+    let captured_gen = rx_gen.recv().unwrap();
+    let _ = handle_gen.join();
+
+    assert_eq!(captured_gen.request_line, "POST /v1/messages HTTP/1.1");
+    assert_eq!(candidate.exercise_id, "anthropic-ci-drill");
+}
+
+#[test]
+fn test_loopback_http_gemini_explain_and_generate() {
+    use zedkata_agent::{ExerciseGenerator, WeaknessContext};
+
+    let ctx = sample_attempt_context(false);
+    let weakness_ctx = WeaknessContext {
+        target_concept: "find".to_string(),
+        severity: Some(0.65),
+        all_weaknesses: vec![("find".to_string(), 0.65)],
+        is_unscored_or_clean: false,
+        recent_failures: Vec::new(),
+        session_path: None,
+    };
+
+    // 1. Gemini explain_attempt
+    let explain_json_str = serde_json::json!({
+        "observations": ["Gemini observed 4 edits."],
+        "inferences": ["Gemini inferred manual backspacing."],
+        "recommendation": "Use f<char> or dw."
+    })
+    .to_string();
+    let gemini_resp = serde_json::json!({
+        "candidates": [{
+            "content": {
+                "parts": [{ "text": explain_json_str }]
+            }
+        }]
+    })
+    .to_string();
+
+    let (base_url, rx, handle) = spawn_single_shot_http_server("200 OK", gemini_resp, None);
+    let config = AgentConfig {
+        provider: ProviderKind::Gemini,
+        model: "gemini-2.0-flash".to_string(),
+        base_url: Some(format!("{}/v1beta", base_url)),
+        api_key: Some("gemini-loopback-key".to_string()),
+        timeout_seconds: 5,
+        ..Default::default()
+    };
+    let provider = ConfiguredProvider::new(config);
+    let explanation = provider
+        .explain_attempt(&ctx)
+        .expect("Gemini explain_attempt should succeed");
+    let captured = rx.recv().unwrap();
+    let _ = handle.join();
+
+    assert_eq!(
+        captured.request_line,
+        "POST /v1beta/models/gemini-2.0-flash:generateContent HTTP/1.1"
+    );
+    assert!(captured
+        .headers
+        .contains("x-goog-api-key: gemini-loopback-key"));
+    let sent_json: serde_json::Value = serde_json::from_str(&captured.body).unwrap();
+    assert!(sent_json["systemInstruction"]["parts"][0]["text"]
+        .as_str()
+        .unwrap()
+        .contains("Zedkata Pedagogical Coach"));
+    assert_eq!(explanation.observations, vec!["Gemini observed 4 edits."]);
+
+    // 2. Gemini generate_candidate
+    let candidate_json = serde_json::json!({
+        "title": "Gemini Practice: find",
+        "prose": "Use f; to jump to semicolon.",
+        "exercise_id": "gemini-find-drill",
+        "task": "Delete through semicolon.",
+        "start_content": "let a = 1; let b = 2;\n",
+        "goal_content": " let b = 2;\n",
+        "par_edits": 1,
+        "max_edits": 2,
+        "cursor": [1, 1],
+        "hint": "Use df;.",
+        "forbid_backspace_run": 3
+    })
+    .to_string();
+    let gemini_gen_resp = serde_json::json!({
+        "candidates": [{
+            "content": {
+                "parts": [{ "text": candidate_json }]
+            }
+        }]
+    })
+    .to_string();
+
+    let (base_url_gen, rx_gen, handle_gen) =
+        spawn_single_shot_http_server("200 OK", gemini_gen_resp, None);
+    let config_gen = AgentConfig {
+        provider: ProviderKind::Gemini,
+        model: "gemini-2.0-flash".to_string(),
+        base_url: Some(base_url_gen),
+        api_key: Some("gemini-loopback-key".to_string()),
+        timeout_seconds: 5,
+        ..Default::default()
+    };
+    let provider_gen = ConfiguredProvider::new(config_gen);
+    let candidate = provider_gen
+        .generate_candidate(&weakness_ctx)
+        .expect("Gemini generate_candidate should succeed");
+    let captured_gen = rx_gen.recv().unwrap();
+    let _ = handle_gen.join();
+
+    assert_eq!(
+        captured_gen.request_line,
+        "POST /v1beta/models/gemini-2.0-flash:generateContent HTTP/1.1"
+    );
+    assert_eq!(candidate.exercise_id, "gemini-find-drill");
+}
+
+#[test]
+fn test_loopback_http_error_status_timeout_and_malformed_response() {
+    let ctx = sample_attempt_context(false);
+
+    // 1. HTTP 401 Unauthorized -> ProviderError::Rejection
+    let err_body = serde_json::json!({
+        "error": { "message": "Invalid authentication credentials" }
+    })
+    .to_string();
+    let (base_url_401, _rx401, handle_401) =
+        spawn_single_shot_http_server("401 Unauthorized", err_body, None);
+    let provider_401 = ConfiguredProvider::new(AgentConfig {
+        provider: ProviderKind::OpenAI,
+        model: "gpt-4o-mini".to_string(),
+        base_url: Some(base_url_401),
+        api_key: Some("bad-key".to_string()),
+        timeout_seconds: 5,
+        ..Default::default()
+    });
+    match provider_401.explain_attempt(&ctx) {
+        Err(ProviderError::Rejection {
+            status_code,
+            message,
+        }) => {
+            assert_eq!(status_code, Some(401));
+            assert!(message.contains("Invalid authentication credentials"));
+        }
+        other => panic!("Expected Rejection(401), got {:?}", other),
+    }
+    let _ = handle_401.join();
+
+    // 2. Malformed JSON response -> ProviderError::MalformedResponse
+    let (base_url_bad, _rx_bad, handle_bad) =
+        spawn_single_shot_http_server("200 OK", "{\"choices\": []}".to_string(), None);
+    let provider_bad = ConfiguredProvider::new(AgentConfig {
+        provider: ProviderKind::LmStudio,
+        model: "local-model".to_string(),
+        base_url: Some(base_url_bad),
+        timeout_seconds: 5,
+        ..Default::default()
+    });
+    match provider_bad.explain_attempt(&ctx) {
+        Err(ProviderError::MalformedResponse(msg)) => {
+            assert!(msg.contains("Missing expected message content"));
+        }
+        other => panic!("Expected MalformedResponse, got {:?}", other),
+    }
+    let _ = handle_bad.join();
+
+    // 3. Slow loopback server -> ProviderError::Timeout
+    let (base_url_slow, _rx_slow, handle_slow) = spawn_single_shot_http_server(
+        "200 OK",
+        "{}".to_string(),
+        Some(std::time::Duration::from_millis(1500)),
+    );
+    let provider_slow = ConfiguredProvider::new(AgentConfig {
+        provider: ProviderKind::Ollama,
+        model: "mistral".to_string(),
+        base_url: Some(base_url_slow),
+        timeout_seconds: 1,
+        ..Default::default()
+    });
+    match provider_slow.explain_attempt(&ctx) {
+        Err(ProviderError::Timeout { seconds, .. }) => {
+            assert_eq!(seconds, 1);
+        }
+        other => panic!("Expected Timeout, got {:?}", other),
+    }
+    let _ = handle_slow.join();
+}

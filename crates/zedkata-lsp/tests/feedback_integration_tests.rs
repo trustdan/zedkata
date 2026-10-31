@@ -3056,3 +3056,99 @@ cursor = [1, 7]
 
     let _ = std::fs::remove_dir_all(session_path.parent().unwrap());
 }
+
+#[test]
+fn test_feedback_engine_excludes_goal_fixtures_and_partial_substring_filenames() {
+    let session_path = create_temp_session_path("exclude_goal_and_substrings");
+    let mut session = SessionState::default();
+    session.current.lesson_id = "motions-01-word".to_string();
+    session.current.exercise_index = 0; // delete-word-arg
+    session.save_to_file(&session_path).unwrap();
+
+    let catalog = Catalog::load_from_dir(&lessons_dir()).unwrap();
+    let feedback = FeedbackEngine::new(session_path.clone(), catalog.clone());
+
+    // 1. Goal fixture URI must NOT match as active exercise
+    let goal_path = catalog
+        .resolve_fixture("motions-01-word", "delete-word-arg", false)
+        .unwrap();
+    let goal_uri = path_to_uri(&goal_path);
+    assert!(
+        !feedback.is_active_exercise(&goal_uri).unwrap(),
+        "Goal fixture (.goal.kata) must never match as active exercise"
+    );
+
+    // 2. Partial substring filename (e.g. delete-word-arg-extra.kata) must NOT match
+    let substring_uri = "file:///C:/workspace/delete-word-arg-extra.kata";
+    assert!(
+        !feedback.is_active_exercise(substring_uri).unwrap(),
+        "Filename containing exercise_id as a partial substring must not match"
+    );
+
+    // 3. Exact <exercise_id>.kata and <exercise_id>.start.kata DO match
+    let exact_uri = "file:///C:/workspace/delete-word-arg.kata";
+    assert!(feedback.is_active_exercise(exact_uri).unwrap());
+    let start_uri = "file:///C:/workspace/delete-word-arg.start.kata";
+    assert!(feedback.is_active_exercise(start_uri).unwrap());
+
+    let _ = std::fs::remove_dir_all(session_path.parent().unwrap());
+}
+
+#[test]
+fn test_feedback_engine_hot_reloads_newly_generated_drill_after_startup() {
+    let session_path = create_temp_session_path("hot_reload_generated");
+    let temp_gen_dir = session_path.parent().unwrap().join("generated_hot");
+    std::fs::create_dir_all(&temp_gen_dir).unwrap();
+
+    // Start FeedbackEngine BEFORE the generated drill exists on disk
+    let initial_catalog = Catalog::load_from_dir(&lessons_dir()).unwrap();
+    assert!(initial_catalog.get("gen-hot-reload").is_none());
+
+    let mut feedback = FeedbackEngine::with_generated_dir(
+        session_path.clone(),
+        initial_catalog,
+        Some(temp_gen_dir.clone()),
+    );
+
+    // Now write a newly generated drill to temp_gen_dir while FeedbackEngine is already running
+    let fixtures_dir = temp_gen_dir.join("fixtures").join("gen-hot-reload");
+    std::fs::create_dir_all(&fixtures_dir).unwrap();
+    let gen_toml = r#"[lesson]
+id = "gen-hot-reload"
+title = "Hot Reloaded Drill"
+concepts = ["dw"]
+draft = false
+prose = "Practice hot-reloaded generated drill."
+
+[[exercise]]
+id = "hot-dw"
+task = "Delete extra word."
+start = "fixtures/gen-hot-reload/hot-dw.start.kata"
+goal = "fixtures/gen-hot-reload/hot-dw.goal.kata"
+par_edits = 1
+max_edits = 2
+cursor = [1, 7]
+"#;
+    std::fs::write(temp_gen_dir.join("gen-hot-reload.toml"), gen_toml).unwrap();
+    let start_file = fixtures_dir.join("hot-dw.start.kata");
+    let goal_file = fixtures_dir.join("hot-dw.goal.kata");
+    std::fs::write(&start_file, "const extra value = 1;\n").unwrap();
+    std::fs::write(&goal_file, "const value = 1;\n").unwrap();
+
+    // Select the newly generated lesson in session.json
+    let mut session = SessionState::default();
+    session.switch_exercise("gen-hot-reload".to_string(), 0);
+    session.save_to_file(&session_path).unwrap();
+
+    let uri = path_to_uri(&start_file);
+    let open_notif = feedback
+        .on_document_open(&uri, "const extra value = 1;\n")
+        .unwrap();
+    assert!(
+        open_notif.is_some(),
+        "FeedbackEngine must hot-reload catalog and recognize newly generated drill on document open"
+    );
+    assert!(feedback.catalog().get("gen-hot-reload").is_some());
+
+    let _ = std::fs::remove_dir_all(session_path.parent().unwrap());
+}

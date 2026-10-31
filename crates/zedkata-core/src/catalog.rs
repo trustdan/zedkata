@@ -486,7 +486,12 @@ impl Catalog {
         let mut combined_summary = MergeSummary::default();
         let mut merged_any = false;
 
-        if let Some(gp) = generated_dir {
+        let effective_gen_dir = match generated_dir {
+            Some(p) => Some(p.to_path_buf()),
+            None => default_generated_dir().ok(),
+        };
+
+        if let Some(ref gp) = effective_gen_dir {
             if gp.exists() && gp.is_dir() {
                 let summary = catalog.merge_from_dir(gp)?;
                 combined_summary.added.extend(summary.added);
@@ -502,7 +507,8 @@ impl Catalog {
 
         let local_gen = shipped_dir.join("generated");
         if local_gen.exists() && local_gen.is_dir() {
-            let already_checked = generated_dir
+            let already_checked = effective_gen_dir
+                .as_ref()
                 .and_then(|g| g.canonicalize().ok())
                 .and_then(|gc| local_gen.canonicalize().ok().map(|lc| lc == gc))
                 .unwrap_or(false);

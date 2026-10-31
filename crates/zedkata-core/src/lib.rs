@@ -2,6 +2,8 @@
 //!
 //! Pure synchronous library with zero runtime dependencies.
 
+#![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used))]
+
 pub mod catalog;
 pub mod error;
 pub mod lesson;

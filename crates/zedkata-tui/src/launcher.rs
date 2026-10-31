@@ -261,18 +261,9 @@ pub fn launch_exercise(
             source: Box::new(source),
         })?;
 
-    // Check prerequisites
-    let mut missing_reqs = Vec::new();
-    for req in &entry.lesson.requires {
-        let passed = session
-            .history
-            .iter()
-            .any(|h| h.lesson_id == *req && h.passed);
-        if !passed {
-            missing_reqs.push(req.clone());
-        }
-    }
-    if !missing_reqs.is_empty() {
+    // Check prerequisites using unified catalog unlock logic (all exercises in prerequisite lessons must be passed)
+    let (is_unlocked, missing_reqs) = catalog.is_lesson_unlocked(lesson_id, &session.history);
+    if !is_unlocked {
         return Err(LauncherError::LessonLocked(
             lesson_id.to_string(),
             missing_reqs.join(", "),

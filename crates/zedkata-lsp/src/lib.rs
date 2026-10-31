@@ -3,6 +3,8 @@
 //! Tracks active `.kata` buffers, records fine-grained incremental edits from
 //! `textDocument/didChange`, coordinates session persistence, and emits inline diagnostics.
 
+#![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used))]
+
 pub mod capture;
 pub mod codec;
 pub mod document;

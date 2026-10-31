@@ -42,10 +42,10 @@ impl WalkthroughRecord {
                 fixture: Some("lessons/fixtures/walkthroughs/lsp/sample_service.rs".to_string()),
                 steps: vec![
                     "Open the sample service in Zed: `zed lessons/fixtures/walkthroughs/lsp/sample_service.rs`.".to_string(),
-                    "Multi-site rename: position cursor on `ProcessOrder` on line 12 and press `c d`. Type `HandleOrder` and press `<enter>`. Verify all call sites update synchronously across the buffer.".to_string(),
-                    "Code action: navigate to the unused import on line 2, press `g .` to summon code actions, and select quick-fix with `<enter>`.".to_string(),
+                    "Multi-site rename: position cursor on `record_metric` on line 50 (in `TelemetryClient`) and press `c d`. Type `ingest_metric` and press `<enter>`. Verify all call sites (lines 81–83) update synchronously across the buffer.".to_string(),
+                    "Code action: navigate to `TelemetryMetric` on line 23 or `TelemetryClient` on line 30, press `g .` to summon code actions, and select quick-fix with `<enter>`.".to_string(),
                     "Diagnostic navigation: press `g ]` to jump forward to the compiler warning and `g [` to return. Open the diagnostic list with `:clist`.".to_string(),
-                    "Type inspection & definition: press `g h` on any function to view hover docs, and `g d` (or `<ctrl-w> g d` for split) to jump to its definition.".to_string(),
+                    "Type inspection & definition: press `g h` on `compute_average` (line 60) to view hover docs, and `g d` (or `<ctrl-w> g d` for split) on `TelemetryClient::new` (line 76) to jump to its definition.".to_string(),
                 ],
                 checklist: vec![
                     "Multi-site rename executed with `c d` and committed synchronously across all references.".to_string(),
@@ -84,10 +84,10 @@ impl WalkthroughRecord {
                 fixture: Some("lessons/fixtures/walkthroughs/multibuffer/".to_string()),
                 steps: vec![
                     "Open the sample project in Zed: `zed lessons/fixtures/walkthroughs/multibuffer`.".to_string(),
-                    "Deploy project search: press `g /` (or `pane::DeploySearch` / `ctrl-shift-f`), type `BillingTier`, and press `<enter>` to populate the multibuffer.".to_string(),
+                    "Deploy project search: press `g /` (or `pane::DeploySearch` / `ctrl-shift-f`), type `validate_token`, and press `<enter>` to populate the multibuffer.".to_string(),
                     "Excerpt navigation: press `n` to jump to the next matching excerpt and `N` for previous match.".to_string(),
                     "Expand context: press `shift-enter` on an excerpt boundary to expand surrounding lines, or `alt-enter` to open the file in a dedicated tab.".to_string(),
-                    "Multi-cursor refactoring: use `ctrl-d` to select matching occurrences across different files, then type `c w SubscriptionTier <escape>`.".to_string(),
+                    "Multi-cursor refactoring: use `ctrl-d` to select matching `validate_token` occurrences across different files, then type `c w verify_token <escape>`.".to_string(),
                     "Atomic save: press `ctrl-s` to save all modified excerpts and underlying files synchronously.".to_string(),
                 ],
                 checklist: vec![
@@ -106,9 +106,9 @@ impl WalkthroughRecord {
                 fixture: Some("lessons/fixtures/walkthroughs/tasks_and_debugger/".to_string()),
                 steps: vec![
                     "Open the fixture workspace in Zed: `zed lessons/fixtures/walkthroughs/tasks_and_debugger`.".to_string(),
-                    "Spawn task: open command palette (`ctrl-shift-p`), trigger `task: spawn`, and choose `test: run-calculator-tests`.".to_string(),
+                    "Spawn task: open command palette (`ctrl-shift-p`), trigger `task: spawn`, and choose `cargo check` or `cargo test current file`.".to_string(),
                     "Task rerun: trigger `task: rerun` to repeat the last executed task in the terminal dock.".to_string(),
-                    "Set breakpoint: open `src/main.rs`, navigate to line 18, and toggle breakpoint using `space shift-g b`.".to_string(),
+                    "Set breakpoint: open `src/main.rs`, navigate to `math::execute_operation` on line 6, and toggle breakpoint using `space shift-g b`.".to_string(),
                     "Start debugger: launch DAP debugging with `debugger: start` or `F4`.".to_string(),
                     "Execution stepping: step over with `F8`, step into with `F7`, step out with `F9`, and inspect locals in the debug dock.".to_string(),
                 ],
@@ -149,7 +149,7 @@ impl WalkthroughRecord {
                 fixture: Some("lessons/fixtures/motions-03/nested.start.kata".to_string()),
                 steps: vec![
                     "Open the nested brackets fixture: `lessons/fixtures/motions-03/nested.start.kata` in Zed.".to_string(),
-                    "Position cursor on line 11 inside the nested closure parameter: `filter_map(|(id, token)| ...)`.".to_string(),
+                    "Position cursor on line 11 inside the nested call arguments: `validate_credentials(compute_digest(raw_token, 32), self.get_salt(id))`.".to_string(),
                     "Test lexical delimiter selection (AnyBrackets): execute `ci)` or `ci(`. Notice that AnyBrackets selects strictly within the nearest lexical bracket pair.".to_string(),
                     "Undo changes with `u`, then test syntax-tree context matching (MiniBrackets / mini.ai): execute `ciq` or `cib`.".to_string(),
                     "Compare behavior: `MiniBrackets` resolves nested scopes based on grammar AST boundaries, while `AnyBrackets` targets the closest lexical delimiter characters regardless of syntax structure.".to_string(),
@@ -224,9 +224,9 @@ impl WalkthroughRecord {
                 lesson_id: "modal-00-baseline".to_string(),
                 title: "Inline diagnostics and error jumping in Zed".to_string(),
                 prompt: "Demonstrate Zed's native inline diagnostic rendering and error traversal.".to_string(),
-                fixture: Some("lessons/fixtures/modal-00/swap-words.start.kata".to_string()),
+                fixture: Some("lessons/fixtures/modal-00/insert-visibility.start.kata".to_string()),
                 steps: vec![
-                    "Open any Rust buffer in Zed.".to_string(),
+                    "Open `lessons/fixtures/modal-00/insert-visibility.start.kata` (or any Rust buffer) in Zed.".to_string(),
                     "Introduce a deliberate syntax error (e.g. remove a required semicolon or insert an invalid token).".to_string(),
                     "Observe Zed's inline diagnostic display appearing directly beneath the problematic line.".to_string(),
                     "Jump between diagnostics using `g ]` (next diagnostic) and `g [` (previous diagnostic).".to_string(),
@@ -242,9 +242,17 @@ impl WalkthroughRecord {
         ]
     }
 
-    /// Finds a walkthrough record by ID (case-insensitive).
+    /// Returns the relative fixture path for this walkthrough record, if any.
+    pub fn fixture_path(&self) -> Option<&str> {
+        self.fixture.as_deref()
+    }
+
+    /// Finds a walkthrough record by ID or legacy alias (case-insensitive).
     pub fn find(id: &str) -> Option<Self> {
-        let needle = id.trim().to_lowercase();
+        let needle = match id.trim().to_lowercase().as_str() {
+            "lsp-symbol-rename" | "lsp-code-action" => "lsp-actions-walkthrough".to_string(),
+            other => other.to_string(),
+        };
         Self::all()
             .into_iter()
             .find(|w| w.id.to_lowercase() == needle || w.id.to_lowercase().contains(&needle))

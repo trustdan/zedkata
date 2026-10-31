@@ -167,6 +167,94 @@ fn test_locked_lesson_cannot_be_launched_and_leaves_no_active_state() {
 }
 
 #[test]
+fn test_partial_prerequisite_completion_rejects_launch_until_all_exercises_passed() {
+    let (temp_dir, session_file, catalog) = setup_test_env("partial_prereq");
+
+    // motions-02-find requires ["motions-01-word"] which has 3 exercises:
+    // "delete-word-arg", "delete-to-word-end", "delete-word-binding"
+    let mut session = SessionState::default();
+    session.history.push(zedkata_core::session::HistoryEntry {
+        lesson_id: "motions-01-word".to_string(),
+        exercise_id: "delete-word-arg".to_string(),
+        passed: true,
+        par_edits: Some(1),
+        actual_edits: 1,
+        score: 100,
+        completed_at: chrono::Utc::now(),
+    });
+    session.save_to_file(&session_file).unwrap();
+
+    // 1. Only 1 of 3 exercises passed in motions-01-word -> motions-02-find must remain locked
+    let res = launch_exercise(
+        &session_file,
+        &catalog,
+        "motions-02-find",
+        0,
+        Some(&temp_dir.join("exercises")),
+        None,
+    );
+    match res {
+        Err(LauncherError::LessonLocked(lid, reqs)) => {
+            assert_eq!(lid, "motions-02-find");
+            assert!(reqs.contains("motions-01-word"));
+        }
+        other => panic!(
+            "Expected LessonLocked on partial prerequisite completion, got {:?}",
+            other
+        ),
+    }
+
+    // 2. Pass the remaining 2 exercises in motions-01-word
+    for ex_id in ["delete-to-word-end", "delete-word-binding"] {
+        session.history.push(zedkata_core::session::HistoryEntry {
+            lesson_id: "motions-01-word".to_string(),
+            exercise_id: ex_id.to_string(),
+            passed: true,
+            par_edits: Some(1),
+            actual_edits: 1,
+            score: 100,
+            completed_at: chrono::Utc::now(),
+        });
+    }
+    session.save_to_file(&session_file).unwrap();
+
+    #[cfg(target_os = "windows")]
+    let mock_bin = {
+        let script = temp_dir.join("mock_zed.bat");
+        std::fs::write(&script, "@echo off\r\nexit /b 0\r\n").unwrap();
+        script
+    };
+
+    #[cfg(not(target_os = "windows"))]
+    let mock_bin = {
+        use std::os::unix::fs::PermissionsExt;
+        let script = temp_dir.join("mock_zed.sh");
+        std::fs::write(&script, "#!/bin/sh\nexit 0\n").unwrap();
+        let mut perms = std::fs::metadata(&script).unwrap().permissions();
+        perms.set_mode(0o755);
+        std::fs::set_permissions(&script, perms).unwrap();
+        script
+    };
+
+    // 3. Now all 3 exercises in motions-01-word are passed -> motions-02-find unlocks and launches
+    let unlocked_res = launch_exercise(
+        &session_file,
+        &catalog,
+        "motions-02-find",
+        0,
+        Some(&temp_dir.join("exercises")),
+        Some(&mock_bin),
+    );
+    assert!(
+        unlocked_res.is_ok(),
+        "Expected launch_exercise to succeed once all 3 prerequisite exercises are passed, got {:?}",
+        unlocked_res
+    );
+
+    let _ = std::fs::remove_dir_all(&temp_dir);
+}
+
+#[test]
 fn test_successful_launch_with_mock_runner() {
     let (temp_dir, session_file, catalog) = setup_test_env("mock_launch");
 

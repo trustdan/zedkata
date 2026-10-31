@@ -231,6 +231,42 @@ fn test_single_giant_edit_capped_to_2kb() {
 }
 
 #[test]
+fn test_multibyte_utf8_char_boundary_truncation() {
+    // 1. Test 4-byte emoji ('🌍' = 4 bytes) straddling max_diff_bytes (e.g. max_diff_bytes = 6: "ab🌍cd" -> byte 6 is mid-emoji)
+    let edits_emoji = vec![sample_edit(0, 0, 0, "ab🌍cd", 1)];
+    let session_emoji = make_session("motions-01-word", 0, edits_emoji, Some(Verdict::InProgress));
+    let config_6 = ContextConfig {
+        max_edits: 20,
+        max_diff_bytes: 5, // 'a' (1) + 'b' (1) + '🌍' (bytes 2..6) -> boundary <= 5 is byte 2 ("ab")
+        max_staleness: None,
+    };
+    let ctx_5 = extract_from_session_state(&session_emoji, None, &config_6)
+        .expect("must truncate at char boundary without panicking");
+    assert_eq!(ctx_5.bounded_edits[0].inserted, "ab");
+    assert_eq!(ctx_5.total_diff_bytes, 2);
+    assert!(ctx_5.is_truncated);
+
+    // 2. Test 2-byte character ('é' = 2 bytes) straddling max_diff_bytes = 4 ("café!" -> 'c','a','f' = 3 bytes, 'é' = bytes 3..5)
+    let edits_accent = vec![sample_edit(0, 0, 0, "café!", 1)];
+    let session_accent = make_session(
+        "motions-01-word",
+        0,
+        edits_accent,
+        Some(Verdict::InProgress),
+    );
+    let config_4 = ContextConfig {
+        max_edits: 20,
+        max_diff_bytes: 4,
+        max_staleness: None,
+    };
+    let ctx_4 = extract_from_session_state(&session_accent, None, &config_4)
+        .expect("must truncate 2-byte UTF-8 char cleanly");
+    assert_eq!(ctx_4.bounded_edits[0].inserted, "caf");
+    assert_eq!(ctx_4.total_diff_bytes, 3);
+    assert!(ctx_4.is_truncated);
+}
+
+#[test]
 fn test_missing_session_file() {
     let non_existent = Path::new("non_existent_dir_12345/missing_session.json");
     let config = ContextConfig::default();

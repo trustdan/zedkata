@@ -188,39 +188,21 @@ later — that remains permanently unavailable per OQ-04.
 
 ---
 
-## OQ-11 — Undo semantics on the wire · ASSUMED
+## OQ-11 — Undo semantics on the wire · VERIFIED (single-step inverse restoration) / SCOPED
 
-Assumed that an undo produces a `didChange` that reverses the prior delta, and can
-therefore be detected and excluded from the edit count. If undo is invisible or appears
-as a full-document sync, `par_edits` is trivially gameable.
+Checked 2026-09-13 and reconciled 2026-10-31 under [ZK-043.1](BACKLOG.md#task-zk-043-1).
 
-**Not closed by Phase 0.** The matrix run captured no deliberate undo: the restoration
-at sequence 34 of Case 01 is
-[explicitly recorded](evidence/2026-09-13-matrix-results.md) as consistent with the
-discard flow and *not* evidence that `u` was pressed.
+**Empirical wire evidence (single-step inverse restoration):**
+- In [`tests/fixtures/lsp/2026-09-13-matrix-02-dw-repeat.jsonl`](../tests/fixtures/lsp/2026-09-13-matrix-02-dw-repeat.jsonl), sequence 40 deletes UTF-16 range `(1,17)–(1,23)` (`"alpha "`), sequence 42 restores `"alpha "` mid-session via a single incremental `textDocument/didChange` insertion at `(1,17)–(1,17)` (rather than a full-document sync or silent buffer mutation), and sequence 44 repeats the `dw` deletion at `(1,17)–(1,23)`.
+- Similarly, [`tests/fixtures/lsp/2026-09-13-matrix-01-dw.jsonl`](../tests/fixtures/lsp/2026-09-13-matrix-01-dw.jsonl) (sequence 32 followed by sequence 34) and [`tests/fixtures/lsp/2026-09-13-matrix-03-backspace.jsonl`](../tests/fixtures/lsp/2026-09-13-matrix-03-backspace.jsonl) (sequence 62) emit incremental range insertions at the exact deletion start coordinate.
 
-**What exists today.** `count_edit_units` cancels inverse edit pairs, covered by
-`test_count_edit_units_undo_inversion` in `crates/zedkata-core/tests/scoring.rs`. That
-test is **hand-constructed**, not replayed from a capture. It shows the counter handles
-undo-shaped input; it does not show Zed emits that shape.
+**Implementation and test coverage:**
+- `count_edit_units` and `EditUnit::is_inverted_by` in [`crates/zedkata-core/src/scoring.rs`](../crates/zedkata-core/src/scoring.rs) pop the top `EditUnit` when the next `RecordedEdit` is its exact spatial and length inverse (covering `OperatorDeletion`, `SingleCharDeletion`, `Insertion`, and `Replacement`).
+- Verified by `test_count_edit_units_undo_inversion`, `test_replay_phase_0_matrix_01_dw`, and `test_replay_phase_0_matrix_02_dw_repeat` in [`crates/zedkata-core/tests/scoring.rs`](../crates/zedkata-core/tests/scoring.rs).
 
-**To close:** capture `dw` then `u` on a real buffer, and confirm the second
-notification is an insertion inverting the first rather than a full-document sync.
-Until then, treat undo exclusion in scoring as resting on an unverified assumption.
-
-**How to capture (added 2026-09-14).** `zedkata-lsp` writes raw traffic to a `.jsonl`
-when `ZEDKATA_CAPTURE` is set before Zed launches — see
-[capturing raw LSP traffic](DEVELOPMENT.md#capturing-raw-lsp-traffic). The Phase 0 probe
-that produced the existing fixtures was retired in ZK-005.2, so this replaced it.
-
-Three outcomes are possible, and they are not equally good:
-- **Inverting insertion** at the deleted range — the assumed shape. `count_edit_units`
-  already cancels it, and OQ-11 becomes VERIFIED.
-- **Full-document sync** — undo is indistinguishable from retyping. `par_edits` is
-  gameable by delete-undo-retry and ZK-011's undo handling needs an ADR before ZK-022
-  calibrates budgets against it.
-- **No notification at all** — undo is invisible to us; buffer state and our
-  reconstruction diverge, which is worse than either of the above.
+**Scoped boundary:**
+- Single-step LIFO inverse restoration on the wire is verified and excluded from `edit_count`.
+- Multi-step branching undo/redo histories and non-adjacent reversals are explicitly scoped out of in-place edit-unit cancellation; students recovering from multi-step mistakes use exercise retry (`[r]` in `zedkata-tui` or `zedkata-tui reset`), which issues a fresh `Attempt` ID and restores the pristine `.start.kata` baseline.
 
 ## OQ-12 — Zed vim mode capabilities and curriculum audit · VERIFIED
 

@@ -417,8 +417,7 @@ fn handle_launch(
     Ok(())
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
+fn main() -> Result<()> {
     let cli = Cli::parse();
     let session_path = resolve_session_path(cli.session)?;
     let lessons_dir = resolve_lessons_dir(cli.lessons_dir);

@@ -126,6 +126,36 @@ pub fn synthesize_grounded_explanation(context: &AttemptContext) -> Explanation 
     let mut inferences = Vec::new();
 
     // 1. Observations: objective facts
+    if context.lesson_title.is_some()
+        || context.task_prompt.is_some()
+        || context.par_edits.is_some()
+        || context.forbid_rules.is_some()
+    {
+        let mut meta_parts = Vec::new();
+        if let Some(title) = &context.lesson_title {
+            meta_parts.push(format!("Lesson: {} (`{}`)", title, context.lesson_id));
+        } else {
+            meta_parts.push(format!("Lesson ID: `{}`", context.lesson_id));
+        }
+        if !context.concepts.is_empty() {
+            meta_parts.push(format!("Concepts: {}", context.concepts.join(", ")));
+        }
+        if let Some(task) = &context.task_prompt {
+            meta_parts.push(format!("Task: '{}'", task));
+        }
+        if let Some(par) = context.par_edits {
+            meta_parts.push(format!("Par budget: {} edit(s)", par));
+        }
+        if let Some(rules) = &context.forbid_rules {
+            if let Some(limit) = rules.backspace_run {
+                meta_parts.push(format!("Forbid rule: backspace_run <= {}", limit));
+            }
+        }
+        if !meta_parts.is_empty() {
+            observations.push(meta_parts.join(" | "));
+        }
+    }
+
     let edit_scope_desc = if context.is_truncated {
         format!(
             "Attempt executed {} edits in total ({} retained in bounded window, {} older edits omitted, {} bytes diff).",
@@ -233,4 +263,143 @@ pub fn synthesize_grounded_explanation(context: &AttemptContext) -> Explanation 
         is_bounded: true,
         truncation_note,
     }
+}
+
+#[derive(serde::Deserialize)]
+struct RawExplanationJson {
+    observations: Vec<String>,
+    inferences: Vec<String>,
+    recommendation: String,
+    truncation_note: Option<String>,
+}
+
+/// Parses a model response into a structured [`Explanation`].
+///
+/// Supports either:
+/// 1. Structured JSON (`{"observations": [...], "inferences": [...], "recommendation": "..."}`), raw or inside markdown fences.
+/// 2. Structured Markdown with `### Observations` (`### 1. Observations`), `### Technique Inference` (`### 2. Technique Inference`), and `### Recommendation` (`### 3. Recommendation`) sections.
+pub fn parse_explanation_response(
+    raw_text: &str,
+    context: &AttemptContext,
+) -> Result<Explanation, crate::provider::ProviderError> {
+    let trimmed = raw_text.trim();
+    if trimmed.is_empty() {
+        return Err(crate::provider::ProviderError::MalformedResponse(
+            "Empty explanation response from model provider.".to_string(),
+        ));
+    }
+
+    let default_truncation_note = if context.is_truncated {
+        Some(format!(
+            "Bounded context: {} older edits were omitted to keep context under limit ({} edits retained, {} bytes diff).",
+            context.truncated_edits_count,
+            context.bounded_edits.len(),
+            context.total_diff_bytes
+        ))
+    } else {
+        None
+    };
+
+    // 1. Check if JSON (raw or fenced)
+    let json_candidate = if let Some(start) = trimmed.find("```json") {
+        let rest = &trimmed[start + 7..];
+        rest.find("```").map(|end| rest[..end].trim())
+    } else if trimmed.starts_with('{') {
+        Some(trimmed)
+    } else {
+        None
+    };
+
+    if let Some(json_str) = json_candidate {
+        let parsed: RawExplanationJson = serde_json::from_str(json_str).map_err(|e| {
+            crate::provider::ProviderError::MalformedResponse(format!(
+                "Failed to deserialize explanation JSON: {}. Response: {}",
+                e, json_str
+            ))
+        })?;
+        if parsed.observations.is_empty()
+            || parsed.inferences.is_empty()
+            || parsed.recommendation.trim().is_empty()
+        {
+            return Err(crate::provider::ProviderError::MalformedResponse(
+                "Explanation JSON must include non-empty observations, inferences, and recommendation."
+                    .to_string(),
+            ));
+        }
+        return Ok(Explanation {
+            observations: parsed.observations,
+            inferences: parsed.inferences,
+            recommendation: parsed.recommendation.trim().to_string(),
+            is_bounded: true,
+            truncation_note: parsed.truncation_note.or(default_truncation_note),
+        });
+    }
+
+    // 2. Parse structured Markdown sections
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    enum Section {
+        None,
+        Observations,
+        Inferences,
+        Recommendation,
+    }
+
+    let mut current_section = Section::None;
+    let mut observations = Vec::new();
+    let mut inferences = Vec::new();
+    let mut rec_lines = Vec::new();
+
+    for line in trimmed.lines() {
+        let line_trimmed = line.trim();
+        if line_trimmed.starts_with('#') {
+            let lower = line_trimmed.to_lowercase();
+            if lower.contains("observation") {
+                current_section = Section::Observations;
+                continue;
+            } else if lower.contains("inference") || lower.contains("technique") {
+                current_section = Section::Inferences;
+                continue;
+            } else if lower.contains("recommendation") {
+                current_section = Section::Recommendation;
+                continue;
+            }
+        }
+
+        if line_trimmed.is_empty() || line_trimmed.starts_with('>') {
+            continue;
+        }
+
+        let item_text = line_trimmed
+            .strip_prefix("- ")
+            .or_else(|| line_trimmed.strip_prefix("* "))
+            .unwrap_or(line_trimmed)
+            .trim()
+            .to_string();
+
+        if item_text.is_empty() {
+            continue;
+        }
+
+        match current_section {
+            Section::Observations => observations.push(item_text),
+            Section::Inferences => inferences.push(item_text),
+            Section::Recommendation => rec_lines.push(item_text),
+            Section::None => {}
+        }
+    }
+
+    if observations.is_empty() || inferences.is_empty() || rec_lines.is_empty() {
+        return Err(crate::provider::ProviderError::MalformedResponse(format!(
+            "Model response missing required Observations, Technique Inference, or Recommendation sections: {}",
+            trimmed
+        )));
+    }
+
+    Ok(Explanation {
+        observations,
+        inferences,
+        recommendation: rec_lines.join(" "),
+        is_bounded: true,
+        truncation_note: default_truncation_note,
+    })
 }

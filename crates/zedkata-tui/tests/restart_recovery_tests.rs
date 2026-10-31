@@ -338,7 +338,8 @@ max_edits = 2
 "#;
     fs::write(lessons_dir.join("lesson.toml"), lesson_toml)?;
 
-    let mut app = App::load(session_file.clone(), lessons_dir);
+    let empty_gen_dir = temp_dir.join("generated");
+    let mut app = App::load_with_generated(session_file.clone(), lessons_dir, Some(empty_gen_dir));
     assert_eq!(app.lessons().len(), 1);
 
     // 1. Fixture status detects missing start fixture

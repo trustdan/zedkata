@@ -913,3 +913,68 @@ draft = false
 
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn test_load_with_generated_none_discovers_default_generated_dir_and_deduplicates() {
+    let root = temp_catalog_dir();
+    let shipped = root.join("shipped");
+    let default_gen = root.join("default_generated");
+    std::fs::create_dir_all(&shipped).unwrap();
+    std::fs::create_dir_all(&default_gen).unwrap();
+
+    let shipped_toml = r#"[lesson]
+id = "base-01"
+title = "Base"
+prose = "Prose"
+draft = false
+
+[[exercise]]
+id = "ex-1"
+task = "Task"
+start = "s.kata"
+goal = "g.kata"
+"#;
+    std::fs::write(shipped.join("base-01.toml"), shipped_toml).unwrap();
+
+    let gen_toml = r#"[lesson]
+id = "gen-default-01"
+title = "Generated Default"
+prose = "Prose"
+draft = false
+
+[[exercise]]
+id = "ex-gen"
+task = "Task"
+start = "s.kata"
+goal = "g.kata"
+"#;
+    std::fs::write(default_gen.join("gen-default-01.toml"), gen_toml).unwrap();
+
+    std::env::set_var("ZEDKATA_GENERATED_DIR", &default_gen);
+
+    // 1. Passing None discovers default_generated_dir()
+    let (catalog, summary) = Catalog::load_with_generated(&shipped, None).unwrap();
+    assert!(catalog.get("base-01").is_some());
+    assert!(catalog.get("gen-default-01").is_some());
+    let summary = summary.expect("summary should be Some");
+    assert_eq!(summary.added, vec!["gen-default-01".to_string()]);
+    assert!(summary.skipped_collisions.is_empty());
+
+    // 2. When default_generated_dir() equals shipped.join("generated"), it is deduplicated
+    let local_gen = shipped.join("generated");
+    std::fs::create_dir_all(&local_gen).unwrap();
+    std::fs::write(local_gen.join("gen-default-01.toml"), gen_toml).unwrap();
+    std::env::set_var("ZEDKATA_GENERATED_DIR", &local_gen);
+
+    let (catalog2, summary2) = Catalog::load_with_generated(&shipped, None).unwrap();
+    assert!(catalog2.get("gen-default-01").is_some());
+    let summary2 = summary2.expect("summary2 should be Some");
+    assert_eq!(summary2.added, vec!["gen-default-01".to_string()]);
+    assert!(
+        summary2.skipped_collisions.is_empty(),
+        "Same directory must not be scanned twice causing false collision"
+    );
+
+    std::env::remove_var("ZEDKATA_GENERATED_DIR");
+    let _ = std::fs::remove_dir_all(&root);
+}

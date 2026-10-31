@@ -6,8 +6,8 @@ Coverage: [requirements matrix](REQUIREMENTS.md). The approved
 [backlog expansion plan](plans/2026-09-13-full-backlog-plan.md) has been applied.
 The roadmap below preserves the original task history; detailed execution cards follow.
 
-**Status: All required milestones for Zedkata v0.1.0 are 100% complete.**
-Phase 0 (ZK-001–005), Phase 1 (ZK-006–016), Phase 2 (ZK-017–023), Phase 3 (ZK-024–028), Phase 4 (ZK-029–033), and Phase 5 (ZK-034–037) are 100% complete. Epics ZK-034, ZK-035, ZK-036, and ZK-037 are 100% complete. All 37 required tasks are completed, validated, and documented in release candidate review (ZK-037.3). External publication remains an independent user-authorized action. Optional post-MVP task ZK-038 (inline hints) remains deferred under REQ-16. State contracts are documented in ARCHITECTURE.md (ZK-006).
+**Status: All required milestones and Phase 6 post-audit hardening tasks for Zedkata v0.1.0 are 100% complete.**
+Phase 0 (ZK-001–005), Phase 1 (ZK-006–016), Phase 2 (ZK-017–023), Phase 3 (ZK-024–028), Phase 4 (ZK-029–033), Phase 5 (ZK-034–037), and Phase 6 (ZK-039–043) are 100% complete. All 42 required tasks (ZK-001–037 and ZK-039–043) are completed, validated, and documented in release candidate review (ZK-037.3) and post-audit remediation ([2026-10-31-audit-remediation-plan.md](plans/2026-10-31-audit-remediation-plan.md)). External publication remains an independent user-authorized action. Optional post-MVP task ZK-038 (inline hints) remains deferred under REQ-16. State contracts are documented in [ARCHITECTURE.md](ARCHITECTURE.md) (ZK-006).
 
 ## Phase 0 — Feasibility spike (GATE)
 
@@ -79,6 +79,7 @@ Granular edits remain a proxy for technique, not keystroke verification.
   Identify the process persisting core-computed history.
   **Done:** architecture describes start, edit, pass, retry, switch, and restart,
   including last-writer-wins limitations. Use an ADR for changes to architectural rules.
+  **Completed 2026-09-13:** Component boundaries, state field ownership, attempt lifecycle transitions, lesson/text contracts, scoring/weakness formulas, and installed data layout specified in [ARCHITECTURE.md](ARCHITECTURE.md), [DEVELOPMENT.md](DEVELOPMENT.md), and [ADR 0003](adr/0003-phase-0-feasibility-gate.md)–[ADR 0005](adr/0005-model-providers-and-credentials.md). See ZK-006.1–006.5 cards.
 <a id="task-zk-007"></a>
 - [x] **ZK-007 — Scaffold the native Rust workspace.** Add core, LSP, and TUI crates,
   minimal entry points, `.gitignore`, lockfile, and documented local checks. Defer
@@ -279,6 +280,53 @@ Granular edits remain a proxy for technique, not keystroke verification.
   **Done:** reviewable release artifacts and submission changes exist. Publishing or
   submitting externally is a separate action requiring user authorization.
 
+## Phase 6 — Post-audit hardening and reconciliation
+
+Execution plan: [post-audit remediation plan](plans/2026-10-31-audit-remediation-plan.md).
+
+<a id="task-zk-039"></a>
+- [x] **ZK-039 — Harden catalog, launcher, and LSP discovery integrity.** Fix
+  `Catalog::load_with_generated` default generated directory lookup, unify prerequisite
+  unlock checks in `zedkata-tui::launcher`, and harden `FeedbackEngine` catalog
+  reloading and `.goal.kata` exclusion in `zedkata-lsp`.
+  **Done:** `load_with_generated(&shipped, None)` discovers user generated lessons;
+  CLI `launch` enforces full prerequisite completion; `zedkata-lsp` ignores `.goal.kata`
+  buffers and hot-reloads newly generated drills.
+  **Completed 2026-10-31:** Completed ZK-039.1–039.3 across `zedkata-core`, `zedkata-tui`, and `zedkata-lsp`.
+<a id="task-zk-040"></a>
+- [x] **ZK-040 — Reconcile curriculum walkthroughs and fixture references.** Align all
+  `[[walkthrough]]` IDs across `lessons/*.toml` with `WalkthroughRecord::all()` in
+  `zedkata-agent`, and fix stale fixture paths and symbol/line references.
+  **Done:** every `[[walkthrough]]` ID in the shipped catalog resolves in `zedkata-agent`,
+  and all walkthrough fixture paths and symbol references match on-disk fixtures.
+  **Completed 2026-10-31:** Reconciled all 10 `[[walkthrough]]` IDs across `lessons/*.toml` with `WalkthroughRecord::all()` (plus legacy aliases `lsp-symbol-rename` and `lsp-code-action`) in `crates/zedkata-agent/src/walkthrough.rs` (ZK-040.1), and fixed stale fixture paths (`insert-visibility.start.kata`) and symbol/line references (`record_metric`, `TelemetryClient`, `validate_token`, `validate_credentials`) to match on-disk fixtures (ZK-040.2).
+<a id="task-zk-041"></a>
+- [x] **ZK-041 — Complete ACP server persistence and hybrid model provider transport.**
+  Persist ACP-generated practice drills via `validate_and_store`, pass resolved session
+  and catalog context on ACP attempt explanations, wire live HTTP calls for configured
+  providers (`lm-studio`, `ollama`, `openai`, `anthropic`, `gemini`) alongside the
+  `offline` default, and explicitly scope out `chatgpt-auth`.
+  **Done:** ACP drill generation writes validated `.toml` and `.kata` files to disk;
+  ACP explanations include catalog metadata; loopback HTTP tests verify provider prompt
+  dispatch and parsing; ADR 0005 and `config.rs` explicitly scope out `chatgpt-auth`.
+  **Completed 2026-10-31:** Loaded `Catalog` in `AgentServer` (`crates/zedkata-agent/src/server.rs`) and persisted ACP-generated drills via `validate_and_store_with_catalog` into the user generated directory while passing resolved `session_path` and `Catalog` to `explain_session_async` (ZK-041.1). Wired live HTTP/1.1 POST transport in `ConfiguredProvider` (`crates/zedkata-agent/src/provider.rs`) across OpenAI-compatible (`lm-studio`, `ollama`, `openai`), Anthropic, and Gemini wire formats alongside deterministic `offline`/`degraded` fallback, and explicitly rejected `chatgpt-auth` in `ProviderKind::from_str` (`crates/zedkata-agent/src/config.rs`) and ADR 0005 / `docs/ARCHITECTURE.md` (ZK-041.2).
+<a id="task-zk-042"></a>
+- [x] **ZK-042 — Enforce UTF-8 boundary safety and `CLAUDE.md` code conventions.**
+  Fix UTF-8 char-boundary truncation in `bound_edits` and UTF-8 percent-decoding in
+  `urlencoding_decode`, eliminate library `unwrap()` calls across `zedkata-lsp` and
+  `zedkata-agent`, and remove the unused `tokio` dependency from `zedkata-tui`.
+  **Done:** multi-byte UTF-8 truncation and URI decoding tests pass; library crates
+  enforce `deny(clippy::unwrap_used, clippy::expect_used)` in non-test code; `zedkata-tui`
+  builds and runs synchronously without `tokio`.
+  **Completed 2026-10-31:** Fixed UTF-8 character-boundary truncation in `bound_edits` (`crates/zedkata-agent/src/context.rs`) and UTF-8 byte-sequence percent-decoding in `urlencoding_decode` (`crates/zedkata-lsp/src/feedback.rs`) (ZK-042.1). Eliminated all non-test library `.unwrap()` calls across `zedkata-lsp` and `zedkata-agent`, enforced `#![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used))]` across all four workspace crates (`zedkata-core`, `zedkata-lsp`, `zedkata-tui`, `zedkata-agent`), and removed the unused `tokio` dependency from `zedkata-tui` (ZK-042.2).
+<a id="task-zk-043"></a>
+- [x] **ZK-043 — Reconcile backlog execution cards and open questions.** Update stale
+  `ZK-006.1`–`ZK-006.5` execution card statuses and banner text in `docs/BACKLOG.md`,
+  and update `OQ-11` in `docs/OPEN-QUESTIONS.md` with Phase 0 undo verification scope.
+  **Done:** `docs/BACKLOG.md` and `docs/OPEN-QUESTIONS.md` contain zero stale status
+  markers or unclosed Phase 1 cards.
+  **Completed 2026-10-31:** Removed stale Phase 0 banner and reconciled `ZK-006.1`–`ZK-006.5` execution cards to `done` in `docs/BACKLOG.md`, and updated `OQ-11` in `docs/OPEN-QUESTIONS.md` to `VERIFIED (single-step inverse restoration) / SCOPED` citing `tests/fixtures/lsp/2026-09-13-matrix-02-dw-repeat.jsonl` and `crates/zedkata-core/src/scoring.rs` (ZK-043.1). Completes Phase 6.
+
 ## Task handoff template
 
 Append beneath the active task when a session ends:
@@ -319,11 +367,6 @@ diagnostics with visible rendering or synthetic captures with Zed observations.
 
 ZK-001 and ZK-002 are completed leaf tasks whose preserved cards above are their evidence.
 ZK-001 depends on none; ZK-002 depends on ZK-001. Both are gate-priority and cover REQ-05.
-
-**Next manual action:** ZK-004.2, run the prepared observation matrix one case at a time.
-**Preparation complete:** ZK-004.1 has a labeled matrix and fixtures. Capture work
-can proceed after the completed editor connection check. No production task is ready before ZK-005 is
-completed with a usable route.
 
 
 ### ZK-003 — Probe connection
@@ -427,42 +470,47 @@ completed with a usable route.
 <a id="task-zk-006-1"></a>
 #### ZK-006.1 — Set component and state ownership contracts
 
-- **Status:** in progress. **Priority:** MVP. **Requirements:** REQ-02, REQ-04, REQ-12.
+- **Status:** done. **Priority:** MVP. **Requirements:** REQ-02, REQ-04, REQ-12.
 - **Depends on:** [ZK-005](#task-zk-005).
 - **Files/components:** docs/ARCHITECTURE.md; docs/adr/.
 - **Acceptance:** Assign every state field a writer and define active-lesson discovery, competing-write behavior and limits under the existing single-file/no-lock rule. Clarify process/library terminology; propose an ADR if constraints cannot support the required behavior.
+- **Completed 2026-09-13:** Assigned field ownership across `zedkata-tui` (`current.lesson_id`, `current.exercise_index`, `current.nav_mode`), `zedkata-lsp` (`current.buffer_path`, `current.opened_at`, `attempt`, `history`, `weaknesses`), and `zedkata-agent` (`completed_walkthroughs`), with `zedkata-core` defined as the pure synchronous calculation and atomic persistence library under the single-user last-writer-wins temporary-file replacement contract in [docs/ARCHITECTURE.md](ARCHITECTURE.md).
 - **Validation:** Review the worked contract/examples against linked requirements and record source/ADR evidence; do not promote assumptions without a check.
 <a id="task-zk-006-2"></a>
 #### ZK-006.2 — Define attempt transitions
 
-- **Status:** blocked. **Priority:** MVP. **Requirements:** REQ-09, REQ-13.
+- **Status:** done. **Priority:** MVP. **Requirements:** REQ-09, REQ-13.
 - **Depends on:** [ZK-006.1](#task-zk-006-1).
 - **Files/components:** docs/ARCHITECTURE.md.
 - **Acceptance:** Document start/edit/pass/fail/abandon/retry/switch/resume with IDs, late updates, duplicate completion and dirty-buffer examples; identify which event finalizes failure.
+- **Completed 2026-09-13:** Specified `idle`, `started`, `editing`, `passed`, `failed`, and `retried` attempt states, unique attempt IDs rejecting stale/late notifications, duplicate completion prevention (`AttemptOutcome::AlreadyFinalized`), and dirty-buffer reset rules in [docs/ARCHITECTURE.md](ARCHITECTURE.md) and `crates/zedkata-core/src/session.rs`.
 - **Validation:** Review the worked contract/examples against linked requirements and record source/ADR evidence; do not promote assumptions without a check.
 <a id="task-zk-006-3"></a>
 #### ZK-006.3 — Define lesson and text contracts
 
-- **Status:** blocked. **Priority:** MVP. **Requirements:** REQ-07, REQ-09.
+- **Status:** done. **Priority:** MVP. **Requirements:** REQ-07, REQ-09.
 - **Depends on:** [ZK-005](#task-zk-005).
 - **Files/components:** docs/ARCHITECTURE.md; lesson examples.
 - **Acceptance:** Specify schema version, exercise/walkthrough fields, prerequisite rules, fixture path base, start position, newline/whitespace handling and negotiated position encoding; examples include malformed/unsupported data.
+- **Completed 2026-09-13:** Defined lesson TOML schema (`[lesson]`, `[[exercise]]`, `[exercise.forbid]`, `[[walkthrough]]`), lesson-relative fixture path resolution, 1-based CLI cursor coordinates (`[line, col]`), LF newline normalization preserving intra-line whitespace, and 0-based UTF-16 LSP position encoding in [docs/ARCHITECTURE.md](ARCHITECTURE.md) and `crates/zedkata-core/src/lesson.rs`.
 - **Validation:** Review the worked contract/examples against linked requirements and record source/ADR evidence; do not promote assumptions without a check.
 <a id="task-zk-006-4"></a>
 #### ZK-006.4 — Define score and weakness semantics
 
-- **Status:** blocked. **Priority:** MVP. **Requirements:** REQ-10, REQ-11.
+- **Status:** done. **Priority:** MVP. **Requirements:** REQ-10, REQ-11.
 - **Depends on:** [ZK-006.2](#task-zk-006-2), [ZK-006.3](#task-zk-006-3).
 - **Files/components:** docs/ARCHITECTURE.md; docs/adr/.
 - **Acceptance:** Provide worked examples for goal outcome, score/history/weakness updates, edit budgets, forbidden patterns and undo; define explicit goal-only representation. Unsupported technique metrics are omitted, not fabricated.
+- **Completed 2026-09-13:** Specified evidence-supported edit unit counting (operator deletions, single-char deletions, contiguous typing bursts, and single-step inverse undo cancellation), `par_edits` / `max_edits` scoring formula (100 at par, -15 per extra edit down to floor 50, 0 over max), explicit unscored goal-only mode (`par_edits = None`), `forbid.backspace_run` enforcement, and exponential moving average (`0.7 * prior + 0.3 * target`) concept weakness updates in [docs/ARCHITECTURE.md](ARCHITECTURE.md), [ADR 0003](adr/0003-phase-0-feasibility-gate.md), and `crates/zedkata-core/src/scoring.rs`.
 - **Validation:** Review the worked contract/examples against linked requirements and record source/ADR evidence; do not promote assumptions without a check.
 <a id="task-zk-006-5"></a>
 #### ZK-006.5 — Define installed data layout
 
-- **Status:** blocked. **Priority:** MVP. **Requirements:** REQ-12, REQ-28, REQ-31.
+- **Status:** done. **Priority:** MVP. **Requirements:** REQ-12, REQ-28, REQ-31.
 - **Depends on:** [ZK-006.1](#task-zk-006-1), [ZK-006.3](#task-zk-006-3).
 - **Files/components:** docs/ARCHITECTURE.md; docs/DEVELOPMENT.md.
 - **Acceptance:** Specify Windows/macOS/Linux state, exercise, packaged and generated lesson paths, overrides and catalog precedence. Resolve lessons/generated versus user-data storage without silently changing accepted contracts.
+- **Completed 2026-09-13:** Specified cross-platform paths for `session.json`, writable `exercises/` buffers, read-only packaged `lessons/`, and user-writable `lessons/generated/` across Windows (`%LOCALAPPDATA%\zedkata`) and Unix (`$XDG_STATE_HOME/zedkata`, `$XDG_DATA_HOME/zedkata`) with environment variable and CLI flag overrides in [docs/ARCHITECTURE.md](ARCHITECTURE.md), [docs/DEVELOPMENT.md](DEVELOPMENT.md), and [ADR 0005](adr/0005-model-providers-and-credentials.md).
 - **Validation:** Review the worked contract/examples against linked requirements and record source/ADR evidence; do not promote assumptions without a check.
 
 ### ZK-007 — Native scaffold
@@ -1312,3 +1360,113 @@ completed with a usable route.
 - **Files/components:** crates/zedkata-lsp/; protocol and manual checks.
 - **Acceptance:** Deferred beyond MVP unless selected; if implemented, inlayHint returns the active task, refreshes/clears across attempts and renders in Zed without breaking diagnostics.
 - **Validation:** Exercise the success/failure cases in Acceptance; run affected tests plus formatting/clippy for Rust changes or npm tests for probe changes, and retain the result.
+
+### ZK-039 — Catalog, launcher, and LSP discovery integrity
+
+<a id="task-zk-039-1"></a>
+#### ZK-039.1 — Fix `Catalog::load_with_generated` default directory resolution
+
+- **Status:** done. **Priority:** post-audit hardening. **Requirements:** REQ-08, REQ-28, REQ-31.
+- **Depends on:** [ZK-032.3](#task-zk-032-3), [ZK-034.1](#task-zk-034-1).
+- **Files/components:** `crates/zedkata-core/src/catalog.rs`; `crates/zedkata-core/tests/catalog_validation.rs`.
+- **Acceptance:** When `generated_dir` is `None`, `Catalog::load_with_generated` loads from `default_generated_dir()` (if present) as well as `shipped_dir.join("generated")` (deduplicated), so `zedkata-lsp` and `App::load` automatically discover user-generated lessons without requiring `--generated-dir`.
+- **Completed 2026-10-31:** Updated `Catalog::load_with_generated` in `crates/zedkata-core/src/catalog.rs` to fall back to `default_generated_dir().ok()` when `generated_dir` is `None`, while preserving canonicalized deduplication against `shipped_dir.join("generated")`. Added `test_load_with_generated_none_discovers_default_generated_dir_and_deduplicates` in `crates/zedkata-core/tests/catalog_validation.rs`. Unblocks ZK-039.3.
+- **Validation:** Added integration test in `crates/zedkata-core/tests/catalog_validation.rs` verifying `Catalog::load_with_generated(&shipped, None)` discovers generated `.toml` drills in the default generated directory and deduplicates overlapping paths; passed `cargo test --workspace --locked`, `cargo clippy --workspace --locked --all-targets -- -D warnings`, and `cargo fmt --all -- --check`.
+
+<a id="task-zk-039-2"></a>
+#### ZK-039.2 — Unify prerequisite unlock logic in `zedkata-tui::launcher`
+
+- **Status:** done. **Priority:** post-audit hardening. **Requirements:** REQ-07, REQ-17, REQ-19.
+- **Depends on:** [ZK-021](#task-zk-021).
+- **Files/components:** `crates/zedkata-tui/src/launcher.rs`; `crates/zedkata-tui/tests/launch_tests.rs`.
+- **Acceptance:** `launch_exercise` delegates prerequisite checking to `Catalog::is_lesson_unlocked` (requiring all exercises in prerequisite lessons to be passed) rather than `session.history.iter().any(...)`, matching TUI `[L]` lock state.
+- **Completed 2026-10-31:** Delegated prerequisite checking in `launch_exercise` (`crates/zedkata-tui/src/launcher.rs`) to `catalog.is_lesson_unlocked(lesson_id, &session.history)` so that all exercises in prerequisite lessons must be passed before dependent lessons can be launched, matching the TUI `[L]` badge state. Added `test_partial_prerequisite_completion_rejects_launch_until_all_exercises_passed` in `crates/zedkata-tui/tests/launch_tests.rs`.
+- **Validation:** Added automated test confirming partial completion (1 of 3 exercises passed in `motions-01-word`) rejects `launch_exercise` on `motions-02-find` with `LauncherError::LessonLocked`, while full completion (3 of 3) unlocks it; passed workspace tests, clippy, and rustfmt.
+
+<a id="task-zk-039-3"></a>
+#### ZK-039.3 — Harden `FeedbackEngine` catalog reload and filename matching in `zedkata-lsp`
+
+- **Status:** done. **Priority:** post-audit hardening. **Requirements:** REQ-14, REQ-15, REQ-28.
+- **Depends on:** [ZK-039.1](#task-zk-039-1), [ZK-014](#task-zk-014).
+- **Files/components:** `crates/zedkata-lsp/src/feedback.rs`; `crates/zedkata-lsp/src/main.rs`; `crates/zedkata-lsp/tests/feedback_integration_tests.rs`.
+- **Acceptance:** `FeedbackEngine::is_active_exercise` excludes `.goal.kata` files and requires exact `<exercise_id>.kata` or `<exercise_id>.start.kata` filename matching; `FeedbackEngine` reloads `self.catalog` when an active `lesson_id` in `session.json` (such as a newly generated `gen-*` drill) is missing from `self.catalog`.
+- **Completed 2026-10-31:** Hardened `FeedbackEngine` in `crates/zedkata-lsp/src/feedback.rs`: (1) Added `FeedbackEngine::with_generated_dir` and `ensure_lesson_loaded` to hot-reload `self.catalog` via `Catalog::load_with_generated` whenever the active `lesson_id` in `session.json` is not yet present in `self.catalog`; (2) Updated `is_active_exercise` to explicitly exclude `.goal.kata` filenames and resolved goal fixture paths, and replaced loose substring matching with exact `<exercise_id>.kata`, `<exercise_id>.start.kata`, or `<lesson_id>-<exercise_id>.kata` filename matching. Added `test_feedback_engine_excludes_goal_fixtures_and_partial_substring_filenames` and `test_feedback_engine_hot_reloads_newly_generated_drill_after_startup` in `crates/zedkata-lsp/tests/feedback_integration_tests.rs`. Epic ZK-039 is 100% complete.
+- **Validation:** Added integration tests covering `.goal.kata` exclusion, partial substring rejection, and hot-reloading a newly generated `gen-*` drill into a running `FeedbackEngine`; passed workspace tests, clippy, and rustfmt.
+
+### ZK-040 — Curriculum walkthrough and fixture reconciliation
+
+<a id="task-zk-040-1"></a>
+#### ZK-040.1 — Reconcile walkthrough IDs between `lessons/*.toml` and `WalkthroughRecord::all()`
+
+- **Status:** done. **Priority:** post-audit hardening. **Requirements:** REQ-23, REQ-25, REQ-29.
+- **Depends on:** [ZK-033.1](#task-zk-033-1).
+- **Files/components:** `crates/zedkata-agent/src/walkthrough.rs`; `crates/zedkata-agent/tests/walkthrough_tests.rs`.
+- **Acceptance:** Every `[[walkthrough]]` ID in all 10 shipped `lessons/*.toml` files (`lsp-actions-walkthrough`, `single-line-find-scope`, `exchange-and-surround`, `keymap-contexts`, `diagnostic-navigation`, `mini-vs-any`, `project-panel-walkthrough`, `multibuffer-walkthrough`, `tasks-and-debugger-walkthrough`, `agent-panel-walkthrough`) exists in `WalkthroughRecord::all()` and resolves via `WalkthroughRecord::find()`.
+- **Completed 2026-10-31:** Verified all 10 `[[walkthrough]]` IDs across `lessons/*.toml` resolve in `WalkthroughRecord::all()` and `WalkthroughRecord::find()` (and added legacy alias resolution for `lsp-symbol-rename` and `lsp-code-action` to `lsp-actions-walkthrough`). Added `test_shipped_catalog_walkthrough_ids_reconciled_with_walkthrough_records` in `crates/zedkata-agent/tests/walkthrough_tests.rs`. Unblocks ZK-040.2.
+- **Validation:** Added automated cross-crate integration test loading the shipped `Catalog` and asserting `WalkthroughRecord::find(&wt.id)` succeeds with matching `lesson_id`, non-empty steps, and verification checklists for all 10 curriculum walkthroughs; passed workspace tests, clippy, and rustfmt.
+
+<a id="task-zk-040-2"></a>
+#### ZK-040.2 — Fix stale fixture paths and symbol/line references in `walkthrough.rs`
+
+- **Status:** done. **Priority:** post-audit hardening. **Requirements:** REQ-24, REQ-25, REQ-29.
+- **Depends on:** [ZK-040.1](#task-zk-040-1).
+- **Files/components:** `crates/zedkata-agent/src/walkthrough.rs`; `crates/zedkata-agent/tests/walkthrough_tests.rs`.
+- **Acceptance:** Walkthrough records reference existing fixture files (`lessons/fixtures/modal-00/insert-visibility.start.kata` instead of non-existent `swap-words.start.kata`) and accurate symbols/lines in `lessons/fixtures/walkthroughs/lsp/sample_service.rs` (`record_metric` on line 50 / `TelemetryClient` instead of `ProcessOrder` on line 12).
+- **Completed 2026-10-31:** Updated `WalkthroughRecord::all()` in `crates/zedkata-agent/src/walkthrough.rs` to reference `lessons/fixtures/modal-00/insert-visibility.start.kata` in `diagnostic-navigation`, `record_metric` (line 50) / `TelemetryClient` (line 30) / `TelemetryMetric` (line 23) / `compute_average` (line 60) in `lsp-actions-walkthrough`, `validate_token` in `multibuffer-walkthrough`, `cargo check` and `math::execute_operation` (line 6) in `tasks-and-debugger-walkthrough`, and `validate_credentials(compute_digest(raw_token, 32), self.get_salt(id))` (line 11) in `mini-vs-any`. Added `WalkthroughRecord::fixture_path()` and `test_walkthrough_fixtures_and_symbol_references_exist_on_disk` in `crates/zedkata-agent/tests/walkthrough_tests.rs`. Epic ZK-040 is 100% complete.
+- **Validation:** Added automated test verifying that every `fixture_path` in `WalkthroughRecord::all()` exists on disk and referenced identifiers/lines exist in the target fixture files; passed workspace tests, clippy, and rustfmt.
+
+### ZK-041 — ACP server and model provider fidelity
+
+<a id="task-zk-041-1"></a>
+#### ZK-041.1 — Persist generated drills and pass resolved session/catalog in ACP `AgentServer`
+
+- **Status:** done. **Priority:** post-audit hardening. **Requirements:** REQ-26, REQ-27, REQ-28.
+- **Depends on:** [ZK-031.2](#task-zk-031-2), [ZK-032.2](#task-zk-032-2).
+- **Files/components:** `crates/zedkata-agent/src/server.rs`; `crates/zedkata-agent/tests/`.
+- **Acceptance:** Over ACP `PromptRequest`, drill generation validates and writes generated assets to the user generated directory via `validate_and_store` (reporting `Status: Admitted` and file paths), and attempt explanation calls `provider.explain_session_async(&path, catalog.as_ref(), cancel_flag)` with the resolved `session_path` and loaded `Catalog`.
+- **Completed 2026-10-31:** Updated `AgentServer` in `crates/zedkata-agent/src/server.rs` (and `crates/zedkata-agent/src/main.rs`) to load the curriculum `Catalog` via `resolve_lessons_dir` / `Catalog::load_with_generated`, validate and persist ACP-generated drills via `validate_and_store_with_catalog` into the generated directory (reporting `Status: Admitted` and stored file paths), and invoke `provider.explain_session_async` with the resolved `session_path` and `Catalog`. Added `test_acp_generate_practice_persists_drill_to_generated_dir_with_admitted_status` and `test_acp_explain_attempt_uses_session_cwd_and_includes_catalog_metadata` in `crates/zedkata-agent/tests/protocol_lifecycle_tests.rs`.
+- **Validation:** Added ACP integration tests verifying on-disk persistence of generated drills and inclusion of catalog metadata (`task_prompt`, `par_edits`, `forbid_rules`) in attempt explanations; passed workspace tests, clippy, and rustfmt.
+
+<a id="task-zk-041-2"></a>
+#### ZK-041.2 — Implement hybrid HTTP transport for `ConfiguredProvider` and scope out `chatgpt-auth`
+
+- **Status:** done. **Priority:** post-audit hardening. **Requirements:** REQ-26, REQ-27, REQ-28.
+- **Depends on:** [ZK-041.1](#task-zk-041-1), [ZK-029](#task-zk-029).
+- **Files/components:** `crates/zedkata-agent/Cargo.toml`; `crates/zedkata-agent/src/provider.rs`; `crates/zedkata-agent/src/config.rs`; `docs/adr/0005-model-providers-and-credentials.md`; `docs/ARCHITECTURE.md`.
+- **Acceptance:** `ConfiguredProvider` dispatches real HTTP requests for local OpenAI-compatible servers (`lm-studio`, `ollama`) and standard API-key providers (`openai`, `anthropic`, `gemini`) using `system_prompt`, `build_attempt_user_prompt`, `build_candidate_user_prompt`, and `parse_candidate_response`, while keeping `offline` as the deterministic zero-network default. `ProviderKind::from_str("chatgpt-auth")` returns an explicit out-of-scope error, and ADR 0005 / `docs/ARCHITECTURE.md` record that Tier 3 OAuth is scoped out.
+- **Completed 2026-10-31:** Implemented HTTP/1.1 POST transport in `ConfiguredProvider` (`crates/zedkata-agent/src/provider.rs`) using `system_prompt`, `build_attempt_user_prompt`, `build_candidate_user_prompt`, `parse_explanation_response`, and `parse_candidate_response` across OpenAI-compatible (`LmStudio`, `Ollama`, `OpenAI`), Anthropic, and Gemini wire payloads with deterministic `offline`/`degraded` fallback. Explicitly rejected `chatgpt-auth` in `ProviderKind::from_str` (`crates/zedkata-agent/src/config.rs`) and recorded Tier 3 OAuth scope-out in `docs/adr/0005-model-providers-and-credentials.md` and `docs/ARCHITECTURE.md`. Added loopback HTTP server tests in `crates/zedkata-agent/tests/provider_tests.rs`. Epic ZK-041 is 100% complete.
+- **Validation:** Added automated tests using a local loopback HTTP server covering OpenAI-compatible, Anthropic, and Gemini wire payloads, timeouts, error status codes, and `chatgpt-auth` rejection; passed workspace tests, clippy, and rustfmt.
+
+### ZK-042 — UTF-8 safety and code convention compliance
+
+<a id="task-zk-042-1"></a>
+#### ZK-042.1 — Fix UTF-8 char-boundary truncation in `context.rs` and percent-decoding in `feedback.rs`
+
+- **Status:** done. **Priority:** post-audit hardening. **Requirements:** REQ-09, REQ-14, REQ-27.
+- **Depends on:** [ZK-013](#task-zk-013), [ZK-031.1](#task-zk-031-1).
+- **Files/components:** `crates/zedkata-agent/src/context.rs`; `crates/zedkata-lsp/src/feedback.rs`.
+- **Acceptance:** `bound_edits` truncates strings at the nearest valid UTF-8 character boundary `<= max_diff_bytes` without panicking on multi-byte characters; `urlencoding_decode` decodes percent-encoded byte sequences as UTF-8 (`Vec<u8>` -> `String::from_utf8_lossy`) without corrupting non-ASCII file paths.
+- **Completed 2026-10-31:** Updated `bound_edits` in `crates/zedkata-agent/src/context.rs` to walk backward from `max_diff_bytes` to the nearest `is_char_boundary` before truncating, and updated `urlencoding_decode` in `crates/zedkata-lsp/src/feedback.rs` to decode percent-encoded sequences into a `Vec<u8>` buffer before converting via `String::from_utf8_lossy`. Added `test_multibyte_utf8_char_boundary_truncation` in `crates/zedkata-agent/tests/context_tests.rs` and `test_uri_to_path_decodes_multibyte_utf8_percent_sequences` in `crates/zedkata-lsp/src/feedback.rs`.
+- **Validation:** Added unit tests with multi-byte UTF-8 characters (`🌍`, `é`) straddling `max_diff_bytes` and percent-encoded non-ASCII file URIs; passed workspace tests, clippy, and rustfmt.
+
+<a id="task-zk-042-2"></a>
+#### ZK-042.2 — Eliminate library `unwrap()` calls and remove `tokio` from `zedkata-tui`
+
+- **Status:** done. **Priority:** post-audit hardening. **Requirements:** REQ-02, REQ-03.
+- **Depends on:** [ZK-007](#task-zk-007).
+- **Files/components:** `crates/zedkata-core/src/lib.rs`; `crates/zedkata-lsp/src/lib.rs`; `crates/zedkata-lsp/src/feedback.rs`; `crates/zedkata-agent/src/lib.rs`; `crates/zedkata-agent/src/server.rs`; `crates/zedkata-agent/src/provider.rs`; `crates/zedkata-tui/Cargo.toml`; `crates/zedkata-tui/src/lib.rs`; `crates/zedkata-tui/src/main.rs`.
+- **Acceptance:** All non-test library code eliminates `.unwrap()` / `.expect()` and enforces `#![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used))]`; `zedkata-tui` removes its `tokio` dependency and uses a synchronous `fn main()`.
+- **Completed 2026-10-31:** Replaced `session.attempt.as_mut().unwrap()` / `as_ref().unwrap()` in `crates/zedkata-lsp/src/feedback.rs` with pattern matching, replaced all `.lock().unwrap()` calls in `crates/zedkata-agent/src/server.rs` and `crates/zedkata-agent/src/provider.rs` with `.unwrap_or_else(|e| e.into_inner())`, added `#![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used))]` to `lib.rs` across `zedkata-core`, `zedkata-lsp`, `zedkata-tui`, and `zedkata-agent`, and removed `tokio` from `crates/zedkata-tui/Cargo.toml` and `crates/zedkata-tui/src/main.rs`. Epic ZK-042 is 100% complete.
+- **Validation:** Passed `cargo clippy --workspace --locked --all-targets -- -D warnings`, `cargo test --workspace --locked`, and `cargo fmt --all -- --check`.
+
+### ZK-043 — Documentation, backlog, and open-questions reconciliation
+
+<a id="task-zk-043-1"></a>
+#### ZK-043.1 — Reconcile stale execution cards in `docs/BACKLOG.md` and `OQ-11` in `docs/OPEN-QUESTIONS.md`
+
+- **Status:** done. **Priority:** post-audit hardening. **Requirements:** REQ-04, REQ-06, REQ-10.
+- **Depends on:** [ZK-006](#task-zk-006), [ZK-011](#task-zk-011).
+- **Files/components:** `docs/BACKLOG.md`; `docs/OPEN-QUESTIONS.md`.
+- **Acceptance:** Stale `"Next manual action: ZK-004.2"` text is removed from `docs/BACKLOG.md`; execution cards `ZK-006.1`–`ZK-006.5` are updated to `done` with completion notes referencing `docs/ARCHITECTURE.md`; `OQ-11` in `docs/OPEN-QUESTIONS.md` is updated from `ASSUMED` to `VERIFIED (single-step inverse restoration) / SCOPED` citing `tests/fixtures/lsp/02-dw-repeat.jsonl` and `crates/zedkata-core/src/scoring.rs`.
+- **Completed 2026-10-31:** Removed the stale `"Next manual action: ZK-004.2"` banner from `docs/BACKLOG.md`, updated execution cards `ZK-006.1`–`ZK-006.5` from `in progress` / `blocked` to `done` with completion notes referencing `docs/ARCHITECTURE.md`, `docs/DEVELOPMENT.md`, and `ADR 0003`–`ADR 0005`, and updated `OQ-11` in `docs/OPEN-QUESTIONS.md` from `ASSUMED` to `VERIFIED (single-step inverse restoration) / SCOPED` citing `tests/fixtures/lsp/2026-09-13-matrix-02-dw-repeat.jsonl`, `tests/fixtures/lsp/2026-09-13-matrix-01-dw.jsonl`, `crates/zedkata-core/src/scoring.rs`, and `crates/zedkata-core/tests/scoring.rs`. Epic ZK-043 is 100% complete. Phase 6 is 100% complete.
+- **Validation:** Verified all links, status fields, and completion records across `docs/BACKLOG.md` and `docs/OPEN-QUESTIONS.md`; passed workspace tests, clippy, and rustfmt.

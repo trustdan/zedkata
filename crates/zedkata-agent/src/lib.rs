@@ -1,3 +1,5 @@
+#![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used))]
+
 pub mod config;
 pub mod context;
 pub mod generator;
@@ -20,7 +22,7 @@ pub use generator::{
     DEFAULT_FALLBACK_CONCEPT,
 };
 pub use logging::init_stderr_logging;
-pub use prompt::{build_attempt_user_prompt, system_prompt};
+pub use prompt::{build_attempt_user_prompt, parse_explanation_response, system_prompt};
 pub use provider::{
     AttemptExplainer, ConfiguredProvider, ExerciseGenerator, Explanation, FakeProvider,
     ProviderError,

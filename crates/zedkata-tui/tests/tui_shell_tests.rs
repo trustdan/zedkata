@@ -52,10 +52,11 @@ fn test_tui_render_catalog_and_task_panes() -> Result<()> {
     std::fs::create_dir_all(&temp_dir)?;
     let session_file = temp_dir.join("session.json");
     let lessons_dir = test_lessons_dir();
+    let empty_gen_dir = temp_dir.join("generated");
 
     let backend = TestBackend::new(90, 30);
     let mut terminal = Terminal::new(backend)?;
-    let app = App::load(session_file, lessons_dir);
+    let app = App::load_with_generated(session_file, lessons_dir, Some(empty_gen_dir));
 
     terminal.draw(|f| {
         ui::render(f, &app);

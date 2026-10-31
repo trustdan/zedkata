@@ -63,7 +63,8 @@ async fn main() -> Result<()> {
                     gen_count,
                     lessons_dir
                 );
-                let feedback = FeedbackEngine::new(session_path, catalog);
+                let feedback =
+                    FeedbackEngine::with_generated_dir(session_path, catalog, generated_dir);
                 LspServer::with_feedback(feedback)
             }
             Err(e) => {

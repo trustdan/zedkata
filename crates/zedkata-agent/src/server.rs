@@ -65,13 +65,13 @@ impl AgentServer {
 
     /// Returns a list of all currently active session IDs.
     pub fn active_sessions(&self) -> Vec<String> {
-        let sessions = self.sessions.lock().unwrap();
+        let sessions = self.sessions.lock().unwrap_or_else(|e| e.into_inner());
         sessions.keys().cloned().collect()
     }
 
     /// Checks if a session with the given ID is registered.
     pub fn has_session(&self, session_id: &str) -> bool {
-        let sessions = self.sessions.lock().unwrap();
+        let sessions = self.sessions.lock().unwrap_or_else(|e| e.into_inner());
         sessions.contains_key(session_id)
     }
 
@@ -132,7 +132,7 @@ impl AgentServer {
 
                     let cwd_path = request.cwd.clone();
                     {
-                        let mut store = sessions_for_new.lock().unwrap();
+                        let mut store = sessions_for_new.lock().unwrap_or_else(|e| e.into_inner());
                         let mut state = SessionState::new(id_str.clone());
                         state.cwd = Some(cwd_path);
                         store.insert(id_str.clone(), state);
@@ -150,7 +150,9 @@ impl AgentServer {
                     let id_str = request.session_id.0.to_string();
                     let (cancel_tx, cancel_rx) = tokio::sync::watch::channel(false);
                     let (session_exists, session_cwd) = {
-                        let mut store = sessions_for_prompt.lock().unwrap();
+                        let mut store = sessions_for_prompt
+                            .lock()
+                            .unwrap_or_else(|e| e.into_inner());
                         if let Some(state) = store.get_mut(&id_str) {
                             state.prompt_count += 1;
                             state.cancel_sender = Some(cancel_tx);
@@ -184,11 +186,45 @@ impl AgentServer {
                     let env_session_path = std::env::var("ZEDKATA_SESSION_PATH")
                         .or_else(|_| std::env::var("ZEDKATA_SESSION"))
                         .ok()
+                        .filter(|s| !s.trim().is_empty())
                         .map(std::path::PathBuf::from);
+                    let explicit_provider_session = server_provider
+                        .as_ref()
+                        .and_then(|p| p.config().session_path.clone());
+                    let cwd_session_path = session_cwd
+                        .as_ref()
+                        .filter(|c| c.is_dir())
+                        .map(|c| c.join("session.json"));
                     let session_path = env_session_path
-                        .or_else(|| session_cwd.as_ref().map(|c| c.join("session.json")))
+                        .or(explicit_provider_session)
+                        .or(cwd_session_path)
                         .or_else(|| provider.config().session_path.clone())
+                        .or_else(|| session_cwd.as_ref().map(|c| c.join("session.json")))
                         .or_else(|| zedkata_core::session::default_session_path().ok());
+
+                    let out_dir = provider
+                        .config()
+                        .generated_dir
+                        .clone()
+                        .or_else(|| {
+                            std::env::var("ZEDKATA_GENERATED_DIR")
+                                .ok()
+                                .filter(|s| !s.trim().is_empty())
+                                .map(std::path::PathBuf::from)
+                        })
+                        .or_else(|| {
+                            std::env::var("ZEDKATA_DATA_DIR")
+                                .ok()
+                                .filter(|s| !s.trim().is_empty())
+                                .map(|d| {
+                                    std::path::PathBuf::from(d)
+                                        .join("lessons")
+                                        .join("generated")
+                                })
+                        })
+                        .unwrap_or_else(|| provider.config().resolved_generated_dir());
+
+                    let catalog = load_server_catalog(session_cwd.as_deref(), Some(&out_dir));
 
                     let walkthrough_response = crate::walkthrough::handle_walkthrough_prompt(
                         &prompt_text,
@@ -207,29 +243,61 @@ impl AgentServer {
                         let turn_result = if let Some(resp) = walkthrough_response {
                             Ok(resp)
                         } else if is_generate {
-                            if let Some(path) = session_path {
+                            let candidate_res = if let Some(ref path) = session_path {
                                 provider
                                     .generate_candidate_from_session_async(
-                                        &path,
+                                        path,
                                         None,
                                         Some(cancel_rx),
                                     )
                                     .await
-                                    .map(|candidate| candidate.format_preview())
                             } else {
-                                let fallback_ctx = crate::generator::WeaknessContext::from_session_path(
-                                    std::path::Path::new("session.json"),
-                                    None,
-                                );
+                                let fallback_ctx =
+                                    crate::generator::WeaknessContext::from_session_path(
+                                        std::path::Path::new("session.json"),
+                                        None,
+                                    );
                                 provider
                                     .generate_candidate_async(&fallback_ctx, Some(cancel_rx))
                                     .await
-                                    .map(|candidate| candidate.format_preview())
-                            }
+                            };
+
+                            candidate_res.and_then(|mut candidate| {
+                                match candidate
+                                    .validate_and_store_with_catalog(&out_dir, catalog.as_ref())
+                                {
+                                    Ok(paths) => {
+                                        let mut preview = candidate.format_preview();
+                                        preview.push_str(&format!(
+                                            "\n#### Admitted & Stored Assets\n- **Admission**: Status: Admitted\n- **TOML**: `{}`\n- **Start Fixture**: `{}`\n- **Goal Fixture**: `{}`\n",
+                                            paths.toml_path.display(),
+                                            paths.start_fixture_path.display(),
+                                            paths.goal_fixture_path.display(),
+                                        ));
+                                        Ok(preview)
+                                    }
+                                    Err(e) => Err(crate::provider::ProviderError::Failure(
+                                        format!(
+                                            "Failed to validate and store generated practice drill: {}",
+                                            e
+                                        ),
+                                    )),
+                                }
+                            })
+                        } else if let Some(ref path) = session_path {
+                            provider
+                                .explain_session_async(
+                                    path,
+                                    catalog.as_ref(),
+                                    &crate::context::ContextConfig::default(),
+                                    Some(cancel_rx),
+                                )
+                                .await
+                                .map(|explanation| explanation.to_markdown())
                         } else {
                             provider
                                 .explain_default_session_async(
-                                    None,
+                                    catalog.as_ref(),
                                     &crate::context::ContextConfig::default(),
                                     Some(cancel_rx),
                                 )
@@ -239,7 +307,8 @@ impl AgentServer {
 
                         // Clear active cancel sender for this session
                         {
-                            let mut store = sessions_store.lock().unwrap();
+                            let mut store =
+                                sessions_store.lock().unwrap_or_else(|e| e.into_inner());
                             if let Some(state) = store.get_mut(&id_str) {
                                 state.cancel_sender = None;
                             }
@@ -299,7 +368,9 @@ impl AgentServer {
                 async move |notification: CancelNotification, _connection: ConnectionTo<Client>| {
                     let id_str = notification.session_id.0.to_string();
                     tracing::info!(session_id = %id_str, "Received session/cancel notification");
-                    let mut store = sessions_for_cancel.lock().unwrap();
+                    let mut store = sessions_for_cancel
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner());
                     if let Some(state) = store.get_mut(&id_str) {
                         state.cancel();
                     }
@@ -313,7 +384,8 @@ impl AgentServer {
                             _connection: ConnectionTo<Client>| {
                     let id_str = request.session_id.0.to_string();
                     {
-                        let mut store = sessions_for_close.lock().unwrap();
+                        let mut store =
+                            sessions_for_close.lock().unwrap_or_else(|e| e.into_inner());
                         if let Some(mut state) = store.remove(&id_str) {
                             state.cancel();
                         }
@@ -327,4 +399,19 @@ impl AgentServer {
 
         builder.connect_to(transport).await
     }
+}
+
+fn load_server_catalog(
+    session_cwd: Option<&std::path::Path>,
+    generated_dir: Option<&std::path::Path>,
+) -> Option<zedkata_core::catalog::Catalog> {
+    let lessons_dir = session_cwd
+        .map(|c| c.join("lessons"))
+        .filter(|p| p.is_dir())
+        .or_else(|| zedkata_core::catalog::resolve_lessons_dir(None).ok())?;
+
+    zedkata_core::catalog::Catalog::load_with_generated(&lessons_dir, generated_dir)
+        .map(|(cat, _)| cat)
+        .or_else(|_| zedkata_core::catalog::Catalog::load_from_dir(&lessons_dir))
+        .ok()
 }

@@ -21,6 +21,12 @@ pub enum ProviderKind {
     Degraded,
 }
 
+impl ProviderKind {
+    /// Alias for deterministic zero-network degraded/offline mode.
+    #[allow(non_upper_case_globals)]
+    pub const Offline: ProviderKind = ProviderKind::Degraded;
+}
+
 impl std::str::FromStr for ProviderKind {
     type Err = String;
 
@@ -33,7 +39,13 @@ impl std::str::FromStr for ProviderKind {
             "openai" | "chatgpt" => Ok(ProviderKind::OpenAI),
             "gemini" | "google" => Ok(ProviderKind::Gemini),
             "degraded" | "offline" => Ok(ProviderKind::Degraded),
-            other => Err(format!("Unknown provider '{}'. Supported: fake, lmstudio, ollama, anthropic, openai, gemini, degraded", other)),
+            "chatgpt-auth" | "chatgpt_auth" | "oauth" => Err(
+                "Provider 'chatgpt-auth' (OAuth personal subscription auth) is out of scope for zedkata-agent. Use Tier 1 local endpoints (lm-studio, ollama), Tier 2 API keys (openai, anthropic, gemini), or offline (degraded) mode.".to_string(),
+            ),
+            other => Err(format!(
+                "Unknown provider '{}'. Supported: fake, lmstudio (lm-studio), ollama, anthropic, openai, gemini, offline (degraded)",
+                other
+            )),
         }
     }
 }
@@ -112,6 +124,7 @@ pub struct ProviderEndpointConfig {
 pub struct CloudProviderConfig {
     pub model: Option<String>,
     pub api_key: Option<String>,
+    pub base_url: Option<String>,
 }
 
 impl AgentConfig {
@@ -213,6 +226,7 @@ impl AgentConfig {
         // 3. Resolve Base URL
         let resolved_base_url = match resolved_provider {
             ProviderKind::LmStudio => env_lookup("LMSTUDIO_BASE_URL")
+                .or_else(|| env_lookup("ZEDKATA_BASE_URL"))
                 .or_else(|| {
                     file_config
                         .as_ref()
@@ -221,6 +235,7 @@ impl AgentConfig {
                 })
                 .or_else(|| Some("http://localhost:1234/v1".to_string())),
             ProviderKind::Ollama => env_lookup("OLLAMA_BASE_URL")
+                .or_else(|| env_lookup("ZEDKATA_BASE_URL"))
                 .or_else(|| {
                     file_config
                         .as_ref()
@@ -228,6 +243,30 @@ impl AgentConfig {
                         .and_then(|p| p.base_url.clone())
                 })
                 .or_else(|| Some("http://localhost:11434/v1".to_string())),
+            ProviderKind::Anthropic => env_lookup("ANTHROPIC_BASE_URL")
+                .or_else(|| env_lookup("ZEDKATA_BASE_URL"))
+                .or_else(|| {
+                    file_config
+                        .as_ref()
+                        .and_then(|c| c.anthropic.as_ref())
+                        .and_then(|p| p.base_url.clone())
+                }),
+            ProviderKind::OpenAI => env_lookup("OPENAI_BASE_URL")
+                .or_else(|| env_lookup("ZEDKATA_BASE_URL"))
+                .or_else(|| {
+                    file_config
+                        .as_ref()
+                        .and_then(|c| c.openai.as_ref())
+                        .and_then(|p| p.base_url.clone())
+                }),
+            ProviderKind::Gemini => env_lookup("GEMINI_BASE_URL")
+                .or_else(|| env_lookup("ZEDKATA_BASE_URL"))
+                .or_else(|| {
+                    file_config
+                        .as_ref()
+                        .and_then(|c| c.gemini.as_ref())
+                        .and_then(|p| p.base_url.clone())
+                }),
             _ => None,
         };
 
@@ -380,6 +419,16 @@ mod tests {
         assert_eq!(
             "degraded".parse::<ProviderKind>().unwrap(),
             ProviderKind::Degraded
+        );
+        assert_eq!(
+            "offline".parse::<ProviderKind>().unwrap(),
+            ProviderKind::Offline
+        );
+        let chatgpt_err = "chatgpt-auth".parse::<ProviderKind>().unwrap_err();
+        assert!(
+            chatgpt_err.contains("out of scope"),
+            "Expected out-of-scope error for chatgpt-auth, got: {}",
+            chatgpt_err
         );
         assert!("unknown".parse::<ProviderKind>().is_err());
     }

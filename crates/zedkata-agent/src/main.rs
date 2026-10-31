@@ -306,8 +306,20 @@ async fn main() -> Result<()> {
             .or_else(|| zedkata_core::session::default_session_path().ok())
             .ok_or_else(|| anyhow::anyhow!("Could not resolve platform-standard session path."))?;
 
+        let catalog = zedkata_core::catalog::resolve_lessons_dir(None)
+            .ok()
+            .and_then(|dir| {
+                zedkata_core::catalog::Catalog::load_with_generated(
+                    &dir,
+                    config.generated_dir.as_deref(),
+                )
+                .map(|(cat, _)| cat)
+                .or_else(|_| zedkata_core::catalog::Catalog::load_from_dir(&dir))
+                .ok()
+            });
+
         let provider = ConfiguredProvider::new(config);
-        match provider.explain_session(&session_path, None, &ContextConfig::default()) {
+        match provider.explain_session(&session_path, catalog.as_ref(), &ContextConfig::default()) {
             Ok(explanation) => {
                 println!("{}", explanation.to_markdown());
             }

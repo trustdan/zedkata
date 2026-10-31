@@ -397,7 +397,11 @@ fn bound_edits(
             let mut clamped_edit = edit.clone();
             let mut truncated_text = clamped_edit.inserted;
             if truncated_text.len() > max_diff_bytes {
-                truncated_text.truncate(max_diff_bytes);
+                let mut cut = max_diff_bytes;
+                while cut > 0 && !truncated_text.is_char_boundary(cut) {
+                    cut -= 1;
+                }
+                truncated_text.truncate(cut);
             }
             clamped_edit.inserted = truncated_text;
             accumulated_bytes = clamped_edit.inserted.len();

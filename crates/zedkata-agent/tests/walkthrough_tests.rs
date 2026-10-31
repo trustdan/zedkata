@@ -681,3 +681,157 @@ async fn test_acp_walkthrough_user_journey_complete_restart_and_unseen_actions_v
     let _ = child2.kill().await;
     cleanup_temp_workspace(&temp_dir);
 }
+
+#[test]
+fn test_shipped_catalog_walkthrough_ids_reconciled_with_walkthrough_records() {
+    use zedkata_agent::walkthrough::WalkthroughRecord;
+    use zedkata_core::Catalog;
+
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("crates dir")
+        .parent()
+        .expect("repo root");
+    let lessons_dir = repo_root.join("lessons");
+
+    let catalog =
+        Catalog::load_from_dir(&lessons_dir).expect("Shipped curriculum catalog must load");
+    let all_lessons = catalog.all_lessons();
+    assert_eq!(all_lessons.len(), 10, "Must have 10 curriculum lessons");
+
+    let mut total_walkthroughs = 0;
+    for entry in &all_lessons {
+        for wt in &entry.lesson.walkthroughs {
+            total_walkthroughs += 1;
+            let record = WalkthroughRecord::find(&wt.id).unwrap_or_else(|| {
+                panic!(
+                    "Walkthrough '{}' in lesson '{}' must resolve in WalkthroughRecord::all()",
+                    wt.id, entry.lesson.id
+                )
+            });
+            assert_eq!(record.id, wt.id);
+            assert_eq!(record.lesson_id, entry.lesson.id);
+            assert!(
+                !record.steps.is_empty(),
+                "Walkthrough '{}' must have non-empty steps",
+                wt.id
+            );
+            assert!(
+                !record.checklist.is_empty(),
+                "Walkthrough '{}' must have non-empty verification checklist",
+                wt.id
+            );
+        }
+    }
+
+    assert_eq!(
+        total_walkthroughs, 10,
+        "All 10 walkthroughs across lessons/*.toml must be reconciled"
+    );
+
+    // Legacy alias compatibility for LSP actions
+    assert_eq!(
+        WalkthroughRecord::find("lsp-symbol-rename")
+            .expect("lsp-symbol-rename alias")
+            .id,
+        "lsp-actions-walkthrough"
+    );
+    assert_eq!(
+        WalkthroughRecord::find("lsp-code-action")
+            .expect("lsp-code-action alias")
+            .id,
+        "lsp-actions-walkthrough"
+    );
+}
+
+#[test]
+fn test_walkthrough_fixtures_and_symbol_references_exist_on_disk() {
+    use zedkata_agent::walkthrough::WalkthroughRecord;
+
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("crates dir")
+        .parent()
+        .expect("repo root");
+
+    // 1. Every fixture_path in WalkthroughRecord::all() must exist on disk
+    for record in WalkthroughRecord::all() {
+        if let Some(rel_path) = record.fixture_path() {
+            let full_path = repo_root.join(rel_path);
+            assert!(
+                full_path.exists(),
+                "Fixture path '{}' for walkthrough '{}' does not exist at {:?}",
+                rel_path,
+                record.id,
+                full_path
+            );
+        }
+    }
+
+    // 2. Verify diagnostic-navigation references insert-visibility.start.kata (not swap-words.start.kata)
+    let diag = WalkthroughRecord::find("diagnostic-navigation").expect("diagnostic-navigation");
+    assert_eq!(
+        diag.fixture_path(),
+        Some("lessons/fixtures/modal-00/insert-visibility.start.kata")
+    );
+    let diag_steps = diag.steps.join("\n");
+    assert!(!diag_steps.contains("swap-words.start.kata"));
+    assert!(diag_steps.contains("insert-visibility.start.kata"));
+
+    // 3. Verify lsp-actions-walkthrough matches sample_service.rs symbols and line numbers
+    let lsp = WalkthroughRecord::find("lsp-actions-walkthrough").expect("lsp-actions-walkthrough");
+    let lsp_steps = lsp.steps.join("\n");
+    assert!(!lsp_steps.contains("ProcessOrder"));
+    assert!(lsp_steps.contains("record_metric"));
+    assert!(lsp_steps.contains("TelemetryClient"));
+    assert!(lsp_steps.contains("TelemetryMetric"));
+    assert!(lsp_steps.contains("compute_average"));
+
+    let sample_service_path = repo_root.join("lessons/fixtures/walkthroughs/lsp/sample_service.rs");
+    let sample_service =
+        std::fs::read_to_string(&sample_service_path).expect("read sample_service.rs");
+    let sample_lines: Vec<&str> = sample_service.lines().collect();
+    assert!(
+        sample_lines[22].contains("pub struct TelemetryMetric"),
+        "Line 23 must define TelemetryMetric, got: {}",
+        sample_lines[22]
+    );
+    assert!(
+        sample_lines[29].contains("pub struct TelemetryClient"),
+        "Line 30 must define TelemetryClient, got: {}",
+        sample_lines[29]
+    );
+    assert!(
+        sample_lines[49].contains("pub fn record_metric"),
+        "Line 50 must define record_metric, got: {}",
+        sample_lines[49]
+    );
+    assert!(
+        sample_lines[59].contains("pub fn compute_average"),
+        "Line 60 must define compute_average, got: {}",
+        sample_lines[59]
+    );
+
+    // 4. Verify multibuffer-walkthrough references validate_token from multibuffer/src/session.rs
+    let mb = WalkthroughRecord::find("multibuffer-walkthrough").expect("multibuffer-walkthrough");
+    let mb_steps = mb.steps.join("\n");
+    assert!(mb_steps.contains("validate_token"));
+    let mb_session = std::fs::read_to_string(
+        repo_root.join("lessons/fixtures/walkthroughs/multibuffer/src/session.rs"),
+    )
+    .expect("read multibuffer/src/session.rs");
+    assert!(mb_session.contains("pub fn validate_token"));
+
+    // 5. Verify mini-vs-any references line 11 of motions-03/nested.start.kata
+    let mini = WalkthroughRecord::find("mini-vs-any").expect("mini-vs-any");
+    let mini_steps = mini.steps.join("\n");
+    assert!(mini_steps.contains("validate_credentials(compute_digest(raw_token, 32)"));
+    let nested_kata =
+        std::fs::read_to_string(repo_root.join("lessons/fixtures/motions-03/nested.start.kata"))
+            .expect("read nested.start.kata");
+    let nested_lines: Vec<&str> = nested_kata.lines().collect();
+    assert!(
+        nested_lines[10].contains("validate_credentials(compute_digest(raw_token, 32)"),
+        "Line 11 of nested.start.kata must match mini-vs-any step"
+    );
+}

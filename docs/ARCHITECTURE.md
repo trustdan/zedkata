@@ -73,9 +73,9 @@ Handles what drills cannot:
   multibuffer editing, tasks, the debugger, ACP itself.
 
 #### Provider & Credential Architecture (ADR 0005)
-- **Local / Zero-Cost (Default):** LM Studio or Ollama via OpenAI-compatible endpoints (`http://localhost:1234/v1` or `http://localhost:11434/v1`).
+- **Local / Zero-Cost (Default):** LM Studio or Ollama via OpenAI-compatible endpoints (`http://localhost:1234/v1` or `http://localhost:11434/v1`), plus deterministic `offline` (`degraded`) synthesis mode.
 - **Big Three Cloud API Keys:** Anthropic (`ANTHROPIC_API_KEY`), OpenAI (`OPENAI_API_KEY`), and Google Gemini (`GEMINI_API_KEY`).
-- **Personal Auth:** ChatGPT subscription / session token auth option.
+- **Personal OAuth Subscription Auth (`chatgpt-auth`):** Explicitly scoped out; rejected by `ProviderKind::from_str` with an actionable error.
 - **Precedence:** Process environment / Zed `settings.json.env` overrides `config.toml` (`%APPDATA%\zedkata\config.toml` on Windows, `$XDG_CONFIG_HOME/zedkata/config.toml` on Unix).
 
 #### Bounded Context Contract (REQ-27)

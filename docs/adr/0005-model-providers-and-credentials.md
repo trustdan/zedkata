@@ -25,20 +25,21 @@ We adopt the proven multi-provider tier from sibling practice projects (`acctg-p
 1. **Tier 1 — Local / Zero-Cost (Default / Offline):**
    * **LM Studio** via OpenAI-compatible endpoint at `http://localhost:1234/v1`.
    * **Ollama** via OpenAI-compatible endpoint at `http://localhost:11434/v1`.
+   * **Offline (`degraded` / `offline`):** Deterministic zero-network local synthesis mode.
    * Requires no API keys; operates completely offline with zero usage costs.
 2. **Tier 2 — The "Big Three" Cloud Providers (API Keys):**
    * **Anthropic** (`claude-3-5-sonnet`, `claude-3-5-haiku`) via `ANTHROPIC_API_KEY`.
    * **OpenAI** (`gpt-4o`, `gpt-4o-mini`) via `OPENAI_API_KEY`.
    * **Google Gemini** (`gemini-2.0-flash`, `gemini-1.5-pro`) via `GEMINI_API_KEY`.
-3. **Tier 3 — Personal Subscription Auth:**
-   * **ChatGPT Login / Session Token** option allowing users with existing ChatGPT Plus/Team subscriptions to authenticate without per-token API billing.
+3. **Tier 3 — Personal Subscription Auth (Explicitly Scoped Out):**
+   * **ChatGPT Login / Session Token (`chatgpt-auth`)** is explicitly scoped out of `zedkata-agent`. Requesting `chatgpt-auth` returns an actionable configuration error directing users to Tier 1 local endpoints (`lm-studio`, `ollama`), Tier 2 API keys (`openai`, `anthropic`, `gemini`), or deterministic `offline` (`degraded`) mode.
 
 ### 2. Configuration & Credential Lookup Precedence
 
 Credentials and provider settings are resolved using a 3-layer hierarchy (highest to lowest priority):
 
 1. **Process Environment Variables / Zed Settings:**
-   * `ZEDKATA_PROVIDER` (`lmstudio`, `anthropic`, `openai`, `gemini`, `chatgpt-auth`).
+   * `ZEDKATA_PROVIDER` (`lmstudio` / `lm-studio`, `ollama`, `anthropic`, `openai`, `gemini`, `offline` / `degraded`; `chatgpt-auth` is explicitly rejected as out of scope).
    * `ZEDKATA_MODEL` (e.g. `claude-3-5-sonnet-latest`, `gpt-4o-mini`, `local-model`).
    * `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`.
    * `LMSTUDIO_BASE_URL` (defaults to `http://localhost:1234/v1`).
