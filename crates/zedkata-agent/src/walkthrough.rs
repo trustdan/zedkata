@@ -149,7 +149,7 @@ impl WalkthroughRecord {
                 fixture: Some("lessons/fixtures/motions-03/nested.start.kata".to_string()),
                 steps: vec![
                     "Open the nested brackets fixture: `lessons/fixtures/motions-03/nested.start.kata` in Zed.".to_string(),
-                    "Position cursor on line 11 inside the nested call arguments: `validate_credentials(compute_digest(raw_token, 32), self.get_salt(id))`.".to_string(),
+                    "Position cursor on line 11 inside the nested parentheses: `confirm_room(check_guest_badge(old_guest, 12), main_hall)`.".to_string(),
                     "Test lexical delimiter selection (AnyBrackets): execute `ci)` or `ci(`. Notice that AnyBrackets selects strictly within the nearest lexical bracket pair.".to_string(),
                     "Undo changes with `u`, then test syntax-tree context matching (MiniBrackets / mini.ai): execute `ciq` or `cib`.".to_string(),
                     "Compare behavior: `MiniBrackets` resolves nested scopes based on grammar AST boundaries, while `AnyBrackets` targets the closest lexical delimiter characters regardless of syntax structure.".to_string(),

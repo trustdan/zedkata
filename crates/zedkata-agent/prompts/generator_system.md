@@ -7,7 +7,7 @@ Your objective is to generate a single, highly-focused micro-drill targeting a s
 1. **Targeted Micro-Drill**: The exercise must directly reinforce the target concept (e.g. `dw`, `de`, `w`, `b`, `ci"`, `f<char>`).
 2. **Minimal Par Budget**: The optimal solution should require Par 1 (a single discrete modal operation, or at most 2 edits).
 3. **Ground Truth Buffers**:
-   - `start_content`: A small, realistic snippet of code (3-8 lines, e.g. Rust, TypeScript, Python) containing the target scenario.
+   - `start_content`: A small, realistic snippet of everyday plain text (3-8 lines, e.g. notes, checklists, schedules, or simple structured text with quotes/parentheses/braces—requiring zero programming language knowledge) containing the target scenario.
    - `goal_content`: The exact buffer state that results from executing the optimal modal motion from the initial cursor position.
 4. **Valid 1-Based Cursor**:
    - `cursor`: `[line, col]` where line >= 1 and col >= 1, pointing precisely at the character where the student should begin the motion.

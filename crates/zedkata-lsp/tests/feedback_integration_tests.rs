@@ -1464,15 +1464,15 @@ async fn test_reference_lesson_exercise_2_gut_the_block_par_pass() {
     .unwrap();
     let _ = reader.read_message().await.unwrap().unwrap();
 
-    // Intended technique: di{ or ci{ on function body
-    // Range from end of line 6 (col 78, immediately after '{') through line 11 (col 0, immediately before '}')
+    // Intended technique: di{ or ci{ on Scratchpad { ... } block
+    // Range from end of line 6 (col 12, immediately after '{') through line 11 (col 0, immediately before '}')
     let did_change_params = DidChangeTextDocumentParams {
         text_document: VersionedTextDocumentIdentifier {
             uri: start_uri.clone(),
             version: 1,
         },
         content_changes: vec![TextDocumentContentChangeEvent {
-            range: Some(Range::new(Position::new(6, 78), Position::new(11, 0))),
+            range: Some(Range::new(Position::new(6, 12), Position::new(11, 0))),
             range_length: None,
             text: "".to_string(),
         }],
@@ -1676,7 +1676,7 @@ async fn test_baseline_lesson_exercise_1_insert_visibility_par_pass() {
     .unwrap();
     let _ = reader.read_message().await.unwrap().unwrap();
 
-    // Intended technique: cursor at line 1 col 4 (1-based: [2, 5]), press `i`, type "pub ", <Esc>
+    // Intended technique: cursor at line 1 col 4 (1-based: [2, 5]), press `i`, type "urgent ", <Esc>
     let did_change_params = DidChangeTextDocumentParams {
         text_document: VersionedTextDocumentIdentifier {
             uri: start_uri.clone(),
@@ -1685,7 +1685,7 @@ async fn test_baseline_lesson_exercise_1_insert_visibility_par_pass() {
         content_changes: vec![TextDocumentContentChangeEvent {
             range: Some(Range::new(Position::new(1, 4), Position::new(1, 4))),
             range_length: Some(0),
-            text: "pub ".to_string(),
+            text: "urgent ".to_string(),
         }],
     };
     write_message(
@@ -1886,7 +1886,7 @@ async fn test_baseline_lesson_exercise_3_navigate_and_insert_par_pass() {
     .unwrap();
     let _ = reader.read_message().await.unwrap().unwrap();
 
-    // Intended technique: navigate from [1, 1] down to line 3 (1-based: line 4) col 4, press `i`, type "async ", <Esc>
+    // Intended technique: navigate from [1, 1] down to line 3 (1-based: line 4) col 4, press `i`, type "daily ", <Esc>
     let did_change_params = DidChangeTextDocumentParams {
         text_document: VersionedTextDocumentIdentifier {
             uri: start_uri.clone(),
@@ -1895,7 +1895,7 @@ async fn test_baseline_lesson_exercise_3_navigate_and_insert_par_pass() {
         content_changes: vec![TextDocumentContentChangeEvent {
             range: Some(Range::new(Position::new(3, 4), Position::new(3, 4))),
             range_length: Some(0),
-            text: "async ".to_string(),
+            text: "daily ".to_string(),
         }],
     };
     write_message(

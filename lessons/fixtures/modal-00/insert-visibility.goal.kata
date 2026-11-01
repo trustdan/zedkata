@@ -1,4 +1,3 @@
-pub struct ClientConfig {
-    pub timeout_ms: u64,
-    max_retries: u32,
-}
+Daily Checklist:
+    urgent review notes before noon
+    send team update

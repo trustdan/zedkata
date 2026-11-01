@@ -573,6 +573,40 @@ fn render_task_pane(frame: &mut Frame, area: Rect, app: &App) {
         }
     }
 
+    if let Some((line_num, before, after)) = app.current_exercise_target_preview() {
+        lines.push(Line::from(vec![
+            Span::styled(
+                format!("Target (L{}): ", line_num),
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(format!("\"{}\"", before), Style::default().fg(Color::Red)),
+            Span::styled(" -> ", Style::default().fg(Color::DarkGray)),
+            Span::styled(format!("\"{}\"", after), Style::default().fg(Color::Green)),
+        ]));
+    }
+
+    let summary = current_lesson
+        .lesson
+        .prose
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ");
+    if !summary.is_empty() {
+        lines.push(Line::from(vec![
+            Span::styled(
+                "Guide: ",
+                Style::default()
+                    .fg(Color::Blue)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(summary, Style::default().fg(Color::Gray)),
+        ]));
+    }
+
     let p = Paragraph::new(lines).block(block).wrap(Wrap { trim: true });
     frame.render_widget(p, area);
 }

@@ -1,73 +1,60 @@
-# Reference lesson: Delimited text objects and agnostic quotes/brackets in Zed.
-# Module 3 in curriculum-module-map.md, depending on motions-01-word and motions-02-find.
-
 [lesson]
 id = "motions-03-textobjects"
 title = "Text objects"
 module = 3
-draft = false
 requires = ["motions-01-word", "motions-02-find"]
-concepts = ["ci", "ca", "di", "AnyQuotes", "AnyBrackets", "MiniQuotes"]
-
+concepts = ["iw", "aw", "i\"", "a\"", "i(", "i{", "ib", "iq"]
+draft = false
 prose = """
-Zed ships text objects vim doesn't have. AnyQuotes and AnyBrackets select quoted or
-bracketed text without you naming the delimiter. MiniQuotes and MiniBrackets follow
-mini.ai's behavior instead, which differs on nesting and on whitespace handling.
+Text objects let you act on structured regions of text—like words, quoted phrases, parentheses, or braces—even when your cursor Starts in the middle of them:
+- `i` means **inner** (inside the quotes or brackets, leaving the delimiters intact); `a` means **around** (including the delimiters or surrounding space).
+- Combine an operator (`d` delete, `c` change) with a text object: `ci"` changes the text inside double quotes `"..."`, `di{` deletes everything inside curly braces `{...}`, and `ci(` changes inside parentheses `(...)`.
+- Zed also supports convenience aliases: `ib` for any bracket pair `( [ {` and `iq` for any quote (`'`, `"`, or backtick).
 """
-
-# ---------------------------------------------------------------------------
 
 [[exercise]]
 id = "swap-string-contents"
-task = "Replace the string on line 4 with \"production\". Leave the quotes alone."
+task = "Replace the text inside the quotes on line 4 ('staging') with 'production' (press ci\", type 'production', then press Esc)."
 start = "fixtures/motions-03/swap-string.start.kata"
 goal = "fixtures/motions-03/swap-string.goal.kata"
 par_edits = 1
-max_edits = 3
-cursor = [4, 18]
-hint = "You do not need to know which kind of quote it is."
+max_edits = 2
+cursor = [4, 5]
+hint = "Press 'ci\"' (or 'ciq') on line 4: Zed automatically seeks forward to the quotes on the line, deletes 'staging', and enters Insert mode."
 
 [exercise.forbid]
 backspace_run = 3
-
-# ---------------------------------------------------------------------------
 
 [[exercise]]
 id = "gut-the-block"
-task = "Empty the body of the function on line 7, keeping the braces and the signature."
+task = "Delete all four checklist lines inside the 'Scratchpad { ... }' braces (lines 8-11), keeping the '{' and '}' lines intact (press di{)."
 start = "fixtures/motions-03/gut-block.start.kata"
 goal = "fixtures/motions-03/gut-block.goal.kata"
 par_edits = 1
-max_edits = 2
+max_edits = 3
 cursor = [8, 5]
-hint = "Inner versus around is the whole distinction here."
+hint = "With your cursor inside the curly braces, press 'di{' (or 'diB') to delete the entire interior block at once."
 
 [exercise.forbid]
 backspace_run = 3
-
-# ---------------------------------------------------------------------------
 
 [[exercise]]
 id = "nested-brackets"
-task = "Replace the arguments inside the inner call on line 11 with \"id, token\". Outer call untouched."
+task = "Replace 'old_guest, 12' inside the inner parentheses on line 11 with 'id, token' (press ci(, type 'id, token', then press Esc)."
 start = "fixtures/motions-03/nested.start.kata"
 goal = "fixtures/motions-03/nested.goal.kata"
 par_edits = 1
-max_edits = 4
-cursor = [11, 45]
-hint = "Cursor position decides which bracket pair you get. Think about where you start."
+max_edits = 2
+cursor = [11, 48]
+hint = "Your cursor starts inside the inner parentheses: press 'ci(' (or 'cib') to replace only the inner '(old_guest, 12)' while leaving the outer parentheses untouched."
 
 [exercise.forbid]
 backspace_run = 3
 
-# ---------------------------------------------------------------------------
-# Not drillable — routes to zedkata-agent as a guided walkthrough.
-
 [[walkthrough]]
 id = "mini-vs-any"
-title = "When MiniBrackets disagrees with AnyBrackets"
+title = "Zed's ib/iq aliases vs standard Vim"
 prompt = """
-Show the student a nested structure where AnyBrackets and MiniBrackets select
-differently. Have them try both and describe what they observed before you explain it.
-Ground the explanation in their actual edit log, not in a generic description.
+Notice that in the third exercise, `cib` and `ci(` do the same thing, and in the first exercise, `ciq` and `ci"` both work.
+Ask the tutor to explain where `ib`/`iq` come from (Neovim's `mini.ai`) and when they behave differently from standard `i(`/`i{`/`i[`.
 """

@@ -1,4 +1,3 @@
-pub fn process_event(event: &Event) -> Result<(), EventError> {
-    legacy_dispatch_event(event)?;
-    Ok(())
-}
+File List:
+    folder_summer_photos.zip
+    travel_receipts_2026.pdf

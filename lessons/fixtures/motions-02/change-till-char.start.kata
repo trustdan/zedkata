@@ -1,4 +1,3 @@
-pub struct NodeHealth {
-    status_flag: HealthState,
-    latency_ms: u32,
-}
+Project Summary:
+    status_note: active
+    owner_name: Jordan

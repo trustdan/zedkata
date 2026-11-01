@@ -57,7 +57,7 @@ fn test_advance_within_lesson_updates_task_and_selection() -> Result<()> {
 
     let ex0 = app.current_exercise().expect("Exercise 0 expected");
     assert_eq!(ex0.id, "delete-word-arg");
-    assert!(ex0.task.contains("Delete the unused parameter name"));
+    assert!(ex0.task.contains("Delete the extra word 'random '"));
 
     // Advance to next exercise within same lesson
     let advanced = app.advance_exercise();
@@ -66,7 +66,7 @@ fn test_advance_within_lesson_updates_task_and_selection() -> Result<()> {
 
     let ex1 = app.current_exercise().expect("Exercise 1 expected");
     assert_eq!(ex1.id, "delete-to-word-end");
-    assert!(ex1.task.contains("Delete the suffix 'Error'"));
+    assert!(ex1.task.contains("Delete 'Draft'"));
 
     cleanup_temp_workspace(&temp_dir);
     Ok(())

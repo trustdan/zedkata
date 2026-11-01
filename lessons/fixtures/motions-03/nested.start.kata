@@ -1,13 +1,12 @@
-use std::collections::HashMap;
+Event Registration Form
+=======================
 
-pub struct SessionManager {
-    sessions: HashMap<u64, String>,
-}
+Organizer Notes:
+  - Verify guest badges at the front desk
+  - Assign each group to the main hall
 
-impl SessionManager {
-    pub fn verify_session(&self, user_id: u64, raw_token: &str) -> bool {
-        let id = sanitize_id(user_id);
-        let token = normalize_token(raw_token);
-        validate_credentials(compute_digest(raw_token, 32), self.get_salt(id))
-    }
+Registration Entry:
+{
+    event: "Annual Workshop",
+    booking: confirm_room(check_guest_badge(old_guest, 12), main_hall)
 }

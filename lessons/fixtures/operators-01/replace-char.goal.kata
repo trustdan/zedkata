@@ -1,4 +1,3 @@
-pub fn allocate_buffer() -> i64 {
-    let capacity: i64 = 1024i64;
-    capacity
-}
+Office Checklist:
+    - Confirm the delivery time
+    - Lock the supply cabinet

@@ -668,12 +668,23 @@ pub fn default_data_dir() -> Result<PathBuf, CoreError> {
     ))
 }
 
+fn dir_contains_toml(dir: &Path) -> bool {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return false;
+    };
+    entries.flatten().any(|entry| {
+        let path = entry.path();
+        path.is_file() && path.extension().and_then(|ext| ext.to_str()) == Some("toml")
+    })
+}
+
 /// Resolves the curriculum lessons directory based on:
 /// 1. Explicit override path (if provided)
 /// 2. `ZEDKATA_LESSONS_DIR` environment variable
 /// 3. Executable-relative lookup (e.g. `<exe_dir>/../lessons`, `<exe_dir>/lessons`, `<exe_dir>/../share/zedkata/lessons`)
 /// 4. Current working directory / workspace fallback (`lessons`, `../../lessons`)
-/// 5. Platform standard data directory (`default_data_dir().join("lessons")`)
+/// 5. Platform standard data directory (`default_data_dir().join("lessons")`) if it contains shipped `.toml` lessons
+/// 6. Compile-time repository root fallback (`<repo_root>/lessons`) for `cargo install --path` binaries
 pub fn resolve_lessons_dir(cli_path: Option<&Path>) -> Result<PathBuf, CoreError> {
     if let Some(path) = cli_path {
         return Ok(path.to_path_buf());
@@ -686,44 +697,52 @@ pub fn resolve_lessons_dir(cli_path: Option<&Path>) -> Result<PathBuf, CoreError
         }
     }
 
+    let mut candidates = Vec::new();
+
     // Check executable-relative paths if available
     if let Ok(exe_path) = std::env::current_exe() {
         if let Some(exe_dir) = exe_path.parent() {
             // Layout 1: <root>/bin/zedkata -> <root>/lessons
-            let candidate1 = exe_dir.join("..").join("lessons");
-            if candidate1.is_dir() {
-                return Ok(candidate1);
-            }
+            candidates.push(exe_dir.join("..").join("lessons"));
             // Layout 2: <root>/zedkata -> <root>/lessons
-            let candidate2 = exe_dir.join("lessons");
-            if candidate2.is_dir() {
-                return Ok(candidate2);
-            }
+            candidates.push(exe_dir.join("lessons"));
             // Layout 3: <prefix>/bin/zedkata -> <prefix>/share/zedkata/lessons (Unix FHS)
-            let candidate3 = exe_dir
-                .join("..")
-                .join("share")
-                .join("zedkata")
-                .join("lessons");
-            if candidate3.is_dir() {
-                return Ok(candidate3);
-            }
+            candidates.push(
+                exe_dir
+                    .join("..")
+                    .join("share")
+                    .join("zedkata")
+                    .join("lessons"),
+            );
         }
     }
 
     // Check current working directory or relative workspace paths
-    if Path::new("lessons").is_dir() {
-        return Ok(PathBuf::from("lessons"));
-    }
-    if Path::new("../../lessons").is_dir() {
-        return Ok(PathBuf::from("../../lessons"));
-    }
+    candidates.push(PathBuf::from("lessons"));
+    candidates.push(PathBuf::from("../../lessons"));
 
     // Check platform standard data directory
     if let Ok(data_dir) = default_data_dir() {
-        let platform_lessons = data_dir.join("lessons");
-        if platform_lessons.is_dir() {
-            return Ok(platform_lessons);
+        candidates.push(data_dir.join("lessons"));
+    }
+
+    // Compile-time workspace root fallback for cargo install --path developer workflows
+    if let Some(repo_root) = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(|p| p.parent())
+    {
+        candidates.push(repo_root.join("lessons"));
+    }
+
+    for candidate in &candidates {
+        if dir_contains_toml(candidate) {
+            return Ok(candidate.clone());
+        }
+    }
+
+    for candidate in candidates {
+        if candidate.is_dir() {
+            return Ok(candidate);
         }
     }
 

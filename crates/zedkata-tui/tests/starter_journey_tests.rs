@@ -94,7 +94,7 @@ fn test_starter_course_user_journey_end_to_end() -> Result<()> {
         )
     };
     assert_eq!(ex1_id, "delete-word-arg");
-    assert!(ex1_task.contains("Delete the unused parameter name 'target'"));
+    assert!(ex1_task.contains("Delete the extra word 'random '"));
 
     // Activate selected exercise in session
     assert!(app.activate_selected().is_ok());
@@ -111,7 +111,7 @@ fn test_starter_course_user_journey_end_to_end() -> Result<()> {
     // Verify hint content matches category guidance
     assert_eq!(
         ex1_hint,
-        "A single word deletion will remove the identifier and trailing space."
+        "A single word deletion ('dw') will remove the word and its trailing space."
     );
 
     // Render frame with hint revealed
@@ -229,12 +229,15 @@ fn test_starter_course_user_journey_end_to_end() -> Result<()> {
         )
     };
     assert_eq!(ex2_id, "delete-to-word-end");
-    assert!(ex2_task.contains("Delete the suffix 'Error'"));
+    assert!(ex2_task.contains("Delete 'Draft'"));
 
     // Reveal hint for exercise 2
     handle_event(&mut app, make_key_event(KeyCode::Char('?')))?;
     assert!(app.show_hint);
-    assert_eq!(ex2_hint, "Delete forward to the end of the current word.");
+    assert_eq!(
+        ex2_hint,
+        "Delete forward to the end of the current word with 'de' so the space before '(Monday)' is preserved."
+    );
     handle_event(&mut app, make_key_event(KeyCode::Char('?')))?;
     assert!(!app.show_hint);
 
@@ -282,12 +285,15 @@ fn test_starter_course_user_journey_end_to_end() -> Result<()> {
         )
     };
     assert_eq!(ex3_id, "delete-word-binding");
-    assert!(ex3_task.contains("Remove the unused 'mut' binding modifier"));
+    assert!(ex3_task.contains("delete 'old '"));
 
     // Reveal hint for exercise 3
     handle_event(&mut app, make_key_event(KeyCode::Char('?')))?;
     assert!(app.show_hint);
-    assert_eq!(ex3_hint, "Advance to the target word before deleting.");
+    assert_eq!(
+        ex3_hint,
+        "Advance to the target word with 'w' before deleting it with 'dw'."
+    );
     handle_event(&mut app, make_key_event(KeyCode::Char('?')))?;
     assert!(!app.show_hint);
 

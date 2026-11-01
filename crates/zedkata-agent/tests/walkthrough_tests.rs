@@ -825,13 +825,13 @@ fn test_walkthrough_fixtures_and_symbol_references_exist_on_disk() {
     // 5. Verify mini-vs-any references line 11 of motions-03/nested.start.kata
     let mini = WalkthroughRecord::find("mini-vs-any").expect("mini-vs-any");
     let mini_steps = mini.steps.join("\n");
-    assert!(mini_steps.contains("validate_credentials(compute_digest(raw_token, 32)"));
+    assert!(mini_steps.contains("confirm_room(check_guest_badge(old_guest, 12)"));
     let nested_kata =
         std::fs::read_to_string(repo_root.join("lessons/fixtures/motions-03/nested.start.kata"))
             .expect("read nested.start.kata");
     let nested_lines: Vec<&str> = nested_kata.lines().collect();
     assert!(
-        nested_lines[10].contains("validate_credentials(compute_digest(raw_token, 32)"),
+        nested_lines[10].contains("confirm_room(check_guest_badge(old_guest, 12)"),
         "Line 11 of nested.start.kata must match mini-vs-any step"
     );
 }

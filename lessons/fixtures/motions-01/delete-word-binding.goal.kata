@@ -1,4 +1,3 @@
-pub fn process_payload(payload: &[u8]) -> Result<(), AppError> {
-    let session = Session::new(payload)?;
-    session.dispatch()
-}
+Errands for Today:
+    buy books at market
+    pick up parcel before five

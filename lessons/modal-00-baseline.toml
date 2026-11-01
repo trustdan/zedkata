@@ -4,69 +4,63 @@ title = "Modal baseline"
 module = 0
 requires = []
 concepts = ["i", "a", "Esc", "ctrl-[", "h", "j", "k", "l", "u", "g ]"]
-
+draft = false
 prose = """
-Modal editing separates cursor movement from text entry.
-In Normal mode, the block cursor rests on a character: `i` enters Insert mode before it,
-and `a` appends after it. Exit Insert mode with `<Esc>` or `Ctrl-[` to commit atomic edits.
-Zed renders diagnostic errors inline directly beneath problematic code.
+Zed's Vim mode separates moving around from typing text:
+- In Normal mode, keys move the cursor (`h` left, `j` down, `k` up, `l` right) or trigger edits.
+- Press `i` to insert text *before* the cursor, or `a` to append text *after* the cursor.
+- When you finish typing, press `Esc` (or `ctrl-[`) to return to Normal mode.
+- One complete Insert session (`i` -> type text -> `Esc`) counts as 1 edit. Avoid mashing Backspace (`u` undoes mistakes in Normal mode).
 """
-
-# ---------------------------------------------------------------------------
 
 [[exercise]]
 id = "insert-visibility"
-task = "Make the 'timeout_ms' field public on line 2."
+task = "Insert 'urgent ' before 'review' on line 2."
 start = "fixtures/modal-00/insert-visibility.start.kata"
 goal = "fixtures/modal-00/insert-visibility.goal.kata"
 par_edits = 1
 max_edits = 2
 cursor = [2, 5]
-hint = "Enter insert mode before the cursor to insert the visibility modifier."
+hint = "Enter insert mode before the cursor with 'i', type 'urgent ', and press 'Esc'."
 
 [exercise.forbid]
 backspace_run = 3
 
-# ---------------------------------------------------------------------------
-
 [[exercise]]
 id = "append-semicolon"
-task = "Terminate the 'endpoint' declaration with a semicolon on line 2."
+task = "Append ';' to the end of line 2."
 start = "fixtures/modal-00/append-semicolon.start.kata"
 goal = "fixtures/modal-00/append-semicolon.goal.kata"
 par_edits = 1
 max_edits = 2
 cursor = [2, 40]
-hint = "Append text after the cursor rather than inserting before it."
+hint = "Append after the cursor with 'a', type ';', and press 'Esc'."
 
 [exercise.forbid]
 backspace_run = 3
 
-# ---------------------------------------------------------------------------
-
 [[exercise]]
 id = "navigate-and-insert"
-task = "Add the 'async' modifier to the 'fetch_status' function signature on line 4."
+task = "Move down to line 4 and insert 'daily ' before 'write summary'."
 start = "fixtures/modal-00/navigate-and-insert.start.kata"
 goal = "fixtures/modal-00/navigate-and-insert.goal.kata"
 par_edits = 1
 max_edits = 2
 cursor = [1, 1]
-hint = "Navigate directly to the target keyword before entering insert mode."
+hint = "Navigate with 'j' and 'l' to 'write', press 'i', type 'daily ', and press 'Esc'."
 
 [exercise.forbid]
 backspace_run = 3
 
-# ---------------------------------------------------------------------------
-# Not drillable — routes to zedkata-agent as a guided walkthrough.
-
 [[walkthrough]]
 id = "diagnostic-navigation"
-title = "Inline diagnostics and error jumping in Zed"
+title = "Navigating live feedback in Zed"
 prompt = """
-Demonstrate Zed's native inline diagnostic rendering. In standard Vim, diagnostics
-typically populate the sign column, quickfix list, or a floating hover window. In Zed,
-syntax and compiler diagnostics render inline directly below the problematic line.
-Guide the student to introduce a deliberate syntax mistake, observe the inline diagnostic
-display, jump to next/previous diagnostics using `g ]` and `g [`, and restore the clean buffer with `u`.
+When you edit a `.kata` file in Zed, `zedkata-lsp` evaluates your buffer on every change and publishes live feedback diagnostics directly in the editor.
+
+Try this in Zed:
+1. Open an active exercise buffer with `[o]`.
+2. Make a small edit and return to Normal mode (`Esc`).
+3. Press `g ]` (`editor::GoToDiagnostic`) in Normal mode to jump directly to the live diagnostic message and read your attempt feedback inline.
+4. Press `u` in Normal mode to undo, or press `[r]` in the Zedkata TUI to reset the buffer cleanly.
 """

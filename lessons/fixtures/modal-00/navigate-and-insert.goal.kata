@@ -1,7 +1,5 @@
-use std::time::Duration;
+Weekly Team Plan
+================
 
-/// Fetch remote service health status.
-pub async fn fetch_status(timeout: Duration) -> Result<HttpStatus, NetworkError> {
-    let client = HttpClient::new(timeout);
-    client.get("/health")
-}
+    daily write summary for Monday
+    check calendar invites

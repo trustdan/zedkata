@@ -357,7 +357,7 @@ pub fn build_candidate_user_prompt(context: &WeaknessContext) -> String {
         "1. The drill must directly practice the `{}` motion.\n",
         context.target_concept
     ));
-    out.push_str("2. Buffer contents must be concise, clean code (3-6 lines).\n");
+    out.push_str("2. Buffer contents must be concise, everyday plain text (3-6 lines, no programming language knowledge required).\n");
     out.push_str(
         "3. The optimal solution must require Par 1 (a single discrete modal operation).\n",
     );
@@ -485,47 +485,47 @@ pub fn synthesize_default_candidate(
         match context.target_concept.as_str() {
             "dw" => (
                 "Generated Practice: Delete word (dw)".to_string(),
-                "The 'dw' operator deletes from the cursor through the next word boundary in Normal mode.\nPractice cleanly eliminating redundant identifiers without backspacing."
+                "The 'dw' operator deletes from the cursor through the next word boundary (including its trailing space) in Normal mode.\nPractice cleanly removing extra words without backspacing."
                     .to_string(),
                 "delete-redundant-param".to_string(),
-                "Delete the unused parameter name 'temp' on line 2.".to_string(),
-                "fn calculate(temp: i32, value: i32) -> i32 {\n    value * 2\n}\n".to_string(),
-                "fn calculate(value: i32) -> i32 {\n    value * 2\n}\n".to_string(),
-                Some([1, 14]),
-                Some("Position cursor on 'temp' and press 'dw'.".to_string()),
+                "Delete the extra word 'temp ' on line 2 using 'dw'.".to_string(),
+                "Errand List:\n    temp apples and oranges\n    fresh bread\n".to_string(),
+                "Errand List:\n    apples and oranges\n    fresh bread\n".to_string(),
+                Some([2, 5]),
+                Some("With the cursor on 'temp' (line 2), press 'dw'.".to_string()),
             ),
             "de" => (
                 "Generated Practice: Delete to word end (de)".to_string(),
-                "The 'de' operator deletes from the cursor to the end of the current word.\nUse it when you want to trim suffixes or identifiers while keeping trailing whitespace."
+                "The 'de' operator deletes from the cursor to the end of the current word.\nUse it when you want to trim a word suffix while keeping the space after it."
                     .to_string(),
                 "delete-word-suffix".to_string(),
-                "Delete the suffix 'Error' from the struct name on line 1.".to_string(),
-                "struct ProcessError {\n    code: u32,\n}\n".to_string(),
-                "struct Process {\n    code: u32,\n}\n".to_string(),
-                Some([1, 15]),
-                Some("Position cursor on 'Error' and press 'de'.".to_string()),
+                "Delete 'Draft' from the end of 'ReportDraft' on line 1 while keeping the space after it (press de).".to_string(),
+                "Heading: ReportDraft (Final)\n    - Summary\n    - Next steps\n".to_string(),
+                "Heading: Report (Final)\n    - Summary\n    - Next steps\n".to_string(),
+                Some([1, 16]),
+                Some("With the cursor on 'D' in 'ReportDraft', press 'de'.".to_string()),
             ),
             "ci\"" | "textobjects" | "ci" => (
                 "Generated Practice: Change inside text object (ci\")".to_string(),
-                "The 'ci\"' operator deletes the text inside surrounding quotes and switches to Insert mode.\nIt avoids manual cursor positioning to the start of the string."
+                "The 'ci\"' operator deletes the text inside surrounding double quotes and switches to Insert mode.\nIt avoids manual cursor positioning to the start of the quoted phrase."
                     .to_string(),
                 "change-inside-quotes".to_string(),
-                "Replace the message inside the quotes on line 2 with 'ready'.".to_string(),
-                "fn status() -> &'static str {\n    \"initializing\"\n}\n".to_string(),
-                "fn status() -> &'static str {\n    \"ready\"\n}\n".to_string(),
-                Some([2, 8]),
-                Some("Inside the quotes, press 'ci\"', type 'ready', then Escape.".to_string()),
+                "Replace the text inside the quotes on line 2 with 'ready' (press ci\", type 'ready', then press Esc).".to_string(),
+                "Project Status:\n    stage \"draft\"\n".to_string(),
+                "Project Status:\n    stage \"ready\"\n".to_string(),
+                Some([2, 12]),
+                Some("Inside the quotes, press 'ci\"', type 'ready', then press Esc.".to_string()),
             ),
             "f" | "find" => (
                 "Generated Practice: Find character motion (f)".to_string(),
-                "The 'f<char>' motion jumps forward inline to the next occurrence of <char>.\nUse it to quickly navigate across statements without multiple 'w' or 'l' keypresses."
+                "The 'f<char>' motion jumps forward on the current line to the next occurrence of <char>.\nCombine it with 'd' ('df;') to delete through that character in one step."
                     .to_string(),
                 "find-semicolon".to_string(),
-                "Delete through the semicolon on line 1 using 'df;'.".to_string(),
-                "let result = compute(); let next = 1;\n".to_string(),
-                " let next = 1;\n".to_string(),
+                "Delete 'old note;' (including the semicolon) at the start of line 1 using 'df;'.".to_string(),
+                "old note; keep this reminder\n".to_string(),
+                " keep this reminder\n".to_string(),
                 Some([1, 1]),
-                Some("Press 'df;' to delete from start of line through the semicolon.".to_string()),
+                Some("Press 'df;' to delete from the cursor through the semicolon.".to_string()),
             ),
             _ => (
                 format!("Generated Practice: {} motions", context.target_concept),
@@ -534,11 +534,11 @@ pub fn synthesize_default_candidate(
                     context.target_concept
                 ),
                 format!("{}-drill", concept_slug),
-                format!("Execute the target motion for '{}' to update the buffer.", context.target_concept),
-                "// Starter buffer for practice\nlet mut data = vec![1, 2, 3];\n".to_string(),
-                "// Starter buffer for practice\nlet data = vec![1, 2, 3];\n".to_string(),
+                format!("Delete the extra word 'rough ' on line 2 using '{}'.", context.target_concept),
+                "Daily Notes:\n    rough draft for review\n".to_string(),
+                "Daily Notes:\n    draft for review\n".to_string(),
                 Some([2, 5]),
-                Some(format!("Use modal motion for '{}' to reach Par 1.", context.target_concept)),
+                Some(format!("Use modal motion '{}' to reach Par 1.", context.target_concept)),
             ),
         };
 

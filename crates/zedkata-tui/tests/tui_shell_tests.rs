@@ -113,8 +113,12 @@ fn test_tui_render_catalog_and_task_panes() -> Result<()> {
 
     // Task pane checks for modal-00-baseline (initial selected lesson 0)
     assert!(
-        rendered.contains("Make the 'timeout_ms' field public on line 2."),
+        rendered.contains("Insert 'urgent '"),
         "Should display exercise 0 task description"
+    );
+    assert!(
+        rendered.contains("Target (L2):"),
+        "Should display target preview line in task pane"
     );
     assert!(
         rendered.contains("Par: 1 edit(s) | Max: 2 edit(s)"),
@@ -262,7 +266,7 @@ fn test_tui_vim_navigation_and_locked_state() -> Result<()> {
 
     terminal.draw(|f| ui::render(f, &app))?;
     let r_ex1 = buffer_to_string(&terminal);
-    assert!(r_ex1.contains("Delete the suffix 'Error' from the struct name"));
+    assert!(r_ex1.contains("Delete 'Draft' from the end of 'TeamDraft'"));
 
     // Press 'Enter' to activate exercise 1
     handle_event(&mut app, make_key_event(KeyCode::Enter, KeyModifiers::NONE))?;

@@ -4,69 +4,61 @@ title = "Character find motions"
 module = 2
 requires = ["motions-01-word"]
 concepts = ["f", "F", "t", "T", ";", ",", "df", "dt", "ct"]
-
+draft = false
 prose = """
-In-line character find jumps precisely to targets without counting words.
-`f` finds forward inclusive, while `t` stops till the character. `F` and `T` search backward.
-Repeat with `;` or reverse with `,`. Combined with `d` or `c`, find motions make surgical
-edits inside compound identifiers and delimited values. Zed find motions stay on the current line.
+Character find motions jump directly to a specific character on the current line:
+- `f<char>` finds and lands *on* the next occurrence of `<char>` (inclusive when paired with `d` or `c`).
+- `t<char>` moves *till* just before the next occurrence of `<char>` (leaving `<char>` untouched when paired with `d` or `c`).
+- Combine with `d` (delete) or `c` (change): `df_` deletes through `_`, `dt:` deletes up to `:`, and `ct:` replaces everything up to `:` and enters Insert mode.
 """
-
-# ---------------------------------------------------------------------------
 
 [[exercise]]
 id = "delete-find-delimiter"
-task = "Remove the 'legacy_' prefix including the underscore from the function call on line 2."
+task = "Delete the 'folder_' prefix (including the underscore '_') on line 2 using 'df_'."
 start = "fixtures/motions-02/delete-find-delimiter.start.kata"
 goal = "fixtures/motions-02/delete-find-delimiter.goal.kata"
 par_edits = 1
 max_edits = 2
 cursor = [2, 5]
-hint = "Delete forward through the delimiter character."
+hint = "Use 'df_' to delete from the cursor through and including the first '_' character."
 
 [exercise.forbid]
 backspace_run = 3
 
-# ---------------------------------------------------------------------------
-
 [[exercise]]
 id = "delete-till-char"
-task = "Clear the default address value inside the socket string on line 2, keeping the port and quotes."
+task = "Delete 'building1' inside the quotes on line 2 while keeping ':room-204' (press dt:)."
 start = "fixtures/motions-02/delete-till-char.start.kata"
 goal = "fixtures/motions-02/delete-till-char.goal.kata"
 par_edits = 1
 max_edits = 2
 cursor = [2, 17]
-hint = "Delete forward up to, but not including, the delimiter character."
+hint = "Use 'dt:' (delete till ':') to remove 'building1' while leaving the ':' delimiter intact."
 
 [exercise.forbid]
 backspace_run = 3
 
-# ---------------------------------------------------------------------------
-
 [[exercise]]
 id = "change-till-char"
-task = "Change the status field name on line 2 to 'state', keeping the trailing colon."
+task = "Change 'status_note' to 'state' on line 2 while keeping the colon ':' (press ct:, type 'state', then press Esc)."
 start = "fixtures/motions-02/change-till-char.start.kata"
 goal = "fixtures/motions-02/change-till-char.goal.kata"
 par_edits = 1
 max_edits = 2
 cursor = [2, 5]
-hint = "Change text forward up to the delimiter."
+hint = "Use 'ct:' to delete up to the colon ':' and enter Insert mode in a single step, then type 'state' and press 'Esc'."
 
 [exercise.forbid]
 backspace_run = 3
 
-# ---------------------------------------------------------------------------
-# Not drillable — routes to zedkata-agent as a guided walkthrough.
-
 [[walkthrough]]
 id = "single-line-find-scope"
-title = "Single-line find scope and repeat motions in Zed"
+title = "Single-line find motions and repeat (; / ,)"
 prompt = """
-Explain Zed's single-line character search behavior (`\"multiline\": false`). In standard Vim, find
-motions (`f`/`t`) can optionally cross line boundaries depending on plugins. In Zed's native Vim
-emulation, character searches are strictly scoped to the active line. Demonstrate navigating across
-multiple instances of a character on a line using `;` (repeat forward) and `,` (repeat backward),
-and explain how Zed safely confines search motions to prevent unexpected multiline jumps.
+In both Vim and Zed, `f`, `F`, `t`, and `T` search strictly within the **current line** (`vim.multiline_find_char` defaults to `false`).
+
+When a line contains multiple occurrences of your target character:
+1. Press `f<char>` or `t<char>` once to jump to the first match.
+2. Press `;` to repeat the last find motion in the same direction, or `,` to repeat it in the opposite direction.
+3. Combine with an operator (`df<char>`, `dt<char>`, `cf<char>`, `ct<char>`) for surgical single-edit changes without counting words.
 """

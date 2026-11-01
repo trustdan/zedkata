@@ -1,4 +1,3 @@
-pub fn bind_service() -> SocketAddr {
-    let addr = "127.0.0.1:8080";
-    addr.parse().expect("valid address")
-}
+Conference Schedule:
+    room_label "building1:room-204"
+    speaker_name "Alex Rivera"

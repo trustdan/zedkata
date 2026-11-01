@@ -1,6 +1,4 @@
-pub fn parse_header(val: u8) -> &'static str {
-    match val {
-    0x01 => "START",
-        _ => "UNKNOWN",
-    }
-}
+Morning Routine:
+    - Make coffee
+- Check calendar
+    - Reply to messages

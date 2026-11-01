@@ -1,6 +1,3 @@
-pub fn dispatch_event(
-    target listener: &mut Listener,
-    payload: &[u8],
-) -> Result<(), DispatchError> {
-    listener.handle(payload)
-}
+Shopping List:
+    random apples and oranges
+    fresh bread from bakery

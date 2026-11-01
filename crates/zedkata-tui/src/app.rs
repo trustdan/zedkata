@@ -255,6 +255,36 @@ impl App {
         }
     }
 
+    /// Returns `(1-based line number, before_line, after_line)` for the first line that
+    /// differs between the start and goal fixtures of the currently selected exercise.
+    pub fn current_exercise_target_preview(&self) -> Option<(usize, String, String)> {
+        let FixtureStatus::Available {
+            start_path,
+            goal_path,
+        } = self.current_exercise_fixture_status()
+        else {
+            return None;
+        };
+        let start_text = std::fs::read_to_string(start_path).ok()?;
+        let goal_text = std::fs::read_to_string(goal_path).ok()?;
+        let start_lines: Vec<&str> = start_text.lines().collect();
+        let goal_lines: Vec<&str> = goal_text.lines().collect();
+        let max_len = start_lines.len().max(goal_lines.len());
+        for idx in 0..max_len {
+            let s = start_lines.get(idx).copied().unwrap_or("");
+            let g = goal_lines.get(idx).copied().unwrap_or("");
+            if s != g {
+                let (before, after) = if s.trim() == g.trim() {
+                    (s.to_string(), g.to_string())
+                } else {
+                    (s.trim().to_string(), g.trim().to_string())
+                };
+                return Some((idx + 1, before, after));
+            }
+        }
+        None
+    }
+
     /// Move to the next lesson in the curriculum list.
     pub fn next_lesson(&mut self) {
         let total = self.lessons().len();

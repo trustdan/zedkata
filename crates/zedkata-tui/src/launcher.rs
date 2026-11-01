@@ -221,10 +221,10 @@ pub fn prepare_exercise_buffer(
     Ok(dest_path)
 }
 
-/// Spawns Zed CLI with the formatted launch target using separate arguments.
+/// Spawns Zed CLI with the formatted launch target in the existing Zed window (`-e`).
 pub fn spawn_zed_process(zed_bin: &Path, target_arg: &str) -> Result<Child, LauncherError> {
     Command::new(zed_bin)
-        .arg("-n")
+        .arg("-e")
         .arg(target_arg)
         .spawn()
         .map_err(|source| LauncherError::ZedExecutionError {
@@ -237,7 +237,7 @@ pub fn spawn_zed_process(zed_bin: &Path, target_arg: &str) -> Result<Child, Laun
 /// 1. Checks prerequisites (returns error if lesson is locked).
 /// 2. Locates Zed executable (returns error if missing).
 /// 3. Prepares writable exercise buffer (returns error if copy fails).
-/// 4. Spawns Zed CLI process with separate arguments (`-n`, `target_arg`).
+/// 4. Spawns Zed CLI process with separate arguments (`-e`, `target_arg`).
 /// 5. ONLY upon successful CLI spawn, updates active attempt in `session.json`.
 ///
 /// Guarantees: Missing CLI or copy failure does NOT leave a false active state.

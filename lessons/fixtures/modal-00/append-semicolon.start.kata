@@ -1,4 +1,3 @@
-pub fn build_url() -> String {
-    let endpoint = "https://api.zed.dev"
-    format!("{}/v1/status", endpoint)
-}
+Meeting Reminder:
+    Bring the printed agenda to Room 204
+    Confirm snacks with the front desk.

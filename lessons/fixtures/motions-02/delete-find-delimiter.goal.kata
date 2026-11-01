@@ -1,4 +1,3 @@
-pub fn process_event(event: &Event) -> Result<(), EventError> {
-    dispatch_event(event)?;
-    Ok(())
-}
+File List:
+    summer_photos.zip
+    travel_receipts_2026.pdf

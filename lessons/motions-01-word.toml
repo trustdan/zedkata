@@ -3,56 +3,49 @@ id = "motions-01-word"
 title = "Word motions"
 module = 1
 requires = []
-concepts = ["dw", "de", "w", "b", "e"]
-
+concepts = ["w", "b", "e", "dw", "de"]
+draft = false
 prose = """
-Moving word by word is the baseline of modal navigation in Zed.
-`w` jumps forward to the next word start, `e` to the word end, and `b` backward.
-Combined with the `d` operator, `dw` deletes from the cursor through the word,
-while `de` deletes to the end of the word. Practice clean, single-operation edits.
+Moving one letter at a time with `h` and `l` is slow. Word motions let you move and delete by whole words in Normal mode:
+- `w` jumps forward to the start of the next word; `b` jumps backward to the start of a word; `e` jumps to the end of a word.
+- Combine `d` (delete) with a word motion: `dw` deletes from the cursor to the start of the next word (including the trailing space), while `de` deletes to the end of the current word (keeping the space after it).
 """
-
-# ---------------------------------------------------------------------------
 
 [[exercise]]
 id = "delete-word-arg"
-task = "Delete the unused parameter name 'target' on line 2."
+task = "Delete the extra word 'random ' (and its trailing space) on line 2 using 'dw'."
 start = "fixtures/motions-01/delete-word-arg.start.kata"
 goal = "fixtures/motions-01/delete-word-arg.goal.kata"
 par_edits = 1
 max_edits = 2
 cursor = [2, 5]
-hint = "A single word deletion will remove the identifier and trailing space."
+hint = "A single word deletion ('dw') will remove the word and its trailing space."
 
 [exercise.forbid]
 backspace_run = 3
 
-# ---------------------------------------------------------------------------
-
 [[exercise]]
 id = "delete-to-word-end"
-task = "Delete the suffix 'Error' from the struct name on line 1."
+task = "Delete 'Draft' from the end of 'TeamDraft' on line 1 while keeping the space after it (press de)."
 start = "fixtures/motions-01/delete-to-word-end.start.kata"
 goal = "fixtures/motions-01/delete-to-word-end.goal.kata"
 par_edits = 1
 max_edits = 2
 cursor = [1, 19]
-hint = "Delete forward to the end of the current word."
+hint = "Delete forward to the end of the current word with 'de' so the space before '(Monday)' is preserved."
 
 [exercise.forbid]
 backspace_run = 3
 
-# ---------------------------------------------------------------------------
-
 [[exercise]]
 id = "delete-word-binding"
-task = "Remove the unused 'mut' binding modifier on line 2."
+task = "Move forward one word with 'w' and delete 'old ' on line 2 with 'dw'."
 start = "fixtures/motions-01/delete-word-binding.start.kata"
 goal = "fixtures/motions-01/delete-word-binding.goal.kata"
 par_edits = 1
 max_edits = 2
 cursor = [2, 5]
-hint = "Advance to the target word before deleting."
+hint = "Advance to the target word with 'w' before deleting it with 'dw'."
 
 [exercise.forbid]
 backspace_run = 3

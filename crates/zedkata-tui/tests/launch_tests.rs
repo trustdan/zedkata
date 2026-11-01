@@ -323,8 +323,8 @@ fn test_successful_launch_with_mock_runner() {
     if args_log.is_file() {
         let logged = std::fs::read_to_string(&args_log).unwrap();
         assert!(
-            logged.contains("-n"),
-            "Expected mock runner to receive -n flag: {}",
+            logged.contains("-e"),
+            "Expected mock runner to receive -e flag: {}",
             logged
         );
         assert!(

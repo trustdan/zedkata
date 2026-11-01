@@ -7,6 +7,10 @@ use std::time::Duration;
 pub fn handle_event(app: &mut App, event: Event) -> Result<()> {
     match event {
         Event::Key(key) => {
+            if key.kind != event::KeyEventKind::Press {
+                return Ok(());
+            }
+
             // Ctrl+C abort
             if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('c') {
                 app.quit();
@@ -150,6 +154,18 @@ mod tests {
         handle_event(
             &mut app,
             make_key_event(KeyCode::Char('?'), KeyModifiers::NONE),
+        )?;
+        assert!(app.show_hint);
+
+        // Windows emits KeyEventKind::Release on key up; must not untoggle hint
+        handle_event(
+            &mut app,
+            Event::Key(KeyEvent {
+                code: KeyCode::Char('?'),
+                modifiers: KeyModifiers::NONE,
+                kind: KeyEventKind::Release,
+                state: KeyEventState::NONE,
+            }),
         )?;
         assert!(app.show_hint);
 
